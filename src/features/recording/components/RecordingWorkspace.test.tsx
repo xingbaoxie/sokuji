@@ -38,7 +38,7 @@ import { recordingService } from '../services/recordingService';
 
 beforeEach(() => {
   useRecordingJobStore.setState({
-    file: null, metadata: null, config: defaultRecordingJobConfig(), jobs: [], loading: false, error: null,
+    file: null, config: defaultRecordingJobConfig(), jobs: [], loading: false, error: null,
     credentialConfigured: false, runtimeBaseUrl: '', runtimeStatuses: {
       'private-moss': { state: 'ready', engineId: 'moss', modelId: 'MOSS', backend: 'vllm', profileRevision: 'rev-1' },
       'private-funasr': { state: 'disabled', engineId: 'funasr-meeting' },
@@ -64,6 +64,9 @@ describe('RecordingWorkspace', () => {
 
   it('shows a short user-facing failure instead of the raw provider log', () => {
     expect(formatJobFailure({ code: 'ALIYUN_CLOUD_FAILED', message: "Hostname/IP does not match certificate's altnames" }, 'zh_CN')).toBe('[失败] 对象存储连接失败');
+    expect(formatJobFailure({ code: 'AUDIO_UNREADABLE', message: 'hidden internal details' }, 'zh_CN')).toBe('[失败] 远端无法读取音频文件');
+    expect(formatJobFailure({ code: 'AUDIO_DURATION_EXCEEDED', message: 'hidden internal details' }, 'en')).toBe('[Failed] Audio duration exceeds the service limit');
+    expect(formatJobFailure({ code: 'PRIVATE_RUNTIME_FAILED', message: 'hidden internal details' }, 'zh_CN')).toBe('[失败] 远端转写失败');
     expect(formatJobFailure({ code: 'ALIYUN_CLOUD_FAILED', message: 'fetch failed' }, 'en')).toBe('[Failed] Cloud service could not read the audio file');
     expect(formatJobFailure(undefined, 'ja')).toBe('[失敗] クラウド文字起こしに失敗しました');
   });

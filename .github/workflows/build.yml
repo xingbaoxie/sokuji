@@ -155,8 +155,6 @@ jobs:
         shell: bash
         run: |
           test -f resources/bin/win32-x64/sokuji-audio-host.exe
-          test -f resources/bin/win32-x64/ffprobe.exe
-          resources/bin/win32-x64/ffprobe.exe -version
 
       - name: Verify the helper was produced
         if: runner.os == 'macOS'

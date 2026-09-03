@@ -108,14 +108,6 @@ Used via [@ricky0123/vad-web](https://github.com/ricky0123/vad-web).
 | Hugging Face Transformers.js | Apache 2.0 | [huggingface/transformers.js](https://github.com/huggingface/transformers.js) |
 | ONNX Runtime Web | MIT | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime) |
 
-## Windows audio metadata inspection
-
-| Component | Version | License | Source |
-|-----------|---------|---------|--------|
-| FFmpeg `ffprobe.exe` (Windows x64) | 5.1.0 | GPL-3.0 | [@ffprobe-installer/win32-x64](https://www.npmjs.com/package/@ffprobe-installer/win32-x64) |
-
-The packaged file is `resources/bin/win32-x64/ffprobe.exe` (SHA-256: `f28c4751e7367205267025aaf0fcfc921e34d9b7edaa46bd9c8abaf367fc9051`). It is used only to inspect a selected recording's metadata before transcription.
-
 ## License Notes
 
 - **CC-BY-NC 4.0** (MMS, Omnilingual 300M): Non-commercial use only.

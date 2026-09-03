@@ -3,7 +3,6 @@ import { recordingService } from '../services/recordingService';
 import {
   defaultRecordingJobConfig,
   type RecordingAudioFile,
-  type RecordingAudioMetadata,
   type RecordingJobConfig,
   type RecordingJobSummary,
 } from '../types/recording';
@@ -11,7 +10,6 @@ import type { AliyunCloudProfileStatus, PrivateRuntimeStatus } from '../services
 
 interface RecordingJobStore {
   file: RecordingAudioFile | null;
-  metadata: RecordingAudioMetadata | null;
   config: RecordingJobConfig;
   jobs: RecordingJobSummary[];
   loading: boolean;
@@ -22,6 +20,7 @@ interface RecordingJobStore {
   aliyunProfile: AliyunCloudProfileStatus | null;
   artifactPreview: { jobId: string; fileName: string; content: string; truncated: boolean } | null;
   setFile: (file: RecordingAudioFile | null) => void;
+  setDroppedFile: (file: File) => void;
   setConfig: (update: Partial<RecordingJobConfig>) => void;
   setRuntimeBaseUrl: (runtimeBaseUrl: string) => void;
   pickFile: () => Promise<void>;
@@ -40,7 +39,6 @@ interface RecordingJobStore {
 
 export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
   file: null,
-  metadata: null,
   config: defaultRecordingJobConfig(),
   jobs: [],
   loading: false,
@@ -50,17 +48,19 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
   runtimeStatuses: {},
   aliyunProfile: null,
   artifactPreview: null,
-  setFile: (file) => set({ file, metadata: null, error: null }),
+  setFile: (file) => set({ file, error: null }),
+  setDroppedFile: (droppedFile) => {
+    const file = recordingService.droppedAudioFile(droppedFile);
+    if (!file) return set({ error: 'Only M4A, MP3, WAV, AAC, or FLAC audio files are supported.' });
+    set({ file, error: null });
+  },
   setConfig: (update) => set((state) => ({ config: { ...state.config, ...update }, error: null })),
   setRuntimeBaseUrl: (runtimeBaseUrl) => set({ runtimeBaseUrl }),
   pickFile: async () => {
     set({ loading: true, error: null });
     try {
       const file = await recordingService.pickAudioFile();
-      if (file) {
-        const metadata = await recordingService.probeAudioFile(file);
-        set({ file, metadata });
-      }
+      if (file) set({ file });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to select an audio file.' });
     } finally {
@@ -80,7 +80,7 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
     set({ loading: true, error: null });
     try {
       const job = await recordingService.startJob(file);
-      set((state) => ({ jobs: [job, ...state.jobs], file: null, metadata: null }));
+      set((state) => ({ jobs: [job, ...state.jobs], file: null }));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to create the recording job.' });
     } finally {

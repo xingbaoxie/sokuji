@@ -1,11 +1,23 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BailianClient, buildSpeechParameters, normalizeTranscript, parseMarkerBatch, parseSummary, translateSegments } from './aliyun-cloud-client.js';
+import { AliyunOssClient, BailianClient, buildSpeechParameters, normalizeTranscript, parseMarkerBatch, parseSummary, translateSegments } from './aliyun-cloud-client.js';
 
 const profile = { workspaceId: 'workspace1', dashscopeApiKey: 'not-exposed' };
 
 describe('Aliyun Cloud client', () => {
   it('maps language, hotwords and diarization into Filetrans parameters', () => {
     expect(buildSpeechParameters({ sourceLanguageMode: 'fixed', sourceLanguage: 'ja', hotwords: ['Sokuji'] })).toEqual({ channel_id: [0], diarization_enabled: true, language_hints: ['ja'], vocabulary: { Sokuji: 4 } });
+  });
+
+  it('converts OSS multipart progress into a UI-safe percentage', async () => {
+    const multipartUpload = vi.fn().mockImplementation(async (_key, _path, options) => {
+      options.progress(0.427);
+      options.progress(1);
+      return { res: { status: 200 } };
+    });
+    const progress = [];
+    const oss = new AliyunOssClient(profile, { multipartUpload });
+    await oss.upload('recordings/a.m4a', '/tmp/a.m4a', { onUploadProgress: (value) => progress.push(value) });
+    expect(progress).toEqual([42, 99]);
   });
 
   it('submits an async Filetrans task using the Beijing workspace endpoint', async () => {

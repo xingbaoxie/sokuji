@@ -44,3 +44,9 @@ async def save_uploaded_audio(upload, directory: Path) -> dict:
         "sizeBytes": total,
         "sha256": digest.hexdigest(),
     }
+
+
+def remove_uploaded_audio(uploaded: dict | None) -> None:
+    """Remove a rejected upload before it becomes an orphaned Runtime input."""
+    if uploaded and uploaded.get("inputPath"):
+        Path(uploaded["inputPath"]).unlink(missing_ok=True)

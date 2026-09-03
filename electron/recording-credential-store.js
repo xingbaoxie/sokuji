@@ -43,11 +43,18 @@ class RecordingCredentialStore {
   }
 
   async save(profileId, secret, runtimeBaseUrl = '') {
-    if (!profileId || typeof secret !== 'string' || secret.length === 0) throw new Error('A profile id and secret are required.');
-    this.requireEncryption();
+    if (!profileId || typeof secret !== 'string') throw new Error('A profile id and credential value are required.');
     const document = await this.readAll();
-    const encrypted = this.safeStorage.encryptString(secret).toString('base64');
-    document.profiles[profileId] = { encrypted, runtimeBaseUrl: normalizeRuntimeBaseUrl(runtimeBaseUrl), updatedAt: new Date().toISOString() };
+    const existing = document.profiles[profileId] || {};
+    // Settings are persisted field-by-field, just like subtitle provider
+    // settings.  An incomplete Runtime profile is valid storage but cannot be
+    // resolved for a job until it has both a URL and a token.
+    const next = { ...existing, runtimeBaseUrl: normalizeRuntimeBaseUrl(runtimeBaseUrl), updatedAt: new Date().toISOString() };
+    if (secret.length > 0) {
+      this.requireEncryption();
+      next.encrypted = this.safeStorage.encryptString(secret).toString('base64');
+    }
+    document.profiles[profileId] = next;
     await mkdir(path.dirname(credentialFile(this.app)), { recursive: true, mode: 0o700 });
     await writeAtomic(credentialFile(this.app), document);
   }

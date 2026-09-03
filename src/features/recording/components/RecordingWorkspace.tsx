@@ -22,6 +22,11 @@ export function formatJobFailure(error: { code: string; message: string; provide
   const locale = language.toLowerCase();
   const text = (zh: string, ja: string, en: string) => locale.startsWith('zh') ? zh : locale.startsWith('ja') ? ja : en;
 
+  if (error?.code === 'AUDIO_UNREADABLE') return text('[失败] 远端无法读取音频文件', '[失敗] リモートで音声ファイルを読み取れません', '[Failed] Runtime could not read the audio file');
+  if (error?.code === 'AUDIO_DURATION_EXCEEDED') return text('[失败] 音频时长超出服务限制', '[失敗] 音声の長さがサービス制限を超えています', '[Failed] Audio duration exceeds the service limit');
+  if (error?.code === 'AUDIO_VALIDATOR_UNAVAILABLE') return text('[失败] 远端 Runtime 未就绪', '[失敗] リモート Runtime の準備ができていません', '[Failed] Remote Runtime is not ready');
+  if (error?.code === 'PRIVATE_RUNTIME_FAILED') return text('[失败] 远端转写失败', '[失敗] リモート文字起こしに失敗しました', '[Failed] Remote transcription failed');
+
   if (/certificate|hostname|tls|oss.*(?:endpoint|host)|(?:endpoint|host).*oss/.test(source)) {
     return text('[失败] 对象存储连接失败', '[失敗] オブジェクトストレージに接続できません', '[Failed] Object storage connection failed');
   }
@@ -56,12 +61,12 @@ function visibleArtifacts(job: { config: { translation?: { enabled?: boolean }; 
 const RecordingWorkspace: React.FC = () => {
   const { t, i18n } = useTranslation();
   const file = useRecordingJobStore((state) => state.file);
-  const metadata = useRecordingJobStore((state) => state.metadata);
   const jobs = useRecordingJobStore((state) => state.jobs);
   const loading = useRecordingJobStore((state) => state.loading);
   const error = useRecordingJobStore((state) => state.error);
   const artifactPreview = useRecordingJobStore((state) => state.artifactPreview);
   const pickFile = useRecordingJobStore((state) => state.pickFile);
+  const setDroppedFile = useRecordingJobStore((state) => state.setDroppedFile);
   const hydrate = useRecordingJobStore((state) => state.hydrate);
   const start = useRecordingJobStore((state) => state.start);
   const cancel = useRecordingJobStore((state) => state.cancel);
@@ -83,11 +88,14 @@ const RecordingWorkspace: React.FC = () => {
 
   return <main className="recording-workspace" aria-label={t('recording.title')}>
     <header className="recording-workspace__header"><h1>{t('recording.title')}</h1></header>
-    <section className="recording-section" aria-labelledby="recording-file-title">
+    <section className="recording-section" aria-labelledby="recording-file-title" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+      event.preventDefault();
+      const droppedFile = event.dataTransfer.files.item(0);
+      if (droppedFile) setDroppedFile(droppedFile);
+    }}>
       <h2 id="recording-file-title">{t('recording.audio.title')}</h2>
       <button className="recording-file-picker" type="button" onClick={() => void pickFile()} disabled={loading}><Upload size={18} aria-hidden="true" /><span>{file ? file.name : t('recording.audio.choose')}</span></button>
       <p className="recording-hint">{t('recording.audio.formats')}</p>
-      {metadata && <p className="recording-hint">{t('recording.audio.metadata', { duration: Math.ceil(metadata.durationSeconds), codec: metadata.codec, sampleRate: metadata.sampleRate ? `${metadata.sampleRate} Hz` : t('recording.audio.sampleRateUnknown') })}</p>}
       {error && <p className="recording-error" role="alert">{error}</p>}
       <button className="recording-start" type="button" onClick={() => void start()} disabled={loading || !file}>{loading ? <LoaderCircle className="recording-spinner" size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}{t('recording.startTranscription')}</button>
     </section>

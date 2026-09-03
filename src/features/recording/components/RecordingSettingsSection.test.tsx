@@ -34,6 +34,7 @@ beforeEach(() => {
   service.aliyunProfileStatus.mockResolvedValue({ configured: false, region: 'beijing' });
   service.providerStatus.mockResolvedValue({ state: 'unconfigured' });
   service.saveProcessingSettings.mockImplementation(async (config) => config);
+  service.saveProfileCredential.mockImplementation(async (profileId: string, _token: string, runtimeBaseUrl: string) => ({ profileId, credentialConfigured: Boolean(_token), runtimeBaseUrl }));
 });
 
 describe('RecordingSettingsSection', () => {
@@ -70,6 +71,21 @@ describe('RecordingSettingsSection', () => {
     render(<RecordingSettingsSection />);
     await screen.findByText('recording.connection.summary_aliyun');
     expect(screen.getAllByDisplayValue('qwen3.8-max')).toHaveLength(1);
+  });
+
+  it('persists a pasted Runtime URL and token immediately, without waiting for card blur', async () => {
+    render(<RecordingSettingsSection />);
+    await waitFor(() => expect(service.profileStatus).toHaveBeenCalledTimes(4));
+    const url = screen.getByLabelText('Runtime URL');
+    fireEvent.paste(url, { clipboardData: { getData: () => 'http://runtime.internal:8080' } });
+    fireEvent.change(url, { target: { value: 'http://runtime.internal:8080' } });
+    expect(url).toHaveValue('http://runtime.internal:8080');
+    await waitFor(() => expect(service.saveProfileCredential).toHaveBeenCalledWith('speech.private-moss', '', 'http://runtime.internal:8080'));
+
+    const token = screen.getByLabelText('recording.runtimeToken');
+    fireEvent.paste(token, { clipboardData: { getData: () => 'pasted-token' } });
+    fireEvent.change(token, { target: { value: 'pasted-token' } });
+    await waitFor(() => expect(service.saveProfileCredential).toHaveBeenLastCalledWith('speech.private-moss', 'pasted-token', 'http://runtime.internal:8080'));
   });
 
 });

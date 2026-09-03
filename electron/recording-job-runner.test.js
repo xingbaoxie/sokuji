@@ -28,6 +28,28 @@ describe('recording job runner', () => {
     expect(stages.filter(([stage, status]) => stage === 'report.build' && status === 'completed')).toHaveLength(1);
   });
 
+  it('reports private Runtime upload progress before marking audio preparation complete', async () => {
+    const stages = [];
+    const client = {
+      submitSpeech: vi.fn().mockImplementation(async (_path, _revision, _config, options) => {
+        options.onUploadProgress(8);
+        options.onUploadProgress(64);
+        options.onUploadProgress(100);
+        return { taskId: 'speech_progress' };
+      }),
+      getTask: vi.fn().mockResolvedValue({ status: 'completed' }),
+      getResult: vi.fn().mockResolvedValue({ segments: [] }),
+      cancel: vi.fn(),
+    };
+    await runRecordingJob({ sourcePath: '/tmp/meeting.m4a', config: { translation: { enabled: false }, summary: { enabled: false } } }, client, async (...event) => stages.push(event));
+    expect(stages).toContainEqual(['audio.prepare', 'running', undefined, { progress: 8 }]);
+    expect(stages).toContainEqual(['audio.prepare', 'running', undefined, { progress: 64 }]);
+    expect(stages).not.toContainEqual(['audio.prepare', 'running', undefined, { progress: 100 }]);
+    expect(stages.findIndex(([stage, status]) => stage === 'audio.prepare' && status === 'completed')).toBeGreaterThan(
+      stages.findIndex(([stage, status, _task, detail]) => stage === 'audio.prepare' && detail?.progress === 64),
+    );
+  });
+
   it('uses the stage-specific private clients after speech completes', async () => {
     const speech = { submitSpeech: vi.fn().mockResolvedValue({ taskId: 'speech' }), getTask: vi.fn().mockResolvedValue({ status: 'completed' }), getResult: vi.fn().mockResolvedValue({ segments: [] }), cancel: vi.fn() };
     const translation = { submit: vi.fn().mockResolvedValue({ taskId: 'translation' }), getTask: vi.fn().mockResolvedValue({ status: 'completed' }), getResult: vi.fn().mockResolvedValue({ segments: [] }), cancel: vi.fn() };

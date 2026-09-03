@@ -65,7 +65,6 @@ export const INVOKE_CHANNELS = [
   'native-host:status',
   // Recording transcription Phase 1 desktop bridge
   'recording:pick-audio',
-  'recording:probe-audio',
   'recording:start-job',
   'recording:settings-get',
   'recording:settings-save',

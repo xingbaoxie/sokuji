@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { AUDIO_EXTENSIONS, createStageRuns, executeAliyunCloudJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, publicJob, runtimeArtifacts, validateStartPayload } from './recording-job-bridge.js';
+import { AUDIO_EXTENSIONS, createStageRuns, executeAliyunCloudJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, validateStartPayload } from './recording-job-bridge.js';
 
 const config = { speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss', modelId: '' }, translation: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'source' } };
 
@@ -15,6 +15,12 @@ describe('recording job bridge', () => {
 
   it('rejects an unsupported source file before persisting a job', () => {
     expect(() => validateStartPayload({ file: { path: '/tmp/recording.ogg', name: 'recording.ogg' }, config })).toThrow(/unsupported audio/i);
+  });
+
+  it('keeps Runtime media failures structured for the renderer without preserving raw response bodies', () => {
+    expect(privateRuntimeFailureDetails({ code: 'AUDIO_UNREADABLE', status: 422, message: 'Runtime could not read the audio file' })).toEqual({
+      code: 'AUDIO_UNREADABLE', httpStatus: 422, message: 'Runtime could not read the audio file',
+    });
   });
 
   it('projects only the renderer-safe job fields', () => {

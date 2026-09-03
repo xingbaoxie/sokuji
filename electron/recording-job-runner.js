@@ -20,17 +20,54 @@ function mergeTranscriptAndTranslation(transcriptSegments = [], translation = nu
   });
 }
 
+function createUploadProgressReporter(onStage, stage) {
+  let lastProgress = -1;
+  let closed = false;
+  let failure = null;
+  let queue = Promise.resolve();
+
+  const report = (value) => {
+    const progress = Math.max(0, Math.min(99, Math.floor(Number(value) || 0)));
+    if (closed || progress <= lastProgress) return;
+    lastProgress = progress;
+    // Stream callbacks cannot await persistence. Serialize updates so a late
+    // write never replaces a newer percentage in the job snapshot.
+    queue = queue.then(async () => {
+      try { await onStage(stage, 'running', undefined, { progress }); }
+      catch (error) { failure ||= error; }
+    });
+  };
+
+  return {
+    report,
+    async finish() {
+      closed = true;
+      await queue;
+      if (failure) throw failure;
+    },
+  };
+}
+
 async function runRecordingJob(job, speechClient, onStage, { translationClient = speechClient, summaryClient = speechClient, cloudAdapter = null } = {}) {
   const taskIds = {};
-  await onStage('audio.prepare', 'running');
-  await onStage('audio.prepare', 'completed');
-  await onStage('speech.execute', 'running');
   const persistedSpeechTaskId = job.remoteTaskIds?.speech || job.stageRuns?.find((stage) => stage.stage === 'speech.execute')?.remoteTaskId;
   if (persistedSpeechTaskId) {
+    await onStage('audio.prepare', 'completed');
+    await onStage('speech.execute', 'running');
     taskIds.speech = persistedSpeechTaskId;
     await onStage('speech.execute', 'running', persistedSpeechTaskId);
   } else {
-    const speech = await speechClient.submitSpeech(job.sourcePath, job.config.speech?.profileRevision || job.config.profileRevision || 'development', job.config);
+    await onStage('audio.prepare', 'running', undefined, { progress: 0 });
+    const upload = createUploadProgressReporter(onStage, 'audio.prepare');
+    const speech = await speechClient.submitSpeech(
+      job.sourcePath,
+      job.config.speech?.profileRevision || job.config.profileRevision || 'development',
+      job.config,
+      { onUploadProgress: upload.report },
+    );
+    await upload.finish();
+    await onStage('audio.prepare', 'completed');
+    await onStage('speech.execute', 'running');
     taskIds.speech = speech.taskId;
     await onStage('speech.execute', 'running', speech.taskId);
   }
@@ -75,4 +112,4 @@ async function runRecordingJob(job, speechClient, onStage, { translationClient =
   return { transcript, translation, summary, taskIds };
 }
 
-module.exports = { mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask };
+module.exports = { createUploadProgressReporter, mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask };

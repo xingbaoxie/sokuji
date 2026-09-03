@@ -26,4 +26,9 @@ describe('native / sidecar IPC channels are exposed', () => {
     const src = readFileSync(join(__dirname, 'preload.js'), 'utf8');
     expect(src).toContain("'sidecar-bundle-progress'");
   });
+
+  it('exposes only Electron webUtils path resolution for a user-dropped File', () => {
+    const src = readFileSync(join(__dirname, 'preload.js'), 'utf8');
+    expect(src).toContain('webUtils.getPathForFile(file)');
+  });
 });

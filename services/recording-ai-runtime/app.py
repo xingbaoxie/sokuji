@@ -12,7 +12,8 @@ from runtime_config import RuntimeConfig
 from funasr_worker_client import FunAsrWorkerClient
 from moss_worker_client import MossWorkerClient
 from task_store import TaskStore
-from upload_store import save_uploaded_audio
+from audio_probe import AudioValidationError, validate_audio
+from upload_store import remove_uploaded_audio, save_uploaded_audio
 
 config = RuntimeConfig.from_environment()
 store = TaskStore(config.data_root / "tasks" / "tasks.sqlite3")
@@ -98,12 +99,21 @@ async def submit_speech(
     profile = config.speech_profile(engine)
     if not config.fake_runtime and engine not in speech_executors:
         raise HTTPException(status_code=409, detail=f"Speech Worker {engine} is not enabled")
+    uploaded = None
     try:
         uploaded = await save_uploaded_audio(audio, config.data_root / "inputs")
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     finally:
         await audio.close()
+    try:
+        validate_audio(Path(uploaded["inputPath"]), int(profile.get("validatedMaxDurationSec") or 0))
+    except AudioValidationError as error:
+        remove_uploaded_audio(uploaded)
+        raise HTTPException(status_code=422, detail={"code": error.code, "message": str(error)}) from error
+    except RuntimeError as error:
+        remove_uploaded_audio(uploaded)
+        raise HTTPException(status_code=503, detail={"code": "AUDIO_VALIDATOR_UNAVAILABLE", "message": "Runtime media validator is unavailable"}) from error
     return await coordinator.submit("speech", {
         "profileRevision": profile_revision, "engine": engine, "sourceLanguageMode": source_language_mode,
         **({"sourceLanguage": source_language} if source_language else {}), "hotwords": list(dict.fromkeys(parsed_hotwords)), **uploaded,

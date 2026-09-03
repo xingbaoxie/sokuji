@@ -26,6 +26,8 @@ const RecordingSettingsSection: React.FC = () => {
   const [statuses, setStatuses] = useState<Record<string, RecordingProviderStatus>>({});
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({});
   const [savingProfile, setSavingProfile] = useState<string | null>(null);
+  const privateDraftsRef = useRef<Record<string, PrivateDraft>>({});
+  const privateSaveQueues = useRef<Record<string, Promise<void>>>({});
   const cloudSaveQueues = useRef<Record<string, Promise<void>>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [statusRevision, setStatusRevision] = useState(0);
@@ -52,7 +54,11 @@ const RecordingSettingsSection: React.FC = () => {
     ]);
     const privateStatus = Object.fromEntries(privateEntries); const cloudStatus = Object.fromEntries(cloudEntries);
     setConfig(saved); setCatalog(nextCatalog); setPrivateProfiles(privateStatus); setCloudProfiles(cloudStatus);
-    setPrivateDrafts((current) => Object.fromEntries(PROFILE_IDS.map((id) => [id, { runtimeBaseUrl: current[id]?.runtimeBaseUrl ?? privateStatus[id].runtimeBaseUrl ?? '', token: current[id]?.token ?? privateStatus[id].secret ?? '' }])));
+    setPrivateDrafts((current) => {
+      const next = Object.fromEntries(PROFILE_IDS.map((id) => [id, { runtimeBaseUrl: current[id]?.runtimeBaseUrl ?? privateStatus[id].runtimeBaseUrl ?? '', token: current[id]?.token ?? privateStatus[id].secret ?? '' }]));
+      privateDraftsRef.current = next;
+      return next;
+    });
     setCloudDrafts((current) => Object.fromEntries(CLOUD_PROFILE_IDS.map((id) => {
       const status = cloudStatus[id];
       return [id, { ...current[id], workspaceId: current[id]?.workspaceId ?? status.workspaceId ?? '', apiBaseUrl: current[id]?.apiBaseUrl ?? status.apiBaseUrl ?? '', modelId: current[id]?.modelId ?? status.modelId ?? '', ossBucket: current[id]?.ossBucket ?? status.ossBucket ?? '', ossEndpoint: current[id]?.ossEndpoint ?? status.ossEndpoint ?? '', objectPrefix: current[id]?.objectPrefix ?? status.objectPrefix ?? 'sokuji-recordings', dashscopeApiKey: current[id]?.dashscopeApiKey ?? status.dashscopeApiKey ?? '', ossAccessKeyId: current[id]?.ossAccessKeyId ?? status.ossAccessKeyId ?? '', ossAccessKeySecret: current[id]?.ossAccessKeySecret ?? status.ossAccessKeySecret ?? '' }];
@@ -67,7 +73,27 @@ const RecordingSettingsSection: React.FC = () => {
   }, [config.speech.providerId, config.speech.connectionProfileId, config.speech.engineId, config.translation.enabled, config.translation.providerId, config.translation.connectionProfileId, config.summary.enabled, config.summary.providerId, config.summary.connectionProfileId, statusRevision]);
   const persist = async (next: RecordingJobConfig) => { setConfig(next); setNotice(null); try { setConfig(await recordingService.saveProcessingSettings(next)); } catch (error) { setNotice(error instanceof Error ? error.message : t('recording.settingsSaveFailed')); } };
   const update = (patch: Partial<RecordingJobConfig>) => void persist({ ...config, ...patch });
-  const savePrivate = async (profileId: string) => { const draft = privateDrafts[profileId]; if (!draft?.token.trim()) return; setSavingProfile(profileId); try { await recordingService.saveProfileCredential(profileId, draft.token.trim(), draft.runtimeBaseUrl.trim()); await refresh(); setStatusRevision((value) => value + 1); } catch (error) { setNotice(error instanceof Error ? error.message : t('recording.settingsSaveFailed')); } finally { setSavingProfile(null); } };
+  const savePrivate = (profileId: string, draft: PrivateDraft) => {
+    setNotice(null);
+    setSavingProfile(profileId);
+    const previous = privateSaveQueues.current[profileId] || Promise.resolve();
+    const queued = previous.catch(() => undefined).then(async () => {
+      const saved = await recordingService.saveProfileCredential(profileId, draft.token.trim(), draft.runtimeBaseUrl.trim());
+      setPrivateProfiles((current) => ({ ...current, [profileId]: saved }));
+    });
+    privateSaveQueues.current[profileId] = queued;
+    void queued.catch((error) => {
+      if (privateSaveQueues.current[profileId] === queued) setNotice(error instanceof Error ? error.message : t('recording.settingsSaveFailed'));
+    }).finally(() => {
+      if (privateSaveQueues.current[profileId] === queued) setSavingProfile((current) => current === profileId ? null : current);
+    });
+  };
+  const setPrivateDraft = (profileId: string, patch: Partial<PrivateDraft>) => {
+    const next = { ...(privateDraftsRef.current[profileId] || { runtimeBaseUrl: '', token: '' }), ...patch };
+    privateDraftsRef.current = { ...privateDraftsRef.current, [profileId]: next };
+    setPrivateDrafts((current) => ({ ...current, [profileId]: next }));
+    savePrivate(profileId, next);
+  };
   const saveCloudPatch = (profileId: string, patch: CloudDraft) => {
     setNotice(null);
     setSavingProfile(profileId);
@@ -83,7 +109,7 @@ const RecordingSettingsSection: React.FC = () => {
     });
   };
   const SecretInput = ({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (next: string) => void; placeholder?: string }) => { const visible = Boolean(visibleSecrets[id]); return <span className="recording-settings__secret-input"><input type={visible ? 'text' : 'password'} value={value} placeholder={placeholder} autoComplete="off" onChange={(event) => onChange(event.target.value)} /><button type="button" aria-label={t('recording.toggleSecret')} aria-pressed={visible} onClick={() => setVisibleSecrets((old) => ({ ...old, [id]: !old[id] }))}>{visible ? <EyeOff size={16} /> : <Eye size={16} />}</button></span>; };
-  const PrivateCard = ({ profileId }: { profileId: string }) => { const draft = privateDrafts[profileId] || { runtimeBaseUrl: '', token: '' }; const current = statuses[statusKey(profileId.startsWith('speech') ? 'speech' : profileId.startsWith('translation') ? 'translation' : 'summary', profileId)]; return <section className="recording-settings__service-card" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) void savePrivate(profileId); }}><div className="recording-settings__card-heading"><div><h3>{profileLabel(profileId)}</h3><p className={`recording-settings__state is-${current?.state || 'unconfigured'}`}>{stateText(current)}</p></div>{savingProfile === profileId && <LoaderCircle className="recording-spinner" size={16} />}</div><div className="recording-settings__form-grid"><label>Runtime URL<input type="url" value={draft.runtimeBaseUrl} placeholder="http://192.168.50.186:8080" onChange={(event) => setPrivateDrafts((old) => ({ ...old, [profileId]: { ...draft, runtimeBaseUrl: event.target.value } }))} /></label><label>{t('recording.runtimeToken')}<SecretInput id={`${profileId}:token`} value={draft.token} placeholder={privateProfiles[profileId]?.credentialConfigured ? t('recording.tokenSaved') : ''} onChange={(token) => setPrivateDrafts((old) => ({ ...old, [profileId]: { ...draft, token } }))} /></label></div></section>; };
+  const PrivateCard = ({ profileId }: { profileId: string }) => { const draft = privateDrafts[profileId] || { runtimeBaseUrl: '', token: '' }; const current = statuses[statusKey(profileId.startsWith('speech') ? 'speech' : profileId.startsWith('translation') ? 'translation' : 'summary', profileId)]; return <section className="recording-settings__service-card" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setStatusRevision((value) => value + 1); }}><div className="recording-settings__card-heading"><div><h3>{profileLabel(profileId)}</h3><p className={`recording-settings__state is-${current?.state || 'unconfigured'}`}>{stateText(current)}</p></div>{savingProfile === profileId && <LoaderCircle className="recording-spinner" size={16} />}</div><div className="recording-settings__form-grid"><label>Runtime URL<input type="url" value={draft.runtimeBaseUrl} placeholder="http://192.168.50.186:8080" onChange={(event) => setPrivateDraft(profileId, { runtimeBaseUrl: event.target.value })} /></label><label>{t('recording.runtimeToken')}<SecretInput id={`${profileId}:token`} value={draft.token} placeholder={privateProfiles[profileId]?.credentialConfigured ? t('recording.tokenSaved') : ''} onChange={(token) => setPrivateDraft(profileId, { token })} /></label></div></section>; };
   const CloudCard = ({ profileId, speech = false }: { profileId: string; speech?: boolean }) => {
     const draft = cloudDrafts[profileId] || {};
     const endpoint = draft.apiBaseUrl || '';

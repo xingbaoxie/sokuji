@@ -1,17 +1,14 @@
-const { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } = require('fs/promises');
+const { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const { probeAudioFile } = require('./audio-probe');
-const { mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask } = require('./recording-job-runner');
+const { createUploadProgressReporter, mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask } = require('./recording-job-runner');
 const { privateSpeechEngine, RecordingRuntimeClient } = require('./recording-runtime-client');
 const { PROVIDER_IDS, RecordingProviderRegistry, STAGES, normalizeSelection, selectedSpeechCapability } = require('./recording-provider-registry');
-const { normalizeForCloudSpeech } = require('./audio-normalize');
 const { AliyunOssClient, BailianClient, normalizeTranscript, objectKey, summarizeSegments, translateSegments } = require('./aliyun-cloud-client');
 const { SPEECH_PROFILE_IDS, TEXT_PROFILE_IDS } = require('./recording-processing-settings');
 
 const AUDIO_EXTENSIONS = new Set(['.m4a', '.mp3', '.wav', '.aac', '.flac']);
 const activeRuntimeClients = new Map();
-const CLOUD_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 function jobsRoot(app) {
   return path.join(app.getPath('userData'), 'recording-jobs');
@@ -94,10 +91,11 @@ async function materializeRuntimeArtifacts(app, job, result) {
   return { ...job, artifacts: generated.map(({ kind, fileName }) => ({ kind, fileName })) };
 }
 
-async function updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId) {
+async function updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId, details = {}) {
   const job = await loadJob(app, jobId);
   if (job.status === 'cancelled') return;
-  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : 50, ...(remoteTaskId ? { remoteTaskId } : {}) } : run);
+  const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
+  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...(remoteTaskId ? { remoteTaskId } : {}) } : run);
   await saveAtomic(jobPath(app, jobId), { ...job, status: remoteTaskId ? 'waiting_remote' : 'running', stageRuns, updatedAt: new Date().toISOString() });
 }
 
@@ -109,7 +107,7 @@ async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients =
       await saveAtomic(jobPath(app, jobId), { ...job, status: 'cancelled', cancellationRequested: false, updatedAt: new Date().toISOString() });
       return;
     }
-    const result = await runRecordingJob(job, speechClient, (stage, status, remoteTaskId) => updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId), stageClients);
+    const result = await runRecordingJob(job, speechClient, (stage, status, remoteTaskId, details) => updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId, details), stageClients);
     const latest = await loadJob(app, jobId);
     if (latest.status === 'cancelled') return;
     const completed = await materializeRuntimeArtifacts(app, { ...latest, status: 'completed', remoteTaskIds: result.taskIds }, result);
@@ -121,7 +119,7 @@ async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients =
     if (job.cancellationRequested) {
       await saveAtomic(jobPath(app, jobId), { ...job, status: 'cancelled', cancellationRequested: false, updatedAt: new Date().toISOString() });
     } else if (job.status !== 'cancelled') {
-      await saveAtomic(jobPath(app, jobId), { ...job, status: 'failed', error: { code: 'PRIVATE_RUNTIME_FAILED', message: error instanceof Error ? error.message : 'Private Runtime job failed.' }, updatedAt: new Date().toISOString() });
+      await saveAtomic(jobPath(app, jobId), { ...job, status: 'failed', error: privateRuntimeFailureDetails(error), updatedAt: new Date().toISOString() });
     }
   } finally {
     activeRuntimeClients.delete(jobId);
@@ -131,11 +129,21 @@ async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients =
 async function updateCloudStage(app, jobId, stage, status, details = {}) {
   const job = await loadJob(app, jobId);
   if (job.status === 'cancelled') return job;
-  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : 50, ...details } : run);
+  const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
+  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...details } : run);
   const jobStatus = job.status === 'completed' ? 'completed' : status === 'waiting_remote' ? 'waiting_remote' : 'running';
   const next = { ...job, status: jobStatus, stageRuns, ...(details.cloud ? { cloud: { ...(job.cloud || {}), ...details.cloud } } : {}), updatedAt: new Date().toISOString() };
   await saveAtomic(jobPath(app, jobId), next);
   return next;
+}
+
+function privateRuntimeFailureDetails(error) {
+  const message = typeof error?.message === 'string' ? error.message : 'Private Runtime job failed.';
+  return {
+    code: typeof error?.code === 'string' && error.code ? error.code : 'PRIVATE_RUNTIME_FAILED',
+    message,
+    ...(Number.isFinite(error?.status) && error.status > 0 ? { httpStatus: error.status } : {}),
+  };
 }
 
 function cloudFailureDetails(error) {
@@ -179,18 +187,19 @@ async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = nu
     let transcript;
     let taskId = job.cloud?.externalTaskId;
     if (!taskId) {
-      const sourceStat = await stat(job.sourcePath);
-      if (sourceStat.size > CLOUD_MAX_BYTES) throw new Error('Aliyun Cloud supports audio files up to 2 GiB.');
-      const metadata = await probeAudioFile(job.sourcePath);
-      await updateCloudStage(app, jobId, 'audio.prepare', 'running');
-      let uploadPath = job.sourcePath;
-      if ((metadata.channels || 1) > 1) uploadPath = await normalizeForCloudSpeech(job.sourcePath, path.join(path.dirname(jobPath(app, jobId)), 'cloud-temp'));
-      await updateCloudStage(app, jobId, 'audio.prepare', 'completed', { cloud: { tempUploadPath: uploadPath === job.sourcePath ? undefined : uploadPath } });
+      // The desktop app deliberately treats a selected file as opaque.  Media
+      // validity belongs to Filetrans; do not locally probe or remux it.
+      await updateCloudStage(app, jobId, 'audio.prepare', 'running', { progress: 0 });
       job = await loadJob(app, jobId);
-      const key = objectKey(profile, jobId, path.basename(uploadPath));
+      const key = objectKey(profile, jobId, path.basename(job.sourcePath));
+      const upload = createUploadProgressReporter(
+        (stage, status, _remoteTaskId, details) => updateCloudStage(app, jobId, stage, status, details),
+        'audio.prepare',
+      );
+      await oss.upload(key, job.sourcePath, { onUploadProgress: upload.report });
+      await upload.finish();
+      await updateCloudStage(app, jobId, 'audio.prepare', 'completed');
       await updateCloudStage(app, jobId, 'speech.execute', 'running', { cloud: { ossObjectKey: key, cleanupAfter: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() } });
-      await oss.upload(key, uploadPath);
-      if (uploadPath !== job.sourcePath) await rm(uploadPath, { force: true });
       const submitted = await client.submitFiletrans(await oss.signedGetUrl(key), job.config);
       if (!submitted.externalTaskId) throw new Error('Bailian Filetrans did not return a task id.');
       taskId = submitted.externalTaskId;
@@ -419,15 +428,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     const filePath = result.filePaths[0];
-    const fileStat = await stat(filePath);
-    return { path: filePath, name: path.basename(filePath), extension: path.extname(filePath).toLowerCase(), sizeBytes: fileStat.size };
-  });
-
-  ipcMain.handle('recording:probe-audio', async (_event, payload) => {
-    if (!payload?.path || !AUDIO_EXTENSIONS.has(path.extname(payload.path).toLowerCase())) {
-      throw new Error('Unsupported audio file type.');
-    }
-    return probeAudioFile(payload.path);
+    return { path: filePath, name: path.basename(filePath), extension: path.extname(filePath).toLowerCase() };
   });
 
   const startPrivateRuntimeJob = async (payload) => {
@@ -437,11 +438,6 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     const engine = privateSpeechEngine(config);
     const selectedCapability = selectedSpeechCapability(capabilities, engine);
     if (!selectedCapability?.available) throw new Error(`The private Runtime ${engine} speech worker is not enabled or has not passed its benchmark.`);
-    const metadata = await probeAudioFile(file.path);
-    const maximumDuration = Math.min(90 * 60, Number(selectedCapability.validatedMaxDurationSec) || 90 * 60);
-    if (metadata.durationSeconds && metadata.durationSeconds > maximumDuration) {
-      throw new Error(`This Runtime profile accepts recordings up to ${maximumDuration} seconds.`);
-    }
     let translationClient = null;
     let translationProfileRevision = '';
     let summaryClient = null;
@@ -666,4 +662,4 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
   })().catch(() => undefined);
 }
 
-module.exports = { AUDIO_EXTENSIONS, CLOUD_MAX_BYTES, createStageRuns, executeAliyunCloudJob, executePrivateRuntimeJob, getJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, publicJob, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, validateStartPayload, registerRecordingJobBridge };
+module.exports = { AUDIO_EXTENSIONS, createStageRuns, executeAliyunCloudJob, executePrivateRuntimeJob, getJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, validateStartPayload, registerRecordingJobBridge };

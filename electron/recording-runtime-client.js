@@ -19,6 +19,15 @@ function privateSpeechEngine(config) {
   throw new Error('A private Runtime speech selection is required.');
 }
 
+class RecordingRuntimeError extends Error {
+  constructor(message, { code, status } = {}) {
+    super(message);
+    this.name = 'RecordingRuntimeError';
+    if (code) this.code = code;
+    if (status) this.status = status;
+  }
+}
+
 class RecordingRuntimeClient {
   constructor({ baseUrl, token, request = null }) {
     this.url = validateRuntimeConnection(baseUrl, token);
@@ -37,7 +46,7 @@ class RecordingRuntimeClient {
     return this.json('POST', `/v1/${type}/tasks`, { profileRevision, ...(modelId ? { modelId } : {}), payload: stagePayload });
   }
 
-  async submitSpeech(audioPath, profileRevision, config) {
+  async submitSpeech(audioPath, profileRevision, config, { onUploadProgress } = {}) {
     const source = await fs.promises.stat(audioPath);
     const boundary = `----sokuji-${Date.now().toString(16)}`;
     const fileName = path.basename(audioPath).replace(/"/g, '_');
@@ -68,7 +77,23 @@ class RecordingRuntimeClient {
       request.on('error', (error) => reject(new Error(`Runtime speech upload failed: ${error.message}`)));
       request.write(prefix);
       const input = fs.createReadStream(audioPath);
+      let uploadedBytes = 0;
+      let lastProgress = -1;
+      const reportProgress = () => {
+        if (!onUploadProgress || source.size <= 0) return;
+        // Keep 100% for the point at which the Runtime has accepted the
+        // complete multipart request, rather than merely read it locally.
+        const progress = Math.min(99, Math.floor((uploadedBytes / source.size) * 100));
+        if (progress > lastProgress) {
+          lastProgress = progress;
+          onUploadProgress(progress);
+        }
+      };
       input.on('error', (error) => request.destroy(error));
+      input.on('data', (chunk) => {
+        uploadedBytes += chunk.length;
+        reportProgress();
+      });
       input.on('end', () => request.end(suffix));
       input.pipe(request, { end: false });
     });
@@ -95,10 +120,17 @@ class RecordingRuntimeClient {
     response.on('error', reject);
     response.on('end', () => {
       const text = Buffer.concat(chunks).toString('utf8');
-      if (response.statusCode >= 400) return reject(new Error(`Runtime returned HTTP ${response.statusCode}: ${text.slice(0, 500)}`));
+      if (response.statusCode >= 400) {
+        let payload;
+        try { payload = JSON.parse(text); } catch { /* use a generic public message */ }
+        const detail = payload?.detail;
+        const message = typeof detail === 'string' ? detail : typeof detail?.message === 'string' ? detail.message : 'Runtime request failed.';
+        const code = typeof detail?.code === 'string' ? detail.code : undefined;
+        return reject(new RecordingRuntimeError(message, { code, status: response.statusCode }));
+      }
       try { resolve(JSON.parse(text)); } catch { reject(new Error('Runtime returned invalid JSON.')); }
     });
   }
 }
 
-module.exports = { RecordingRuntimeClient, privateSpeechEngine, validateRuntimeConnection };
+module.exports = { RecordingRuntimeClient, RecordingRuntimeError, privateSpeechEngine, validateRuntimeConnection };

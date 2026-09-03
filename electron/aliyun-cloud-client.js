@@ -108,7 +108,11 @@ async function summarizeSegments(client, config, segments) {
 
 class AliyunOssClient {
   constructor(profile, client = null) { this.profile = profile; this.client = client || new OSS({ region: 'oss-cn-beijing', endpoint: profile.ossEndpoint, accessKeyId: profile.ossAccessKeyId, accessKeySecret: profile.ossAccessKeySecret, bucket: profile.ossBucket }); }
-  upload(key, sourcePath) { return this.client.multipartUpload(key, sourcePath); }
+  upload(key, sourcePath, { onUploadProgress } = {}) {
+    return this.client.multipartUpload(key, sourcePath, {
+      progress: (percentage) => onUploadProgress?.(Math.min(99, Math.floor(Number(percentage) * 100))),
+    });
+  }
   signedGetUrl(key, expiresSeconds = 24 * 60 * 60) { return this.client.signatureUrl(key, { expires: expiresSeconds, method: 'GET' }); }
   remove(key) { return this.client.delete(key); }
 }

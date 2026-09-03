@@ -45,14 +45,6 @@ export interface RecordingAudioFile {
   sizeBytes?: number;
 }
 
-export interface RecordingAudioMetadata {
-  durationSeconds: number;
-  codec: string;
-  sampleRate: number | null;
-  channels: number | null;
-  format: string;
-}
-
 export interface RecordingJobSummary {
   jobId: string;
   sourceFileName: string;

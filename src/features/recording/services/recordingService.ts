@@ -1,7 +1,15 @@
-import type { RecordingAudioFile, RecordingAudioMetadata, RecordingJobConfig, RecordingJobSummary, RecordingProviderId, RecordingSpeechEngineId } from '../types/recording';
+import type { RecordingAudioFile, RecordingJobConfig, RecordingJobSummary, RecordingProviderId, RecordingSpeechEngineId } from '../types/recording';
 
 interface RecordingDesktopApi {
   invoke(channel: string, data?: unknown): Promise<unknown>;
+  getPathForFile(file: File): string;
+}
+
+export const SUPPORTED_RECORDING_AUDIO_EXTENSIONS = ['.m4a', '.mp3', '.wav', '.aac', '.flac'] as const;
+
+export function isSupportedRecordingAudioFile(fileName: string): boolean {
+  const normalized = fileName.trim().toLowerCase();
+  return SUPPORTED_RECORDING_AUDIO_EXTENSIONS.some((extension) => normalized.endsWith(extension));
 }
 
 export interface RecordingProfileStatus {
@@ -79,8 +87,11 @@ export const recordingService = {
   async providerCatalog(): Promise<RecordingProviderCatalog> { return desktopApi().invoke('recording:provider-catalog') as Promise<RecordingProviderCatalog>; },
   async providerStatus(stage: 'speech' | 'translation' | 'summary', selection: RecordingJobConfig['speech'] | RecordingJobConfig['translation'] | RecordingJobConfig['summary']): Promise<RecordingProviderStatus> { return desktopApi().invoke('recording:provider-status', { stage, selection }) as Promise<RecordingProviderStatus>; },
 
-  async probeAudioFile(file: RecordingAudioFile): Promise<RecordingAudioMetadata> {
-    return desktopApi().invoke('recording:probe-audio', { path: file.path }) as Promise<RecordingAudioMetadata>;
+  droppedAudioFile(file: File): RecordingAudioFile | null {
+    if (!isSupportedRecordingAudioFile(file.name)) return null;
+    const filePath = desktopApi().getPathForFile(file);
+    if (!filePath) return null;
+    return { path: filePath, name: file.name, extension: file.name.slice(file.name.lastIndexOf('.')).toLowerCase() };
   },
 
   async listJobs(): Promise<RecordingJobSummary[]> {
