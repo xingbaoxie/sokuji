@@ -1,0 +1,96 @@
+@use '../../../components/Settings/shared/variables' as vars;
+
+.recording-workspace {
+  box-sizing: border-box;
+  width: min(100%, 860px);
+  min-height: 0;
+  margin: 0 auto;
+  padding: vars.$space-6 vars.$space-5 48px;
+  color: vars.$text-primary;
+}
+
+.recording-workspace--unavailable {
+  min-height: 100%;
+  display: grid;
+  place-content: center;
+  gap: vars.$space-3;
+  text-align: center;
+  color: vars.$text-secondary;
+}
+
+.recording-workspace__header { margin-bottom: vars.$space-5; }
+.recording-workspace__header h1 { margin: 0; font-size: 22px; font-weight: vars.$weight-semibold; }
+
+.recording-section {
+  margin-top: vars.$space-3;
+  padding: vars.$space-4;
+  background: vars.$bg-surface;
+  border: 1px solid vars.$border-subtle;
+  border-radius: vars.$radius-lg;
+}
+
+.recording-section h2 { margin: 0; font-size: vars.$font-title; font-weight: vars.$weight-semibold; }
+.recording-section__heading { display: flex; align-items: center; gap: vars.$space-2; margin-bottom: vars.$space-3; }
+.recording-hint { margin: vars.$space-2 0 0; color: vars.$text-muted; font-size: vars.$font-caption; line-height: 1.5; }
+
+.recording-file-picker,
+.recording-start,
+.recording-cancel {
+  border: 0;
+  border-radius: vars.$radius-md;
+  cursor: pointer;
+  font: inherit;
+  transition: background-color vars.$transition-fast, border-color vars.$transition-fast, opacity vars.$transition-fast;
+}
+
+.recording-file-picker {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: vars.$space-3;
+  padding: 10px vars.$space-3;
+  color: vars.$text-primary;
+  background: rgba(255, 255, 255, .02);
+  border: 1px dashed vars.$border-strong;
+  text-align: left;
+
+  &:hover:not(:disabled) { background: rgba(255, 255, 255, .05); border-color: vars.$color-primary; }
+}
+
+.recording-start { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: vars.$space-2; margin-top: vars.$space-4; padding: 0 vars.$space-4; color: #fff; background: vars.$color-primary; font-weight: vars.$weight-semibold; }
+.recording-start:hover:not(:disabled) { background: vars.$color-primary-hover; }
+.recording-start:disabled, .recording-file-picker:disabled { @include vars.disabled-state; }
+.recording-spinner { animation: recording-spin 1s linear infinite; }
+.recording-error { @include vars.status-box(vars.$color-error, vars.$color-error-bg, vars.$color-error-border); margin: vars.$space-3 0 0; }
+
+.recording-history ul { margin: 0; padding: 0; list-style: none; }
+.recording-history li { display: flex; align-items: center; justify-content: space-between; gap: vars.$space-3; padding: vars.$space-3 0; border-top: 1px solid vars.$border-subtle; }
+.recording-history li:first-child { border-top: 0; }
+.recording-history li > div { min-width: 0; display: grid; gap: 3px; }
+.recording-history li > div > span { color: vars.$text-muted; font-size: vars.$font-caption; }
+.recording-job-error { display: inline-flex; align-items: center; gap: 5px; margin: 2px 0 0; color: #ffb3b3; font-size: vars.$font-caption; font-weight: vars.$weight-medium; line-height: 1.4; }
+.recording-stage-progress, .recording-artifacts { display: flex !important; flex-wrap: wrap; gap: vars.$space-1; margin-top: vars.$space-1; }
+.recording-stage-progress span { padding: 2px 5px; border-radius: vars.$radius-sm; color: vars.$text-secondary; background: vars.$bg-control; font-size: 10px !important; }
+.recording-stage-progress .is-running { color: #b8f5e7; background: rgba(vars.$color-primary, .2); }
+.recording-stage-progress .is-completed { color: #b8f5e7; background: rgba(vars.$color-success, .2); }
+.recording-stage-progress .is-failed { color: #ffb3b3; background: rgba(vars.$color-error, .16); }
+.recording-cancel { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: #ffb3b3; background: rgba(vars.$color-error, .12); }
+.recording-artifacts span { display: inline-flex; }
+.recording-artifacts button { min-height: 28px; display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0 7px; color: vars.$text-secondary; background: vars.$bg-control; cursor: pointer; font: inherit; font-size: 11px; }
+.recording-artifacts button:first-child { border-radius: vars.$radius-sm 0 0 vars.$radius-sm; }
+.recording-artifacts button:last-child { border-left: 1px solid vars.$border-default; border-radius: 0 vars.$radius-sm vars.$radius-sm 0; }
+.recording-artifact-preview { margin-top: vars.$space-3; padding-top: vars.$space-3; border-top: 1px solid vars.$border-subtle; }
+.recording-artifact-preview h3 { margin: 0 0 vars.$space-2; font-size: vars.$font-body; font-weight: vars.$weight-semibold; }
+.recording-artifact-preview pre { max-height: 360px; overflow: auto; margin: 0; padding: vars.$space-3; border-radius: vars.$radius-md; background: vars.$bg-page; color: vars.$text-secondary; font-size: vars.$font-caption; white-space: pre-wrap; word-break: break-word; }
+
+.recording-workspace button:focus-visible,
+.recording-workspace input:focus-visible,
+.recording-workspace select:focus-visible,
+.recording-workspace summary:focus-visible { @include vars.focus-ring; }
+
+@keyframes recording-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 620px) {
+  .recording-workspace { padding: vars.$space-4 vars.$space-3 32px; }
+}

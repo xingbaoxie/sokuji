@@ -1,0 +1,78 @@
+async function waitForRemoteTask(client, taskId, { pollMs = 1500, timeoutMs = 2 * 60 * 60 * 1000, maxPolls = Infinity } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (let attempt = 0; attempt < maxPolls && Date.now() < deadline; attempt += 1) {
+    const task = await client.getTask(taskId);
+    if (task.status === 'completed') return client.getResult(taskId);
+    if (task.status === 'failed' || task.status === 'cancelled') throw new Error(task.error?.message || `Remote task ${taskId} ${task.status}.`);
+    if (attempt + 1 < maxPolls && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, Math.max(0, deadline - Date.now()))));
+    }
+  }
+  await client.cancel(taskId);
+  throw new Error(`Remote task ${taskId} timed out after ${Math.round(timeoutMs / 1000)} seconds.`);
+}
+
+function mergeTranscriptAndTranslation(transcriptSegments = [], translation = null) {
+  const translatedById = new Map((translation?.segments || []).map((segment) => [segment.id, segment]));
+  return transcriptSegments.map((segment) => {
+    const translated = translatedById.get(segment.id);
+    return translated?.translatedText === undefined ? segment : { ...segment, translatedText: translated.translatedText };
+  });
+}
+
+async function runRecordingJob(job, speechClient, onStage, { translationClient = speechClient, summaryClient = speechClient, cloudAdapter = null } = {}) {
+  const taskIds = {};
+  await onStage('audio.prepare', 'running');
+  await onStage('audio.prepare', 'completed');
+  await onStage('speech.execute', 'running');
+  const persistedSpeechTaskId = job.remoteTaskIds?.speech || job.stageRuns?.find((stage) => stage.stage === 'speech.execute')?.remoteTaskId;
+  if (persistedSpeechTaskId) {
+    taskIds.speech = persistedSpeechTaskId;
+    await onStage('speech.execute', 'running', persistedSpeechTaskId);
+  } else {
+    const speech = await speechClient.submitSpeech(job.sourcePath, job.config.speech?.profileRevision || job.config.profileRevision || 'development', job.config);
+    taskIds.speech = speech.taskId;
+    await onStage('speech.execute', 'running', speech.taskId);
+  }
+  const transcript = await waitForRemoteTask(speechClient, taskIds.speech);
+  await onStage('speech.execute', 'completed');
+  let translation = null;
+  if (job.config.translation?.enabled) {
+    await onStage('translation.execute', 'running');
+    if (job.config.translation.providerId === 'aliyun-cloud') {
+      if (!cloudAdapter) throw new Error('Aliyun Cloud translation is not configured.');
+      translation = await cloudAdapter.translate(job.config, transcript.segments);
+    } else {
+      const request = await translationClient.submit('translation', { profileRevision: job.config.translation.profileRevision || 'development', modelId: job.config.translation.modelId, segments: transcript.segments.map((segment) => ({ ...segment, sourceText: segment.text })) });
+      taskIds.translation = request.taskId;
+      await onStage('translation.execute', 'running', request.taskId);
+      translation = await waitForRemoteTask(translationClient, request.taskId);
+    }
+    await onStage('translation.execute', 'completed');
+  }
+  let summary = null;
+  if (job.config.summary?.enabled) {
+    const summarySegments = mergeTranscriptAndTranslation(transcript.segments, translation);
+    await onStage('summary.execute', 'running');
+    if (job.config.summary.providerId === 'aliyun-cloud') {
+      if (!cloudAdapter) throw new Error('Aliyun Cloud summary is not configured.');
+      summary = await cloudAdapter.summarize(job.config, summarySegments);
+    } else {
+      const request = await summaryClient.submit('summary', {
+        profileRevision: job.config.summary.profileRevision || 'development', modelId: job.config.summary.modelId,
+        inputMode: job.config.summary.inputMode, segments: summarySegments,
+      });
+      taskIds.summary = request.taskId;
+      await onStage('summary.execute', 'running', request.taskId);
+      summary = await waitForRemoteTask(summaryClient, request.taskId);
+    }
+    await onStage('summary.execute', 'completed');
+  }
+  if (job.config.summary?.enabled) {
+    await onStage('report.build', 'running');
+    await onStage('report.build', 'completed');
+  }
+  return { transcript, translation, summary, taskIds };
+}
+
+module.exports = { mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask };

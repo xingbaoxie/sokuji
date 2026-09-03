@@ -1,0 +1,118 @@
+export type RecordingProviderId = 'private-runtime' | 'aliyun-cloud';
+export type RecordingSpeechEngineId = 'moss' | 'funasr-meeting' | 'aliyun-filetrans';
+
+export type SourceLanguageMode = 'auto' | 'mixed' | 'fixed';
+
+export type RecordingJobStatus =
+  | 'queued'
+  | 'running'
+  | 'waiting_remote'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface RecordingJobConfig {
+  speech: {
+    providerId: RecordingProviderId;
+    connectionProfileId: string;
+    engineId: RecordingSpeechEngineId;
+    modelId: string;
+    modelRevision?: string;
+    profileRevision?: string;
+  };
+  sourceLanguageMode: SourceLanguageMode;
+  sourceLanguage?: string;
+  targetLanguage: string;
+  hotwords?: string[];
+  translation: { enabled: boolean; providerId: RecordingProviderId; connectionProfileId: string; modelId: string; modelRevision?: string; profileRevision?: string };
+  summary: {
+    enabled: boolean;
+    providerId: RecordingProviderId;
+    connectionProfileId: string;
+    modelId: string;
+    modelRevision?: string;
+    profileRevision?: string;
+    templateId: string;
+    inputMode: 'source' | 'translated' | 'bilingual';
+    reportLanguage: string;
+  };
+}
+
+export interface RecordingAudioFile {
+  path: string;
+  name: string;
+  extension: string;
+  sizeBytes?: number;
+}
+
+export interface RecordingAudioMetadata {
+  durationSeconds: number;
+  codec: string;
+  sampleRate: number | null;
+  channels: number | null;
+  format: string;
+}
+
+export interface RecordingJobSummary {
+  jobId: string;
+  sourceFileName: string;
+  sourcePath: string;
+  status: RecordingJobStatus;
+  config: RecordingJobConfig;
+  createdAt: string;
+  updatedAt: string;
+  /** Recorded locally when all requested output files have been generated. */
+  completedAt?: string;
+  stageRuns: RecordingStageRun[];
+  artifacts: RecordingArtifact[];
+  error?: { code: string; message: string; providerCode?: string; httpStatus?: number; requestId?: string };
+  cancellationRequested?: boolean;
+}
+
+export interface RecordingArtifact {
+  kind: 'transcript-json' | 'subtitle-srt' | 'translation-json' | 'summary-json' | 'report-markdown';
+  fileName: string;
+}
+
+export interface RecordingStageRun {
+  stage: 'audio.prepare' | 'speech.execute' | 'translation.execute' | 'summary.execute' | 'report.build' | 'cloud.cleanup';
+  status: 'pending' | 'running' | 'waiting_remote' | 'completed' | 'failed' | 'cancelled';
+  progress: number;
+  externalTaskId?: string;
+  requestId?: string;
+  error?: string;
+  errorCode?: string;
+}
+
+export function defaultRecordingJobConfig(): RecordingJobConfig {
+  return {
+    speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss', modelId: '' },
+    sourceLanguageMode: 'auto',
+    targetLanguage: 'zh',
+    // MOSS speech currently supplies transcription only; providers that
+    // advertise additional capabilities can opt in later.
+    translation: { enabled: false, providerId: 'aliyun-cloud', modelId: 'qwen-mt-plus', connectionProfileId: 'translation.aliyun' },
+    summary: {
+      enabled: false,
+      providerId: 'aliyun-cloud',
+      modelId: 'qwen3.8-max',
+      connectionProfileId: 'summary.aliyun',
+      templateId: 'meeting-report-v1',
+      inputMode: 'bilingual',
+      reportLanguage: 'zh',
+    },
+  };
+}
+
+export function validateRecordingJobConfig(config: RecordingJobConfig): string | null {
+  if (config.sourceLanguageMode === 'fixed' && !config.sourceLanguage) {
+    return 'Choose a source language when using fixed language mode.';
+  }
+  if (config.summary.enabled && config.summary.inputMode === 'translated' && !config.translation.enabled) {
+    return 'Translated summary input requires translation to be enabled.';
+  }
+  if (config.summary.enabled && config.summary.inputMode === 'bilingual' && !config.translation.enabled) {
+    return 'Bilingual summary input requires translation to be enabled.';
+  }
+  return null;
+}

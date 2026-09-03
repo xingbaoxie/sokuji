@@ -1,0 +1,2205 @@
+@use 'shared/variables' as vars;
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  color: vars.$text-primary;
+
+  .settings-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.settings-category-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 15px 0;
+  border-bottom: 1px solid vars.$border-subtle;
+
+  button {
+    min-height: 34px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0 10px;
+    color: vars.$text-muted;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+
+    &.is-active { color: vars.$text-primary; border-bottom-color: vars.$color-primary; }
+    &:focus-visible { @include vars.focus-ring; }
+  }
+}
+
+// Shared section styles that apply to both modes
+.config-section,
+.settings-section {
+  margin-bottom: vars.$space-5;
+  padding-bottom: vars.$space-5;
+  border-bottom: 1px solid vars.$border-subtle;
+  transition: background-color vars.$transition-normal;
+  position: relative;
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  &.translate-info-banner {
+    .info-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 12px;
+      background: rgba(16, 163, 127, 0.1);
+      border: 1px solid rgba(16, 163, 127, 0.3);
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.4;
+
+      svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: #10a37f;
+      }
+    }
+  }
+
+  &.highlight {
+    animation: pulse-highlight 2s ease-out;
+    border-radius: vars.$radius-lg;
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+
+    .tooltip-trigger {
+      pointer-events: auto;
+    }
+  }
+
+  .setting-description {
+    display: block;
+    font-size: vars.$font-caption;
+    color: vars.$text-secondary;
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
+  // Why a channel is greyed (e.g. the speaker monitor outside 'You' mode). Sits
+  // between the heading and the control it justifies so the reason is read
+  // before the user tries the control, not after it refuses. Pulled up against
+  // the heading's own margin-bottom to read as part of it.
+  .section-locked-reason {
+    margin-top: -6px;
+    margin-bottom: vars.$space-3;
+    color: vars.$text-muted;
+  }
+
+  h3, h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px 0;
+    font-size: vars.$font-title;
+    font-weight: vars.$weight-semibold;
+    color: vars.$text-primary;
+    position: relative;
+
+    .section-refresh-button {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: vars.$text-disabled;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: vars.$radius-sm;
+      transition: all 0.2s;
+
+      &:hover:not(:disabled) {
+        color: vars.$text-muted;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      &:disabled {
+        @include vars.disabled-state;
+      }
+
+      &:focus-visible {
+        @include vars.focus-ring;
+      }
+
+      svg {
+        width: 14px;
+        height: 14px;
+
+        &.spinning {
+          animation: spin 1s linear infinite;
+        }
+      }
+    }
+  }
+
+  .sign-in-prompt {
+    padding: 12px;
+    background: vars.$bg-page;
+    border: 1px solid vars.$border-subtle;
+    border-radius: vars.$radius-lg;
+    text-align: center;
+
+    p {
+      color: vars.$text-muted;
+      font-size: vars.$font-body;
+      margin: 0 0 10px 0;
+    }
+
+    .auth-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .sign-in-button,
+    .sign-up-button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-body;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background vars.$transition-fast;
+
+      &:focus-visible {
+        @include vars.focus-ring;
+      }
+    }
+
+    .sign-in-button {
+      background: vars.$color-primary;
+      color: vars.$text-primary;
+
+      &:hover {
+        background: vars.$color-primary-hover;
+      }
+    }
+
+    .sign-up-button {
+      background: transparent;
+      color: vars.$color-primary;
+      border: 1px solid vars.$color-primary;
+
+      &:hover {
+        background: vars.$color-success-bg;
+        border-color: vars.$color-primary-hover;
+      }
+    }
+  }
+
+  // System instructions textarea
+  .system-instructions {
+    width: 100%;
+    min-height: 120px;
+    background-color: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    border-radius: vars.$radius-sm;
+    color: vars.$text-primary;
+    padding: 10px;
+    font-size: vars.$font-caption;
+    line-height: 1.4;
+    resize: vertical;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: vars.$color-primary;
+    }
+
+    &:disabled {
+      background-color: vars.$bg-surface;
+      color: vars.$text-disabled;
+      @include vars.disabled-state;
+    }
+  }
+
+  // System instructions preview
+  .system-instructions-preview {
+    width: 100%;
+    background-color: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    border-radius: vars.$radius-sm;
+    color: vars.$text-primary;
+    font-size: vars.$font-caption;
+    line-height: 1.4;
+    box-sizing: border-box;
+    padding: 10px;
+    margin-top: 6px;
+
+    .preview-content {
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: vars.$font-caption;
+      line-height: 1.5;
+      color: vars.$text-secondary;
+      background-color: rgba(0, 0, 0, 0.2);
+      padding: 8px;
+      border-radius: vars.$radius-sm;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  }
+
+  // Setting item container
+  .setting-item {
+    margin-bottom: 12px;
+
+    .setting-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: vars.$font-body;
+
+      .setting-value {
+        color: vars.$text-muted;
+      }
+
+      .preview-toggle {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        color: vars.$text-muted;
+        font-size: vars.$font-caption;
+        // Reset defaults so <button> elements render the same as the legacy <div>
+        background: none;
+        border: none;
+        padding: 0;
+        font-family: inherit;
+
+        &:hover:not(:disabled) {
+          color: vars.$text-primary;
+        }
+
+        &:disabled {
+          cursor: not-allowed;
+        }
+
+        svg {
+          margin-left: 4px;
+          transition: transform vars.$transition-fast;
+        }
+
+        &.expanded svg {
+          transform: rotate(90deg);
+        }
+      }
+
+    }
+
+    // Provider selection wrapper with experimental icon
+    .provider-selection-wrapper {
+      display: flex;
+      align-items: center;
+      position: relative;
+      width: 100%;
+
+      .select-dropdown {
+        flex-grow: 1;
+      }
+
+      .experimental-icon-wrapper {
+        margin-left: 8px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        .experimental-icon {
+          color: vars.$color-warning;
+          transition: color vars.$transition-fast;
+
+          &:hover {
+            color: vars.$color-warning;
+          }
+        }
+
+        .experimental-tooltip {
+          visibility: hidden;
+          width: 200px;
+          background-color: vars.$bg-control;
+          color: vars.$text-primary;
+          text-align: center;
+          border-radius: vars.$radius-md;
+          padding: 8px;
+          position: absolute;
+          z-index: 10;
+          bottom: 180%;
+          right: -15px;
+          opacity: 0;
+          transition: opacity vars.$transition-normal;
+          font-weight: normal;
+          font-size: vars.$font-caption;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+          pointer-events: none;
+          line-height: 1.4;
+
+          &::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            right: 18px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: vars.$bg-control transparent transparent transparent;
+          }
+        }
+
+        &:hover .experimental-tooltip {
+          visibility: visible;
+          opacity: 1;
+        }
+      }
+    }
+
+    // Model selection container
+    .model-selection-container {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+
+      .select-dropdown {
+        flex: 1;
+      }
+
+      .refresh-models-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: vars.$bg-control;
+        border: 1px solid vars.$border-default;
+        border-radius: vars.$radius-sm;
+        color: vars.$text-secondary;
+        cursor: pointer;
+        padding: 0 12px;
+        transition: all 0.2s;
+        white-space: nowrap;
+        min-width: 40px;
+
+        span {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: vars.$font-title;
+          transition: transform 0.5s ease;
+          transform-origin: center center;
+
+          svg {
+            display: block;
+            transform-origin: center center;
+          }
+
+          &.loading {
+            animation: spin 1s linear infinite;
+          }
+        }
+
+        &:hover:not(:disabled) {
+          background-color: vars.$bg-elevated;
+          border-color: vars.$border-strong;
+        }
+
+        &:disabled {
+          @include vars.disabled-state;
+        }
+      }
+    }
+
+    // Range slider
+    .slider {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: vars.$bg-elevated;
+      outline: none;
+
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: vars.$color-primary;
+        cursor: pointer;
+      }
+
+      &::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: vars.$color-primary;
+        cursor: pointer;
+        border: none;
+      }
+
+      &:disabled {
+        @include vars.disabled-state;
+        opacity: 0.6;
+
+        &::-webkit-slider-thumb {
+          background: vars.$text-disabled;
+          cursor: not-allowed;
+        }
+
+        &::-moz-range-thumb {
+          background: vars.$text-disabled;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    // Turn detection options
+    .turn-detection-options {
+      display: flex;
+      width: 100%;
+      border-radius: vars.$radius-sm;
+      overflow: hidden;
+      border: 1px solid vars.$border-default;
+
+      .option-button {
+        flex: 1;
+        background-color: vars.$bg-control;
+        color: vars.$text-primary;
+        border: none;
+        padding: 8px 0;
+        font-size: vars.$font-body;
+        cursor: pointer;
+        transition: background-color vars.$transition-fast;
+
+        &:not(:last-child) {
+          border-right: 1px solid vars.$border-default;
+        }
+
+        &.active {
+          background-color: vars.$color-primary;
+        }
+
+        &:hover:not(.active):not(:disabled) {
+          background-color: vars.$bg-elevated;
+        }
+
+        &:disabled {
+          @include vars.disabled-state;
+          opacity: 0.6;
+
+          &.active {
+            background-color: vars.$text-disabled;
+          }
+        }
+      }
+    }
+
+    // Text input
+    .text-input {
+      width: 100%;
+      padding: 8px 10px;
+      background-color: vars.$bg-control;
+      border: 1px solid vars.$border-default;
+      border-radius: vars.$radius-sm;
+      color: vars.$text-primary;
+      font-size: vars.$font-body;
+      box-sizing: border-box;
+      transition: border-color vars.$transition-fast;
+
+      &:focus {
+        outline: none;
+        border-color: vars.$color-primary;
+      }
+
+      &::placeholder {
+        color: vars.$text-disabled;
+      }
+
+      &:disabled {
+        background-color: vars.$bg-surface;
+        color: vars.$text-disabled;
+        cursor: not-allowed;
+      }
+    }
+
+    // System instructions mode toggle button
+    .system-instructions-mode-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: vars.$bg-control;
+      border: 1px solid vars.$border-default;
+      border-radius: vars.$radius-sm;
+      color: vars.$text-secondary;
+      cursor: pointer;
+      padding: 0 12px;
+      transition: all 0.2s;
+      white-space: nowrap;
+
+      span {
+        margin-left: 5px;
+        font-size: vars.$font-body;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: vars.$bg-elevated;
+        border-color: vars.$border-strong;
+      }
+
+      &:disabled {
+        @include vars.disabled-state;
+      }
+    }
+
+    // Unlimited checkbox (for max tokens)
+    .label-with-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .unlimited-checkbox {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 12px;
+      cursor: pointer;
+      font-size: vars.$font-caption;
+      color: vars.$text-muted;
+
+      input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        margin-right: 6px;
+        cursor: pointer;
+        accent-color: vars.$color-primary;
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+      }
+
+      span {
+        user-select: none;
+      }
+
+      &:hover:not(:has(input:disabled)) {
+        color: vars.$text-secondary;
+      }
+    }
+
+    // Loading and info messages
+    .loading-status {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-caption;
+      background-color: vars.$color-info-bg;
+      color: vars.$color-info;
+    }
+
+    .models-info {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-caption;
+      background-color: vars.$color-success-bg;
+      color: vars.$color-primary;
+    }
+
+    // API key status
+    .api-key-status {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-caption;
+
+      &.success {
+        background-color: vars.$color-success-bg;
+        color: vars.$color-primary;
+      }
+
+      &.error {
+        background-color: vars.$color-error-bg;
+        color: vars.$color-error;
+      }
+
+      &.info {
+        background-color: vars.$color-info-bg;
+        color: vars.$color-info;
+      }
+    }
+  }
+}
+
+// Device list styles (shared)
+.device-list {
+  .device-option {
+    // The shared option-row dialect (see _variables.scss) — same voice as
+    // the engine picker's rows, per the 2026-08-22 unification decision.
+    @include vars.option-row;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    cursor: pointer;
+    position: relative;
+
+    &:hover:not(.disabled) {
+      @include vars.option-row-hover;
+    }
+
+    &.selected {
+      @include vars.option-row-selected;
+    }
+
+    &:focus-visible {
+      @include vars.focus-ring;
+    }
+
+    &.disabled {
+      @include vars.disabled-state;
+
+      &:hover {
+        border-color: vars.$border-subtle;
+        background: rgba(255, 255, 255, 0.02);
+      }
+    }
+
+    &.loading {
+      opacity: 0.7;
+    }
+
+    span {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .virtual-indicator {
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+  }
+}
+
+// Warning modal content styles
+.warning-modal-content {
+  text-align: center;
+  padding: 10px;
+
+  .warning-icon {
+    margin-bottom: 15px;
+  }
+
+  p {
+    margin-bottom: 10px;
+    color: vars.$text-secondary;
+    line-height: 1.5;
+
+    strong {
+      color: vars.$text-primary;
+    }
+  }
+
+  // Primary action on a permission warning: the user's next step is granting
+  // the permission, not acknowledging the message, so it sits above and reads
+  // as the affirmative choice.
+  // The alternative-path note: same weight as the body, visually set apart so
+  // it does not read as more of the same problem description.
+  .warning-note {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-left: 2px solid vars.$color-primary;
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .open-settings-button {
+    width: 100%;
+    padding: 10px 20px;
+    margin-top: 15px;
+    background-color: vars.$color-primary;
+    color: white;
+    border: none;
+    border-radius: vars.$radius-sm;
+    cursor: pointer;
+    font-size: vars.$font-title;
+    transition: background-color vars.$transition-fast;
+
+    &:hover {
+      background-color: vars.$color-primary-hover;
+    }
+
+    // The acknowledge button becomes secondary when a real action is offered.
+    + .understand-button {
+      margin-top: 8px;
+      background-color: transparent;
+      border: 1px solid var(--border-color, #444);
+      color: var(--text-secondary, #aaa);
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+      }
+    }
+  }
+
+  .understand-button {
+    width: 100%;
+    padding: 10px 20px;
+    margin-top: 15px;
+    background-color: vars.$color-primary;
+    color: white;
+    border: none;
+    border-radius: vars.$radius-sm;
+    cursor: pointer;
+    font-size: vars.$font-title;
+    transition: background-color vars.$transition-fast;
+
+    &:hover {
+      background-color: vars.$color-primary-hover;
+    }
+  }
+}
+
+// License consent modal content styles (non-commercial-licensed model downloads)
+.license-consent-modal {
+  text-align: left;
+
+  &__icon {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  p {
+    margin-bottom: 10px;
+    color: vars.$text-secondary;
+    line-height: 1.5;
+
+    strong {
+      color: vars.$text-primary;
+    }
+
+    a {
+      color: vars.$color-primary;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+
+    button {
+      flex: 1;
+      padding: 10px 20px;
+      border: none;
+      border-radius: vars.$radius-sm;
+      cursor: pointer;
+      font-size: vars.$font-title;
+      transition: background-color vars.$transition-fast;
+    }
+  }
+
+  &__cancel {
+    background-color: vars.$bg-surface;
+    color: vars.$text-primary;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &__accept {
+    background-color: vars.$color-primary;
+    color: white;
+
+    &:hover {
+      background-color: vars.$color-primary-hover;
+    }
+  }
+}
+
+// Soniox voice-cloning confirm modal (SonioxCloneConfirmModal): playback +
+// naming + the consent statement folded into the accept button. Mirrors
+// .license-consent-modal's layout above. This modal renders inside Modal's
+// .modal-content, OUTSIDE .settings-section/.config-section — the canonical
+// .text-input rule and the shared @keyframes spin below are both scoped
+// (nested selector / same-file-only convention) in ways that don't reach in
+// here, so this block is deliberately self-contained: it duplicates the
+// input treatment and defines its own spin keyframes rather than reaching
+// for either.
+.soniox-clone-confirm-modal {
+  text-align: left;
+
+  // .modal-content defines no font-size, so text here would otherwise
+  // inherit the browser's 16px default — larger than the app's body copy.
+  font-size: vars.$font-body;
+
+  p {
+    // .modal-body already pads 20px on every side — the browser's default
+    // 1em top margin on <p> stacked on top of it, doubling the gap under
+    // the title bar. Zero everything but the bottom spacing.
+    margin: 0 0 10px;
+    color: vars.$text-secondary;
+    font-size: vars.$font-body;
+    line-height: 1.5;
+  }
+
+  // Managed-account statement about where the recording goes, shown above the
+  // (hidden, for managed) name field. Smaller and dimmer than the intro copy
+  // above so it reads as a footnote, not another instruction.
+  //
+  // Element-qualified (`p#{&}__notice`, not `&__notice`): the notice IS a
+  // <p>, so an unqualified class selector (specificity 0,1,0) loses to the
+  // sibling `p` rule above (`.soniox-clone-confirm-modal p`, specificity
+  // 0,1,1), which sets the same three properties — font-size and margin
+  // silently never applied, only opacity survived. This compiles to
+  // `.soniox-clone-confirm-modal p.soniox-clone-confirm-modal__notice`
+  // (specificity 0,2,1), which beats the sibling `p` rule outright rather
+  // than needing to rely on a same-specificity source-order tiebreak.
+  // Written via `#{&}` interpolation rather than a bare leading `p&` — Dart
+  // Sass (this project's compiler) rejects `&` anywhere but the start of a
+  // compound selector, so `p&__notice` fails to build; interpolating the
+  // parent selector into a string first sidesteps that restriction.
+  p#{&}__notice {
+    margin: 0 0 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.75;
+  }
+
+  // Custom audio player replacing native <audio controls> (unstyled browser
+  // chrome that clashes with the dark design system). The real <audio>
+  // element stays mounted but visually hidden — playback state is driven by
+  // its own play/pause/timeupdate/loadedmetadata/ended events.
+  &__player {
+    display: flex;
+    align-items: center;
+    gap: vars.$space-2;
+    margin-bottom: 12px;
+    padding: vars.$space-2 vars.$space-3;
+    background-color: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    border-radius: vars.$radius-sm;
+  }
+
+  &__audio-el {
+    display: none;
+  }
+
+  &__play-toggle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: vars.$color-primary;
+    color: vars.$text-primary;
+    cursor: pointer;
+    transition: background-color vars.$transition-fast;
+
+    &:hover {
+      background-color: vars.$color-primary-hover;
+    }
+  }
+
+  &__progress {
+    flex: 1;
+    height: 4px;
+    background-color: vars.$bg-elevated;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background-color: vars.$color-primary;
+    border-radius: 2px;
+    transition: width 0.1s linear;
+  }
+
+  &__time {
+    flex-shrink: 0;
+    font-size: vars.$font-caption;
+    color: vars.$text-secondary;
+    white-space: nowrap;
+  }
+
+  // Duplicated (not inherited) from the canonical .text-input rule earlier in
+  // this file — that rule is nested under .config-section/.settings-section
+  // and never reaches this modal.
+  .text-input {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    background-color: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    border-radius: vars.$radius-sm;
+    color: vars.$text-primary;
+    font-size: vars.$font-body;
+    box-sizing: border-box;
+    transition: border-color vars.$transition-fast;
+
+    &:focus {
+      outline: none;
+      border-color: vars.$color-primary;
+    }
+
+    &::placeholder {
+      color: vars.$text-disabled;
+    }
+
+    &:disabled {
+      background-color: vars.$bg-surface;
+      color: vars.$text-disabled;
+      cursor: not-allowed;
+    }
+  }
+
+  // Usage-rights checkbox gating the confirm button. The native input is
+  // visually hidden and replaced by a drawn box so the control matches the
+  // design system instead of rendering as OS browser chrome.
+  &__consent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: vars.$text-secondary;
+    font-size: vars.$font-body;
+    cursor: pointer;
+    user-select: none;
+
+    input[type='checkbox'] {
+      position: absolute;
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+      pointer-events: none;
+    }
+
+    &-box {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      box-sizing: border-box;
+      background-color: vars.$bg-control;
+      border: 1px solid vars.$border-strong;
+      border-radius: vars.$radius-sm;
+      color: white;
+      transition: background-color vars.$transition-fast, border-color vars.$transition-fast;
+    }
+
+    input:checked + &-box {
+      background-color: vars.$color-primary;
+      border-color: vars.$color-primary;
+    }
+
+    input:focus-visible + &-box {
+      @include vars.focus-ring;
+    }
+
+    input:disabled + &-box {
+      @include vars.disabled-state;
+    }
+
+    &:hover input:not(:disabled) + &-box {
+      border-color: vars.$color-primary;
+    }
+  }
+
+  // Compact, right-aligned footer buttons matching the app's form-modal
+  // convention (.import-btn in ModelImportModal.scss) — NOT the full-width
+  // emphasis buttons of .license-consent-modal, which is a warning dialog.
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 15px;
+
+    button {
+      font: inherit;
+      font-size: vars.$font-caption;
+      font-weight: vars.$weight-semibold;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border: 1px solid vars.$border-strong;
+      border-radius: vars.$radius-md;
+      cursor: pointer;
+      transition: border-color vars.$transition-fast, background-color vars.$transition-fast;
+
+      &:disabled {
+        @include vars.disabled-state;
+      }
+
+      &:focus-visible {
+        @include vars.focus-ring;
+      }
+    }
+  }
+
+  &__cancel {
+    background-color: vars.$bg-control;
+    color: vars.$text-primary;
+
+    &:hover:not(:disabled) {
+      border-color: vars.$color-primary;
+    }
+  }
+
+  &__accept {
+    background-color: vars.$color-primary;
+    border-color: vars.$color-primary;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background-color: vars.$color-primary-hover;
+      border-color: vars.$color-primary-hover;
+    }
+  }
+
+  // Create-in-progress spinner on the accept button — local keyframes, not
+  // the shared @keyframes spin defined later in this file, so this block
+  // never depends on another rule's placement.
+  &__spinner {
+    animation: soniox-clone-confirm-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes soniox-clone-confirm-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Volume control styles
+.volume-control {
+  margin-top: 12px;
+  padding: 12px;
+  background: vars.$bg-surface;
+  border-radius: vars.$radius-md;
+
+  .setting-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: vars.$font-body;
+    color: vars.$text-secondary;
+
+    .setting-value {
+      color: vars.$color-primary;
+      font-weight: 500;
+    }
+  }
+
+  .volume-slider {
+    width: 100%;
+    height: 4px;
+    background: vars.$bg-elevated;
+    border-radius: 2px;
+    appearance: none;
+    cursor: pointer;
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: vars.$color-primary;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    &::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: vars.$color-primary;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+  }
+
+  .volume-limits {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-size: vars.$font-caption;
+    color: vars.$text-disabled;
+  }
+}
+
+// Language pair row styles
+.language-pair-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: end;
+
+  .language-select-group {
+    display: flex;
+    flex-direction: column;
+
+    label {
+      font-size: vars.$font-title;
+      color: vars.$text-secondary;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+  }
+
+  .language-arrow {
+    color: vars.$text-disabled;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+}
+
+.language-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d97706;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.language-mirror-line {
+  margin-top: 6px;
+  font-size: 12px;
+  color: vars.$text-secondary;
+}
+
+.language-swap-btn {
+  background: none;
+  border: 1px solid vars.$border-default;
+  border-radius: vars.$radius-sm;
+  color: vars.$text-disabled;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Match the select input height (8px top/bottom padding + font line height)
+  padding: 8px 6px;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    color: vars.$text-primary;
+    border-color: vars.$text-muted;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.language-model-warning {
+  @include vars.status-box(vars.$color-warning, vars.$color-warning-bg, vars.$color-warning-border);
+  margin-top: 8px;
+  align-items: flex-start;
+
+  &__link {
+    // A <button> since 2026-08-23 (href-less anchors are not keyboard
+    // focusable) — reset the UA button chrome so it keeps the link look.
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: vars.$color-warning;
+    text-decoration: underline;
+    cursor: pointer;
+    &:hover {
+      opacity: 0.8;
+    }
+    &:focus-visible {
+      @include vars.focus-ring;
+    }
+  }
+}
+
+// Language select styles
+.language-select,
+.select-dropdown {
+  width: 100%;
+  background: vars.$bg-control;
+  border: 1px solid vars.$border-default;
+  color: vars.$text-primary;
+  padding: 8px 10px;
+  border-radius: vars.$radius-sm;
+  font-size: vars.$font-title;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+
+  &:focus {
+    outline: none;
+    border-color: vars.$color-primary;
+  }
+
+  &:disabled {
+    background-color: vars.$bg-surface;
+    color: vars.$text-disabled;
+    @include vars.disabled-state;
+    opacity: 0.6;
+  }
+}
+
+// ── Customizable select (appearance: base-select, Chromium 135+) ──────────
+// One shared layer replaces every classic select's OS-drawn popup — which
+// ignores our theme beyond option colors — with a themed picker on the
+// in-window top layer. @supports guards it: the extension's floor is Chrome
+// 116, and anything older keeps today's classic popup untouched (rich option
+// markup is likewise gated in TSX — see supportsBaseSelect()).
+@supports (appearance: base-select) {
+  .language-select,
+  .select-dropdown,
+  .provider-select {
+    &,
+    &::picker(select) {
+      appearance: base-select;
+    }
+
+    // base-select renders its own ::picker-icon chevron; the data-URI arrow
+    // from the classic styling would double it.
+    background-image: none;
+
+    &::picker-icon {
+      color: vars.$text-muted;
+    }
+
+    &:open {
+      border-color: vars.$color-primary;
+    }
+
+    &::picker(select) {
+      background: vars.$bg-surface;
+      border: 1px solid vars.$border-default;
+      border-radius: vars.$radius-md;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      padding: 4px;
+      margin-top: 4px;
+      // Long lists (35+ languages) scroll inside the picker. The top layer
+      // already clamps to the viewport; this keeps the list hand-sized.
+      max-height: 320px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-title;
+      color: vars.$text-primary;
+      background: transparent;
+      cursor: pointer;
+
+      &:hover,
+      &:focus {
+        background: vars.$bg-control;
+      }
+
+      &:disabled {
+        color: vars.$text-disabled;
+        cursor: not-allowed;
+      }
+
+      // Push the checkmark to the row's far end. It is the option's FIRST
+      // flex item in the UA stylesheet, so `margin-left: auto` alone shoves
+      // the content after it to the right edge instead — `order: 1` has to
+      // move the checkmark box last first.
+      &::checkmark {
+        color: vars.$color-primary;
+        order: 1;
+        margin-left: auto;
+      }
+    }
+  }
+
+  // Rich provider rows: icon + name-line (name · engine credit) + description.
+  // The option markup lives in ProviderSection.tsx; .provider-name-line and
+  // .powered-by are the shared styles used across the settings panel.
+  .provider-select {
+    // The closed control holds a two-line row, like the old .provider-info.
+    padding: 12px;
+
+    option {
+      align-items: center;
+      gap: 12px;
+    }
+
+    // The closed control's content is <selectedcontent> — a CLONE of the
+    // chosen option, not an option — so the option flex rule above does not
+    // reach it. Without this the icon stacks on its own line above the name
+    // instead of sitting beside it the way the old .provider-info row did.
+    selectedcontent {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+
+      // The closed control is a clone of the chosen option. Once the user has
+      // chosen the provider we recommend, saying so again argues with someone
+      // already persuaded — and the row is tighter without it.
+      .provider-recommended {
+        display: none;
+      }
+    }
+
+    &::picker(select) {
+      // Provider descriptions run long; let rows breathe a little more.
+      max-height: 380px;
+    }
+
+    .provider-select__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      color: vars.$text-muted;
+    }
+
+    .provider-select__text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .provider-select__name {
+      font-size: vars.$font-title;
+      font-weight: vars.$weight-medium;
+      color: vars.$text-primary;
+    }
+
+    .provider-select__description {
+      font-size: vars.$font-caption;
+      color: vars.$text-muted;
+    }
+  }
+}
+
+// Provider section styles
+.provider-selection-area {
+  margin-bottom: vars.$space-2;
+  position: relative;
+}
+
+/* Provider name + engine credit sharing one line.
+ *
+ * The Kizuna-managed twins are all named "KizunaAI", so the vendor is what
+ * tells them apart; giving it its own line would make every row a line taller
+ * for information that fits beside the name. Wrapping is allowed rather than
+ * truncating — at the 300px minimum panel width the line still fits with room
+ * for a vendor name about five characters longer than today's.
+ *
+ * Four text levels, in order of loudness: name (primary) > vendor (secondary)
+ * > description (muted) = "Powered by" (muted, but 9.5px and uppercased, so
+ * size and case carry the demotion where colour has run out of steps). */
+.provider-name-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 2px;
+
+  .provider-select__name {
+    margin-bottom: 0;
+  }
+}
+
+// The one provider we recommend, marked in the list. Last in the name line so
+// it never pushes the engine credit away from the name it qualifies, and
+// nowrap so the two-word label breaks the line rather than itself.
+.provider-recommended {
+  font-style: normal;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(vars.$color-primary, 0.15);
+  color: vars.$color-primary;
+}
+
+.powered-by {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: vars.$text-muted;
+  white-space: nowrap;
+
+  .powered-by-vendor {
+    font-size: 11px;
+    font-weight: vars.$weight-semibold;
+    letter-spacing: 0;
+    text-transform: none;
+    color: vars.$text-secondary;
+  }
+}
+
+// API key input styles
+.api-key-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .api-key-input {
+    flex: 1;
+    background: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    color: vars.$text-primary;
+    padding: 8px 10px;
+    border-radius: vars.$radius-sm;
+    font-size: vars.$font-title;
+    transition: all vars.$transition-fast;
+
+    &:focus {
+      outline: none;
+      border-color: vars.$color-primary;
+      background: vars.$bg-control;
+    }
+
+    &.valid {
+      border-color: vars.$color-primary;
+    }
+
+    &.invalid {
+      border-color: vars.$color-error;
+    }
+
+    &:disabled {
+      @include vars.disabled-state;
+    }
+
+    &::placeholder {
+      color: vars.$text-disabled;
+    }
+  }
+
+  .validate-button {
+    background: vars.$color-primary;
+    border: none;
+    color: vars.$text-primary;
+    padding: 8px 16px;
+    border-radius: vars.$radius-sm;
+    font-size: vars.$font-title;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all vars.$transition-fast;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover:not(:disabled) {
+      background: vars.$color-primary-hover;
+    }
+
+    &:disabled {
+      background: vars.$bg-elevated;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: vars.$text-primary;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+  }
+}
+
+// Endpoint input styles
+.endpoint-input-group {
+  margin-bottom: 12px;
+
+  .endpoint-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: vars.$bg-control;
+    border: 1px solid vars.$border-default;
+    color: vars.$text-primary;
+    padding: 8px 10px;
+    border-radius: vars.$radius-sm;
+    font-size: vars.$font-title;
+    transition: all vars.$transition-fast;
+
+    &:focus {
+      outline: none;
+      border-color: vars.$color-primary;
+      background: vars.$bg-control;
+    }
+
+    &:disabled {
+      @include vars.disabled-state;
+      background-color: vars.$bg-surface;
+      color: vars.$text-disabled;
+    }
+
+    &::placeholder {
+      color: vars.$text-disabled;
+    }
+  }
+}
+
+// PalabraAI credentials group (Client ID + Client Secret)
+.palabraai-credentials-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .api-key-input-group {
+    margin-bottom: 0;
+
+    &:first-child {
+      .api-key-input {
+        border-radius: vars.$radius-sm;
+      }
+    }
+  }
+
+  // Mirrors the app's segmented-control archetype (ModePicker.scss and the
+  // noise-suppression control further down this file — both scope their rules
+  // to their own section, hence this local copy). Active = fill, per the
+  // state-selected-fill convention in _variables.scss. Like ModePicker, no
+  // font-weight change on active: the two labels differ in width and the
+  // control must not resize when the user switches modes.
+  .segmented-control {
+    display: inline-flex;
+    align-items: stretch;
+    align-self: flex-start;
+    height: 28px;
+    border: 1px solid vars.$border-default;
+    border-radius: vars.$radius-md;
+    overflow: hidden;
+
+    .segmented-option {
+      display: inline-flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: vars.$font-caption;
+      line-height: 1;
+      border: none;
+      background: vars.$bg-control;
+      color: #aaa;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:not(:last-child) {
+        border-right: 1px solid vars.$border-default;
+      }
+
+      &:hover:not(.active):not(:disabled) {
+        background: vars.$bg-hover;
+      }
+
+      &.active {
+        background: vars.$color-primary;
+        color: #fff;
+      }
+
+      &:disabled {
+        opacity: vars.$disabled-opacity;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
+// API key info/warning styles
+.api-key-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: vars.$color-success-bg;
+  border: 1px solid vars.$color-success-border;
+  border-radius: vars.$radius-sm;
+  margin-bottom: 12px;
+
+  .success-icon {
+    color: vars.$color-primary;
+    flex-shrink: 0;
+  }
+
+  span {
+    color: vars.$color-primary;
+    font-size: vars.$font-title;
+  }
+
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-top-color: vars.$color-primary;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+.api-key-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: vars.$color-warning-bg;
+  border: 1px solid vars.$color-warning-border;
+  border-radius: vars.$radius-sm;
+  margin-bottom: 12px;
+
+  .warning-icon {
+    color: vars.$color-warning;
+    flex-shrink: 0;
+  }
+
+  span {
+    color: vars.$color-warning;
+    font-size: vars.$font-title;
+  }
+
+  // Same inline-link look as .models-link, plus the chrome reset a <button>
+  // needs: the sign-in affordance opens a popover rather than navigating, so
+  // it is a button, and without the reset it renders as a grey box mid-sentence.
+  .sign-in-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: vars.$color-primary;
+    cursor: pointer;
+    text-decoration: underline;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+.tutorial-link {
+  margin-top: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: vars.$color-primary;
+    font-size: vars.$font-caption;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .tutorial-dismiss {
+    background: none;
+    border: none;
+    color: vars.$text-disabled;
+    cursor: pointer;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+
+    &:hover {
+      color: vars.$text-muted;
+    }
+  }
+}
+
+.validation-message {
+  padding: 6px 10px;
+  border-radius: vars.$radius-sm;
+  font-size: vars.$font-caption;
+  // Last child of .config-section, whose own padding-bottom already provides
+  // the space below — a bottom margin here read as an asymmetric double gap.
+  margin-top: vars.$space-3;
+  margin-bottom: 0;
+
+  &.success {
+    background: rgba(68, 255, 68, 0.1);
+    border: 1px solid rgba(68, 255, 68, 0.3);
+    color: #44ff44;
+  }
+
+  &.error {
+    background: vars.$color-error-bg;
+    border: 1px solid vars.$color-error-border;
+    color: vars.$color-error;
+  }
+
+  .models-link {
+    color: vars.$color-primary;
+    cursor: pointer;
+    text-decoration: underline;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+// Animation keyframes
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-highlight {
+  0%, 100% {
+    background-color: transparent;
+    box-shadow: none;
+    outline: none;
+  }
+  20%, 40%, 60% {
+    background-color: rgba(59, 130, 246, 0.25);
+    box-shadow: 0 0 40px rgba(59, 130, 246, 0.8),
+                0 0 20px rgba(59, 130, 246, 0.6) inset;
+    outline: 3px solid rgba(59, 130, 246, 0.7);
+    outline-offset: 8px;
+  }
+  30%, 50%, 70% {
+    background-color: rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.6),
+                0 0 10px rgba(59, 130, 246, 0.3) inset;
+    outline: 2px solid rgba(59, 130, 246, 0.5);
+    outline-offset: 6px;
+  }
+  90% {
+    background-color: rgba(59, 130, 246, 0.05);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    outline: 1px solid rgba(59, 130, 246, 0.2);
+    outline-offset: 4px;
+  }
+}
+
+// Animated trailing dots for the LOCAL_NATIVE "Starting the local engine" line.
+@keyframes local-native-dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+
+.local-inference-info {
+  .model-info {
+    margin-top: vars.$space-2;
+  }
+
+  // Sidecar lifecycle line (starting / unavailable): a subtle status row, not a
+  // bare heading. `.model-info` alone has no font styling, so the text otherwise
+  // inherits the large default. Muted body text; the starting state gets animated
+  // trailing dots (the visible text carries no static ellipsis).
+  .local-native-status {
+    font-size: vars.$font-body;
+    color: vars.$text-muted;
+
+    &.is-loading::after {
+      content: '';
+      animation: local-native-dots 1.4s steps(1, end) infinite;
+    }
+
+    &.is-error {
+      color: vars.$text-secondary;
+    }
+  }
+
+  .model-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .model-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid vars.$border-subtle;
+    border-radius: vars.$radius-sm;
+    cursor: pointer;
+    transition: all vars.$transition-fast;
+    font: inherit;
+    color: inherit;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: vars.$color-primary;
+    }
+  }
+
+  .model-chip-label {
+    font-size: 10px;
+    color: vars.$text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .model-chip-value {
+    font-family: monospace;
+    font-size: 11px;
+    color: vars.$text-secondary;
+
+    &.model-ok {
+      color: vars.$color-success;
+    }
+
+    &.model-warn {
+      color: vars.$color-warning;
+    }
+  }
+
+  // A labeled chip row (Finding 1: chips follow the audio mode). In 'both'
+  // mode two of these stack — "Me" (speaker, src→tgt) above "Other"
+  // (participant, tgt→src) — so which group is whose is never ambiguous.
+  // The label reuses .model-chip-label's small-caps look.
+  .model-inline-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    &:not(:last-child) {
+      margin-bottom: 4px;
+    }
+  }
+
+  .model-inline-group__label {
+    font-size: 10px;
+    color: vars.$text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .memory-estimate {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 10px;
+    color: vars.$text-muted;
+  }
+
+  .memory-estimate__label { opacity: 0.7; }
+  .memory-estimate__warn { color: #e74c3c; }
+}
+
+// Help section buttons (shared between SimpleSettings and AdvancedSettings)
+.restart-onboarding-button {
+  display: flex;
+  align-items: center;
+  gap: vars.$space-2;
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid vars.$border-default;
+  border-radius: vars.$radius-md;
+  color: vars.$text-muted;
+  font-size: vars.$font-body;
+  cursor: pointer;
+  transition: all vars.$transition-fast;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: vars.$border-strong;
+    color: vars.$text-primary;
+  }
+
+  &:disabled {
+    opacity: vars.$disabled-opacity;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Help section layout
+.help-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: vars.$space-2;
+  font-size: vars.$font-caption;
+}
+
+.help-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: vars.$text-muted;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color vars.$transition-fast;
+
+  // These are <button>s: an <a> with no href is not keyboard-focusable, so
+  // none of these actions could be reached without a mouse. Shed the control
+  // chrome so they still read as the links they look like.
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: left;
+
+  &:focus-visible {
+    @include vars.focus-ring;
+  }
+
+  &:hover {
+    color: vars.$color-primary;
+  }
+
+  &.disabled {
+    opacity: vars.$disabled-opacity;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  // Unlike `.disabled` above, hover must still work here: the link stays
+  // clickable-looking so its title attribute (the session-active notice)
+  // can be read on hover, and the click handler itself no-ops instead.
+  &.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// Interface language: a picker that has to read as a link, because that is the
+// weight it now carries. The <select> keeps its native behaviour — the list is
+// 30 long and the platform renders it outside this panel, with keyboard and
+// type-ahead for free — but sheds every visual sign of being a form control,
+// so it sits level with "Restart Setup Guide" beside it rather than towering
+// over it.
+// The picker keeps a link's weight — no border, no filled background, the
+// same muted colour as the links beside it — but it must still read as
+// something you can open, so it keeps its chevron. `.help-link__select` joins
+// the shared base-select layer below, which themes the popup and, because a
+// base-select control lays out to its SELECTED option rather than its longest
+// one, also sizes it correctly: measured at 54px for 日本語 against 148px for
+// the same list drawn as a classic OS widget.
+.help-link--picker {
+  // Layout comes from .help-link; only the select's own box needs correcting.
+
+  .help-link__select {
+    background: transparent;
+    border: none;
+    border-radius: 3px;
+    padding: 0 2px;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    // A base-select control carries a UA minimum height of 24px — a touch
+    // target — against the 13.85px of text in the links beside it, and its
+    // chevron holds a full line box on top of that. The row's boxes were
+    // centred on each other either way, but the eye aligns a line of links on
+    // their TEXT, and a taller box centres its text somewhere else.
+    //
+    // `1lh` is exactly the line box the neighbouring spans occupy, so the
+    // select's text sits on their baseline instead of floating above it.
+    min-height: 0;
+    height: 1lh;
+    align-items: center;
+
+    &:disabled { cursor: not-allowed; }
+
+    // Classic fallback (Chrome 116–134, the extension's floor): the popup is
+    // drawn by the OS and ignores this theme past the option colours.
+    //
+    // Known difference, accepted rather than worked around: a classic select
+    // is as wide as its longest option, so on those versions picking 日本語
+    // still reserves the width of "Português (Portugal)" and can push a link
+    // onto another line. Sizing it correctly there needs a mirrored span with
+    // the select overlaid transparently on top — which this file carried for
+    // one commit and which also hides the chevron, the thing that tells a
+    // borderless control it can be opened. On a path where the popup is
+    // already unthemed, a wide control is the smaller cost.
+    option { color: initial; background: initial; }
+  }
+}
+
+@supports (appearance: base-select) {
+  .help-link--picker .help-link__select {
+    &,
+    &::picker(select) { appearance: base-select; }
+
+    // Same themed popup as every other select in Settings.
+    &::picker(select) {
+      background: vars.$bg-surface;
+      border: 1px solid vars.$border-default;
+      border-radius: vars.$radius-md;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      padding: 4px;
+      margin-top: 4px;
+      max-height: 320px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    // `inherit`, not the $text-muted the other selects give their chevron:
+    // those sit in bordered form controls, this one sits in a row of links
+    // whose lucide icons are all `stroke="currentColor"` and light up with the
+    // row. A fixed colour here left the chevron behind on hover, the one part
+    // of the control that did not react.
+    &::picker-icon {
+      color: inherit;
+      line-height: 1;
+    }
+
+    // Hover colour comes from `.help-link:hover`, shared with every link in
+    // the row. Only the open state is this control's own.
+    &:open { color: vars.$color-primary; }
+
+    option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: vars.$radius-sm;
+      font-size: vars.$font-title;
+      color: vars.$text-primary;
+      background: transparent;
+      cursor: pointer;
+
+      &:hover,
+      &:focus { background: vars.$bg-control; }
+
+      &::checkmark {
+        color: vars.$color-primary;
+        order: 1;
+        margin-left: auto;
+      }
+    }
+  }
+}
+
+.version-label {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: vars.$text-muted;
+}
+
+.noise-suppression-control {
+  margin-top: 8px;
+
+  .noise-suppression-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--text-secondary, #aaa);
+  }
+
+  .noise-suppression-label {
+    font-size: 13px;
+  }
+
+  .segmented-control {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-color, #444);
+
+    .segmented-option {
+      flex: 1;
+      padding: 6px 12px;
+      font-size: 12px;
+      border: none;
+      background: var(--bg-secondary, #333);
+      color: var(--text-secondary, #aaa);
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:not(:last-child) {
+        border-right: 1px solid var(--border-color, #444);
+      }
+
+      &:hover:not(.active) {
+        background: var(--bg-hover, #3a3a3a);
+      }
+
+      &.active {
+        background: #10a37f;
+        color: #fff;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .language-pair-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+
+    .language-arrow {
+      justify-content: center;
+
+      .language-swap-btn {
+        width: 100%;
+      }
+    }
+  }
+}
