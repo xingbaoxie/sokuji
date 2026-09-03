@@ -1253,6 +1253,10 @@
     "exportArtifact": "Export {{fileName}}",
     "previewArtifact": "Preview {{fileName}}",
     "previewLimited": "Preview is limited to 512 KiB. Export for the complete file.",
+    "deleteJob": "Delete task {{fileName}}",
+    "deleteJobConfirm": "Delete task “{{fileName}}”?",
+    "deleteJobDetails": "This removes the local task record and exported files. The original audio file is not deleted.",
+    "deleteJobCloudWarning": "A temporary cloud file may remain until the server cleanup policy runs.",
     "status": {
       "queued": "queued",
       "running": "running",

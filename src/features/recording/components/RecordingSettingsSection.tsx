@@ -128,7 +128,7 @@ const RecordingSettingsSection: React.FC = () => {
     const modelServiceLabel = isZh ? '百炼模型服务' : isJa ? 'Bailian モデルサービス' : 'Bailian model service';
     const storageLabel = isZh ? 'OSS 对象存储' : isJa ? 'OSS オブジェクトストレージ' : 'OSS object storage';
     return <section className="recording-settings__service-card">
-      <div className="recording-settings__card-heading"><h3>{profileLabel(profileId)}</h3>{savingProfile === profileId && <LoaderCircle className="recording-spinner" size={16} />}</div>
+      {savingProfile === profileId && <LoaderCircle className="recording-spinner" size={16} aria-hidden="true" />}
       <section className="recording-settings__cloud-group" aria-label={modelServiceLabel}>
         <h4>{modelServiceLabel}</h4>
         <div className="recording-settings__form-grid">

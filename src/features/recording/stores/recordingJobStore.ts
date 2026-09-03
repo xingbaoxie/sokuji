@@ -27,6 +27,7 @@ interface RecordingJobStore {
   hydrate: () => Promise<void>;
   start: () => Promise<void>;
   cancel: (jobId: string) => Promise<void>;
+  deleteJob: (jobId: string) => Promise<void>;
   exportArtifact: (jobId: string, fileName: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   saveCredential: (secret: string, runtimeBaseUrl: string) => Promise<void>;
@@ -93,6 +94,20 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
       set((state) => ({ jobs: state.jobs.map((item) => item.jobId === jobId ? job : item) }));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to cancel the recording job.' });
+    }
+  },
+  deleteJob: async (jobId) => {
+    set({ loading: true, error: null });
+    try {
+      await recordingService.deleteJob(jobId);
+      set((state) => ({
+        jobs: state.jobs.filter((item) => item.jobId !== jobId),
+        artifactPreview: state.artifactPreview?.jobId === jobId ? null : state.artifactPreview,
+      }));
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Unable to delete the recording job.' });
+    } finally {
+      set({ loading: false });
     }
   },
   exportArtifact: async (jobId, fileName) => {

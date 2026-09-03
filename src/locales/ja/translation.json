@@ -1253,6 +1253,10 @@
     "exportArtifact": "{{fileName}} をエクスポート",
     "previewArtifact": "{{fileName}} をプレビュー",
     "previewLimited": "プレビューは 512 KiB に制限されています。完全なファイルはエクスポートしてください。",
+    "deleteJob": "タスク {{fileName}} を削除",
+    "deleteJobConfirm": "タスク「{{fileName}}」を削除しますか？",
+    "deleteJobDetails": "ローカルのタスク記録と成果物を削除します。元の音声ファイルは削除されません。",
+    "deleteJobCloudWarning": "一時的なクラウドファイルは、サーバーのクリーンアップポリシーが実行されるまで残る場合があります。",
     "status": {
       "queued": "待機中",
       "running": "実行中",

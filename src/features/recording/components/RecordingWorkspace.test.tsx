@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -18,6 +18,10 @@ vi.mock('react-i18next', () => ({
       'recording.runtimeState.ready': `服务已就绪 · ${values?.model ?? ''}`,
       'recording.startTranscription': '开始转写', 'recording.jobs': '任务', 'recording.noJobs': '暂无录音任务。',
       'recording.elapsed': `耗时 ${values?.duration ?? ''}`,
+      'recording.deleteJob': `删除任务 ${values?.fileName ?? ''}`,
+      'recording.deleteJobConfirm': `删除任务“${values?.fileName ?? ''}”？`,
+      'recording.deleteJobDetails': '将删除本地任务记录与导出文件，原始音频文件不会被删除。',
+      'recording.deleteJobCloudWarning': '云端临时文件可能仍保留，直至服务端清理策略执行。',
     }[key] ?? key),
     i18n: { language: 'zh_CN', resolvedLanguage: 'zh_CN' },
   }),
@@ -27,7 +31,7 @@ vi.mock('../services/recordingService', () => ({
   recordingService: {
     listJobs: vi.fn().mockResolvedValue([]), profileStatus: vi.fn().mockResolvedValue({ credentialConfigured: false, runtimeBaseUrl: '' }),
     privateRuntimeStatus: vi.fn().mockResolvedValue({ state: 'unconfigured' }), aliyunProfileStatus: vi.fn().mockResolvedValue({ configured: false }),
-    readArtifact: vi.fn().mockResolvedValue({ fileName: 'report.md', content: '报告正文', truncated: false }),
+    readArtifact: vi.fn().mockResolvedValue({ fileName: 'report.md', content: '报告正文', truncated: false }), deleteJob: vi.fn(),
   },
 }));
 
@@ -84,6 +88,7 @@ describe('RecordingWorkspace', () => {
     const preview = screen.getByText('报告正文');
     expect(preview.closest('li')).toContain(screen.getByText('meeting.mp3'));
     expect(screen.getByRole('button', { name: 'report.md' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'report.md' })).toHaveClass('is-expanded');
     expect(container.querySelector('.recording-section.recording-preview')).toBeNull();
   });
 
@@ -94,5 +99,22 @@ describe('RecordingWorkspace', () => {
     await useRecordingJobStore.getState().previewArtifact('job-1', 'report.md');
     expect(useRecordingJobStore.getState().artifactPreview).toBeNull();
     expect(vi.mocked(recordingService.readArtifact)).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows deletion only for a terminal task and clears its local row after confirmation', async () => {
+    const config = defaultRecordingJobConfig();
+    const job: RecordingJobSummary = {
+      jobId: 'job-delete', sourceFileName: 'meeting.mp3', sourcePath: '/tmp/meeting.mp3', status: 'failed', config,
+      createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', stageRuns: [], artifacts: [],
+    };
+    vi.mocked(recordingService.listJobs).mockResolvedValue([job]);
+    vi.mocked(recordingService.deleteJob).mockResolvedValue({ jobId: job.jobId });
+    useRecordingJobStore.setState({ jobs: [job] });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<RecordingWorkspace />);
+    fireEvent.click(screen.getByRole('button', { name: '删除任务 meeting.mp3' }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('原始音频文件不会被删除'));
+    await waitFor(() => expect(recordingService.deleteJob).toHaveBeenCalledWith(job.jobId));
+    await waitFor(() => expect(screen.queryByText('meeting.mp3')).toBeNull());
   });
 });

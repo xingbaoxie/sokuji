@@ -53,7 +53,7 @@ describe('RecordingSettingsSection', () => {
     const [provider] = await screen.findAllByRole('combobox');
     fireEvent.change(provider, { target: { value: 'aliyun-cloud' } });
     await waitFor(() => expect(service.saveProcessingSettings).toHaveBeenCalled());
-    expect(screen.getByText('recording.connection.speech_aliyun')).toBeTruthy();
+    expect(screen.queryByText('recording.connection.speech_aliyun')).toBeNull();
     expect(screen.queryByText('recording.connection.speech_private_moss')).toBeNull();
   });
 
@@ -69,7 +69,7 @@ describe('RecordingSettingsSection', () => {
   it('shows an Aliyun summary model only in its service configuration card', async () => {
     service.processingSettings.mockResolvedValue({ ...defaultRecordingJobConfig(), summary: { ...defaultRecordingJobConfig().summary, enabled: true } });
     render(<RecordingSettingsSection />);
-    await screen.findByText('recording.connection.summary_aliyun');
+    await screen.findByText('百炼模型服务');
     expect(screen.getAllByDisplayValue('qwen3.8-max')).toHaveLength(1);
   });
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { CircleAlert, Download, FileAudio, LoaderCircle, Play, Square, Upload } from 'lucide-react';
+import { CircleAlert, Download, FileAudio, LoaderCircle, Play, Square, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isElectron } from '../../../utils/environment';
 import { useRecordingJobStore } from '../stores/recordingJobStore';
@@ -58,6 +58,15 @@ function visibleArtifacts(job: { config: { translation?: { enabled?: boolean }; 
   });
 }
 
+function isTerminalJob(status: string): boolean {
+  return ['completed', 'failed', 'cancelled'].includes(status);
+}
+
+function cloudCleanupMayRemain(job: { config: { speech: { providerId: string } }; stageRuns: Array<{ stage: string; status: string }> }): boolean {
+  return job.config.speech.providerId === 'aliyun-cloud'
+    && job.stageRuns.some((stage) => stage.stage === 'cloud.cleanup' && stage.status !== 'completed');
+}
+
 const RecordingWorkspace: React.FC = () => {
   const { t, i18n } = useTranslation();
   const file = useRecordingJobStore((state) => state.file);
@@ -70,6 +79,7 @@ const RecordingWorkspace: React.FC = () => {
   const hydrate = useRecordingJobStore((state) => state.hydrate);
   const start = useRecordingJobStore((state) => state.start);
   const cancel = useRecordingJobStore((state) => state.cancel);
+  const deleteJob = useRecordingJobStore((state) => state.deleteJob);
   const exportArtifact = useRecordingJobStore((state) => state.exportArtifact);
   const previewArtifact = useRecordingJobStore((state) => state.previewArtifact);
   const speechLabel = (job: typeof jobs[number]) => {
@@ -105,15 +115,23 @@ const RecordingWorkspace: React.FC = () => {
         const elapsed = job.status === 'completed' ? formatElapsedDuration(job.createdAt, job.completedAt ?? job.updatedAt, i18n.resolvedLanguage ?? i18n.language) : null;
         const language = i18n.resolvedLanguage ?? i18n.language;
         const preview = artifactPreview?.jobId === job.jobId ? artifactPreview : null;
+        const confirmDelete = () => {
+          const message = [
+            t('recording.deleteJobConfirm', { fileName: job.sourceFileName }),
+            t('recording.deleteJobDetails'),
+            ...(cloudCleanupMayRemain(job) ? [t('recording.deleteJobCloudWarning')] : []),
+          ].join('\n\n');
+          if (window.confirm(message)) void deleteJob(job.jobId);
+        };
         return <li key={job.jobId}><div><strong>{job.sourceFileName}</strong><span>{speechLabel(job)} · {t(`recording.status.${job.status}`, { defaultValue: job.status.replace('_', ' ') })}{elapsed && ` · ${t('recording.elapsed', { duration: elapsed })}`}</span>{job.cancellationRequested && <span>{t('recording.cancellationRequested')}</span>}
           {job.status === 'failed' && <p className="recording-job-error" role="alert"><CircleAlert size={14} aria-hidden="true" />{formatJobFailure(job.error, language)}</p>}
           {job.status !== 'cancelled' && visibleStages(job).length > 0 && <div className="recording-stage-progress" aria-label={t('recording.jobProgress', { fileName: job.sourceFileName })}>{visibleStages(job).map((stage) => {
             const status = job.status === 'failed' && stage.stage === 'speech.execute' && stage.status !== 'completed' ? 'failed' : stage.status;
             return <span key={stage.stage} className={`is-${status}`} title={`${stage.stage}: ${stage.progress}%`}>{t(`recording.stage.${stage.stage.split('.')[0]}`, { defaultValue: stage.stage.split('.')[0] })} {status === 'running' ? `${stage.progress}%` : t(`recording.status.${status}`, { defaultValue: status })}</span>;
           })}</div>}
-          {job.status === 'completed' && visibleArtifacts(job).length > 0 && <div className="recording-artifacts" aria-label={t('recording.artifactsFor', { fileName: job.sourceFileName })}>{visibleArtifacts(job).map((artifact) => <span key={artifact.fileName}><button type="button" aria-expanded={preview?.fileName === artifact.fileName} onClick={() => void previewArtifact(job.jobId, artifact.fileName)} disabled={loading}>{artifact.fileName}</button><button type="button" aria-label={t('recording.exportArtifact', { fileName: artifact.fileName })} onClick={() => void exportArtifact(job.jobId, artifact.fileName)} disabled={loading}><Download size={13} aria-hidden="true" /></button></span>)}</div>}
+          {job.status === 'completed' && visibleArtifacts(job).length > 0 && <div className="recording-artifacts" aria-label={t('recording.artifactsFor', { fileName: job.sourceFileName })}>{visibleArtifacts(job).map((artifact) => { const expanded = preview?.fileName === artifact.fileName; return <span key={artifact.fileName}><button type="button" className={expanded ? 'is-expanded' : undefined} aria-expanded={expanded} onClick={() => void previewArtifact(job.jobId, artifact.fileName)} disabled={loading}>{artifact.fileName}</button><button type="button" aria-label={t('recording.exportArtifact', { fileName: artifact.fileName })} onClick={() => void exportArtifact(job.jobId, artifact.fileName)} disabled={loading}><Download size={13} aria-hidden="true" /></button></span>; })}</div>}
           {preview && <section className="recording-artifact-preview" aria-label={t('recording.previewArtifact', { fileName: preview.fileName })}><h3>{preview.fileName}</h3>{preview.truncated && <p className="recording-hint">{t('recording.previewLimited')}</p>}<pre>{preview.content}</pre></section>}
-        </div>{(job.status === 'queued' || job.status === 'running' || job.status === 'waiting_remote') && <button type="button" className="recording-cancel" onClick={() => void cancel(job.jobId)} disabled={job.cancellationRequested}><Square size={14} aria-hidden="true" /> {t('common.cancel')}</button>}</li>;
+        </div><div className="recording-job-actions">{(job.status === 'queued' || job.status === 'running' || job.status === 'waiting_remote') && <button type="button" className="recording-cancel" onClick={() => void cancel(job.jobId)} disabled={job.cancellationRequested}><Square size={14} aria-hidden="true" /> {t('common.cancel')}</button>}{isTerminalJob(job.status) && <button type="button" className="recording-delete" onClick={confirmDelete} disabled={loading} aria-label={t('recording.deleteJob', { fileName: job.sourceFileName })} title={t('recording.deleteJob', { fileName: job.sourceFileName })}><Trash2 size={15} aria-hidden="true" /></button>}</div></li>;
       })}</ul>}
     </section>
   </main>;

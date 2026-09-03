@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { AUDIO_EXTENSIONS, createStageRuns, executeAliyunCloudJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, validateStartPayload } from './recording-job-bridge.js';
+import { AUDIO_EXTENSIONS, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, validateStartPayload } from './recording-job-bridge.js';
 
 const config = { speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss', modelId: '' }, translation: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'source' } };
 
@@ -77,6 +77,36 @@ describe('recording job bridge', () => {
 
   it('does not create translation, summary or report stages when outputs are disabled', () => {
     expect(createStageRuns(config).map((stage) => stage.stage)).toEqual(['audio.prepare', 'speech.execute']);
+  });
+
+  it('deletes only terminal local job data and never the user source audio', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-delete-job-'));
+    const app = { getPath: () => directory };
+    const jobId = 'rec_delete_1';
+    const sourcePath = path.join(directory, 'user-meeting.mp3');
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(sourcePath, 'original audio bytes');
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourcePath, status: 'completed', config, stageRuns: [], artifacts: [{ fileName: 'transcript.json' }] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'transcript.json'), '{}');
+    try {
+      await expect(deleteTerminalJob(app, jobId)).resolves.toEqual({ jobId });
+      await expect(readFile(path.join(jobDirectory, 'job.json'), 'utf8')).rejects.toThrow();
+      await expect(readFile(sourcePath, 'utf8')).resolves.toBe('original audio bytes');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('refuses to delete a job that is still active', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-delete-active-'));
+    const app = { getPath: () => directory };
+    const jobId = 'rec_active_1';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, status: 'running', config, stageRuns: [] }));
+    try {
+      await expect(deleteTerminalJob(app, jobId)).rejects.toThrow(/only completed, failed, or cancelled/i);
+      await expect(readFile(path.join(jobDirectory, 'job.json'), 'utf8')).resolves.toContain('running');
+    } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
   it('renders private Runtime results into portable artifacts', () => {

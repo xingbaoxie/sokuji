@@ -1253,6 +1253,10 @@
     "exportArtifact": "导出 {{fileName}}",
     "previewArtifact": "预览 {{fileName}}",
     "previewLimited": "预览最多显示 512 KiB；请导出以查看完整文件。",
+    "deleteJob": "删除任务 {{fileName}}",
+    "deleteJobConfirm": "删除任务“{{fileName}}”？",
+    "deleteJobDetails": "将删除本地任务记录与导出文件，原始音频文件不会被删除。",
+    "deleteJobCloudWarning": "云端临时文件可能仍保留，直至服务端清理策略执行。",
     "status": {
       "queued": "排队中",
       "running": "运行中",

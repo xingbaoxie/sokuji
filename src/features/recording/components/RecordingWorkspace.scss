@@ -76,10 +76,15 @@
 .recording-stage-progress .is-completed { color: #b8f5e7; background: rgba(vars.$color-success, .2); }
 .recording-stage-progress .is-failed { color: #ffb3b3; background: rgba(vars.$color-error, .16); }
 .recording-cancel { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: #ffb3b3; background: rgba(vars.$color-error, .12); }
+.recording-job-actions { flex: 0 0 auto; align-self: flex-start; display: flex; align-items: center; gap: vars.$space-2; }
+.recording-delete { width: 36px; min-height: 36px; display: inline-grid; place-items: center; border: 0; border-radius: vars.$radius-md; color: vars.$text-muted; background: transparent; cursor: pointer; transition: color vars.$transition-fast, background-color vars.$transition-fast; }
+.recording-delete:hover:not(:disabled) { color: #ffb3b3; background: rgba(vars.$color-error, .12); }
+.recording-delete:disabled { @include vars.disabled-state; }
 .recording-artifacts span { display: inline-flex; }
 .recording-artifacts button { min-height: 28px; display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0 7px; color: vars.$text-secondary; background: vars.$bg-control; cursor: pointer; font: inherit; font-size: 11px; }
 .recording-artifacts button:first-child { border-radius: vars.$radius-sm 0 0 vars.$radius-sm; }
 .recording-artifacts button:last-child { border-left: 1px solid vars.$border-default; border-radius: 0 vars.$radius-sm vars.$radius-sm 0; }
+.recording-artifacts button.is-expanded { color: #c8fff3; background: rgba(vars.$color-primary, .22); }
 .recording-artifact-preview { margin-top: vars.$space-3; padding-top: vars.$space-3; border-top: 1px solid vars.$border-subtle; }
 .recording-artifact-preview h3 { margin: 0 0 vars.$space-2; font-size: vars.$font-body; font-weight: vars.$weight-semibold; }
 .recording-artifact-preview pre { max-height: 360px; overflow: auto; margin: 0; padding: vars.$space-3; border-radius: vars.$radius-md; background: vars.$bg-page; color: vars.$text-secondary; font-size: vars.$font-caption; white-space: pre-wrap; word-break: break-word; }

@@ -74,6 +74,7 @@ export const INVOKE_CHANNELS = [
   'recording:get-job',
   'recording:list-jobs',
   'recording:cancel-job',
+  'recording:delete-job',
   'recording:export-artifact',
   'recording:read-artifact',
   'recording:profile-status',

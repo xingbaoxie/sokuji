@@ -102,6 +102,10 @@ export const recordingService = {
     return desktopApi().invoke('recording:cancel-job', { jobId }) as Promise<RecordingJobSummary>;
   },
 
+  async deleteJob(jobId: string): Promise<{ jobId: string }> {
+    return desktopApi().invoke('recording:delete-job', { jobId }) as Promise<{ jobId: string }>;
+  },
+
   async exportArtifact(jobId: string, fileName: string): Promise<{ path: string } | null> {
     return desktopApi().invoke('recording:export-artifact', { jobId, fileName }) as Promise<{ path: string } | null>;
   },

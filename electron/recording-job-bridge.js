@@ -373,6 +373,22 @@ async function listJobs(app) {
   }
 }
 
+function isSafeJobId(jobId) {
+  return typeof jobId === 'string' && /^[a-zA-Z0-9_-]+$/.test(jobId);
+}
+
+async function deleteTerminalJob(app, jobId) {
+  if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
+  const job = await loadJob(app, jobId);
+  if (!['completed', 'failed', 'cancelled'].includes(job.status)) {
+    throw new Error('Only completed, failed, or cancelled recording jobs can be deleted.');
+  }
+  // Deliberately remove only Sokuji-managed job data. `sourcePath` belongs to
+  // the user and can point anywhere on disk, so it is never part of deletion.
+  await rm(path.join(jobsRoot(app), jobId), { recursive: true, force: true });
+  return { jobId };
+}
+
 function validateStartPayload(payload) {
   if (!payload || typeof payload !== 'object') throw new Error('Invalid recording job request.');
   const { file, config } = payload;
@@ -595,6 +611,10 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     await saveAtomic(jobPath(app, job.jobId), job);
     return publicJob(job);
   });
+  ipcMain.handle('recording:delete-job', async (_event, payload) => {
+    if (!payload?.jobId || typeof payload.jobId !== 'string') throw new Error('Recording job id is required.');
+    return deleteTerminalJob(app, payload.jobId);
+  });
   ipcMain.handle('recording:export-artifact', async (_event, payload) => {
     if (!payload?.jobId || !payload?.fileName) throw new Error('Recording job id and artifact file name are required.');
     const job = await loadJob(app, payload.jobId);
@@ -662,4 +682,4 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
   })().catch(() => undefined);
 }
 
-module.exports = { AUDIO_EXTENSIONS, createStageRuns, executeAliyunCloudJob, executePrivateRuntimeJob, getJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, validateStartPayload, registerRecordingJobBridge };
+module.exports = { AUDIO_EXTENSIONS, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, executePrivateRuntimeJob, getJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, validateStartPayload, registerRecordingJobBridge };
