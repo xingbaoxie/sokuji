@@ -1,6 +1,7 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const path = require('path');
+const { existsSync } = require('fs');
 
 const execFileAsync = promisify(execFile);
 const MAX_POC_DURATION_SECONDS = 90 * 60;
@@ -33,11 +34,27 @@ function validatePocAudio(metadata) {
   return metadata;
 }
 
-async function probeAudioFile(filePath, { command = 'ffprobe' } = {}) {
+function resolveFfprobeCommand({
+  platform = process.platform,
+  resourcesPath = process.resourcesPath,
+  exists = existsSync,
+} = {}) {
+  // Forge copies the repository's `resources/` directory below Electron's
+  // resources path. Windows does not include ffprobe in PATH, so packaged
+  // builds must use the executable shipped with Sokuji.
+  if (platform === 'win32' && resourcesPath) {
+    const bundled = path.join(resourcesPath, 'resources', 'bin', 'win32-x64', 'ffprobe.exe');
+    if (exists(bundled)) return bundled;
+  }
+  return 'ffprobe';
+}
+
+async function probeAudioFile(filePath, { command } = {}) {
   if (!path.isAbsolute(filePath)) throw new Error('Audio file path must be absolute.');
+  const probeCommand = command || resolveFfprobeCommand();
   let stdout;
   try {
-    ({ stdout } = await execFileAsync(command, [
+    ({ stdout } = await execFileAsync(probeCommand, [
       '-v', 'error', '-show_entries', 'format=duration,format_name:stream=codec_type,codec_name,sample_rate,channels,duration',
       '-of', 'json', filePath,
     ], { maxBuffer: 1024 * 1024, windowsHide: true }));
@@ -48,4 +65,4 @@ async function probeAudioFile(filePath, { command = 'ffprobe' } = {}) {
   return validatePocAudio(parseProbeOutput(stdout));
 }
 
-module.exports = { MAX_POC_DURATION_SECONDS, parseProbeOutput, probeAudioFile, validatePocAudio };
+module.exports = { MAX_POC_DURATION_SECONDS, parseProbeOutput, probeAudioFile, resolveFfprobeCommand, validatePocAudio };

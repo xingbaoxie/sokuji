@@ -1,4 +1,5 @@
-const { MAX_POC_DURATION_SECONDS, parseProbeOutput, validatePocAudio } = require('./audio-probe');
+const { MAX_POC_DURATION_SECONDS, parseProbeOutput, resolveFfprobeCommand, validatePocAudio } = require('./audio-probe');
+const path = require('path');
 
 describe('audio probe', () => {
   it('extracts readable audio metadata', () => {
@@ -10,5 +11,17 @@ describe('audio probe', () => {
 
   it('rejects a POC recording longer than 90 minutes', () => {
     expect(() => validatePocAudio({ durationSeconds: MAX_POC_DURATION_SECONDS + 1 })).toThrow('up to 90 minutes');
+  });
+
+  it('uses the bundled ffprobe executable in packaged Windows builds', () => {
+    expect(resolveFfprobeCommand({
+      platform: 'win32',
+      resourcesPath: 'C:\\Sokuji\\resources',
+      exists: () => true,
+    })).toBe(path.join('C:\\Sokuji\\resources', 'resources', 'bin', 'win32-x64', 'ffprobe.exe'));
+  });
+
+  it('uses PATH ffprobe when no bundled executable is available', () => {
+    expect(resolveFfprobeCommand({ platform: 'win32', resourcesPath: 'C:\\Sokuji\\resources', exists: () => false })).toBe('ffprobe');
   });
 });
