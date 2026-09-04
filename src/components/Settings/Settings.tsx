@@ -8,6 +8,7 @@ import SimpleSettings from './SimpleSettings/SimpleSettings';
 import AdvancedSettings from './AdvancedSettings/AdvancedSettings';
 import PanelBar from './shared/PanelBar';
 import type { Tab } from './shared/TabBar';
+import RecordingSettingsSection from '../../features/recording/components/RecordingSettingsSection';
 import './Settings.scss';
 
 interface SettingsProps {
@@ -26,6 +27,12 @@ const TABS: Tab[] = [
 // panels conditionally), so the active tab lives in sessionStorage like the
 // rest of the panelState.* keys.
 const TAB_STORAGE_KEY = 'panelState.settingsActiveTab';
+const CATEGORY_STORAGE_KEY = 'panelState.settingsCategory';
+type SettingsCategory = 'subtitle' | 'recording';
+
+function readStoredCategory(): SettingsCategory {
+  return sessionStorage.getItem(CATEGORY_STORAGE_KEY) === 'recording' ? 'recording' : 'subtitle';
+}
 
 function readStoredTab(): string {
   const stored = sessionStorage.getItem(TAB_STORAGE_KEY);
@@ -69,10 +76,12 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
   const isSimpleMode = uiMode === 'basic';
 
   const [activeTab, setActiveTab] = useState(readStoredTab);
+  const [category, setCategory] = useState<SettingsCategory>(readStoredCategory);
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
+  useEffect(() => { sessionStorage.setItem(CATEGORY_STORAGE_KEY, category); }, [category]);
 
   // Advanced-only: switch to the target tab and scroll/highlight its section.
   // Quick mode highlights via SimpleSettings' highlightSection instead.
@@ -159,15 +168,19 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
   return (
     <div className="settings-container">
       <PanelBar
-        tabs={isSimpleMode ? undefined : TABS}
-        activeTab={isSimpleMode ? undefined : activeTab}
-        onTabChange={isSimpleMode ? undefined : setActiveTab}
-        actions={modeToggle}
+        tabs={category === 'subtitle' && !isSimpleMode ? TABS : undefined}
+        activeTab={category === 'subtitle' && !isSimpleMode ? activeTab : undefined}
+        onTabChange={category === 'subtitle' && !isSimpleMode ? setActiveTab : undefined}
+        actions={category === 'subtitle' ? modeToggle : undefined}
         onClose={toggleSettings ?? (() => {})}
       />
 
       <div className="settings-body">
-        {isSimpleMode ? (
+        <div className="settings-category-tabs" role="tablist" aria-label={t('settings.title', 'Settings')}>
+          <button type="button" role="tab" aria-selected={category === 'subtitle'} className={category === 'subtitle' ? 'is-active' : ''} onClick={() => setCategory('subtitle')}>{t('subtitle.enterButton.label', 'Subtitles')}</button>
+          <button type="button" role="tab" aria-selected={category === 'recording'} className={category === 'recording' ? 'is-active' : ''} onClick={() => setCategory('recording')}>{t('recording.title', 'Recording transcription')}</button>
+        </div>
+        {category === 'recording' ? <RecordingSettingsSection /> : isSimpleMode ? (
           <SimpleSettings highlightSection={highlightSection || settingsNavigationTarget} />
         ) : (
           <AdvancedSettings toggleSettings={toggleSettings} activeTab={activeTab} />

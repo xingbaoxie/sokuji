@@ -37,6 +37,7 @@ let loaded = true; let complete = true; let wizardOpen = false;
 vi.mock('../../stores/setupStore', () => ({ useSetupLoaded: () => loaded, useSetupComplete: () => complete }));
 vi.mock('../../stores/layoutStore', () => ({
   useShowSettings: () => false, useSetShowSettings: () => vi.fn(),
+  useWorkspace: () => 'live', useSetWorkspace: () => vi.fn(),
   useSetupWizardOpen: () => wizardOpen, useSetSetupWizardOpen: () => vi.fn(),
 }));
 

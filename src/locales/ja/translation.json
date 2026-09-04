@@ -1161,5 +1161,146 @@
         "content": "高度な設定——発話検出、プロンプト、声、ログ——は「設定」右上の「アドバンス」切り替えの先にあります。このガイドは「ヘルプ」からいつでも見直せます。"
       }
     }
+  },
+  "recording": {
+    "title": "録音文字起こし",
+    "desktopOnly": "このワークスペースは Sokuji デスクトップアプリでのみ利用できます。",
+    "description": " ",
+    "audio": {
+      "title": "録音ファイル",
+      "choose": "音声ファイルを選択",
+      "formats": "M4A、MP3、WAV、AAC、FLAC に対応 · 最大 90 分",
+      "metadata": "{{duration}} 秒 · {{codec}} · {{sampleRate}}",
+      "sampleRateUnknown": "サンプルレート不明"
+    },
+    "executionMode": "実行モード",
+    "runtimeMode": {
+      "simulation": {
+        "label": "シミュレーション Runtime",
+        "hint": "既定の開発モードです。ネットワークリクエストは送信しません。"
+      },
+      "live": {
+        "label": "ライブプロバイダー",
+        "hint": "選択したプライベート Runtime または Alibaba Cloud プロバイダーを実行します。"
+      }
+    },
+    "processingScheme": "文字起こしエンジン",
+    "transcriptionService": "文字起こしサービス",
+    "connectionLabel": "接続設定",
+    "transcriptionOption": "文字起こし方式",
+    "chooseModel": "モデルを選択",
+    "modelUnavailable": "この接続ではこの機能を利用できません",
+    "serviceReady": "サービス利用可能 · {{model}} · プロファイル {{revision}}",
+    "runtimeConnected": "リモート Runtime 利用可能 · モデル {{model}}",
+    "toggleSecret": "キーを表示または非表示",
+    "connection": {
+      "speech_private_moss": "MOSS Runtime",
+      "speech_private_funasr": "FunASR Runtime",
+      "speech_aliyun": "Alibaba Cloud Bailian 文字起こし",
+      "translation_private": "プライベート Runtime 翻訳",
+      "translation_aliyun": "Alibaba Cloud Bailian 翻訳",
+      "summary_private": "プライベート Runtime 要約",
+      "summary_aliyun": "Alibaba Cloud Bailian 要約"
+    },
+    "engine": {
+      "moss": "MOSS 文字起こし・話者識別",
+      "funasr_meeting": "FunASR 会議文字起こし",
+      "aliyun_filetrans": "Alibaba Cloud Filetrans"
+    },
+    "scheme": {
+      "private-moss": "プライベート MOSS",
+      "private-funasr": "プライベート FunASR",
+      "aliyun-cloud": "Alibaba Cloud"
+    },
+    "languagesAndOutput": "文字起こし設定",
+    "sourceMode": "入力言語モード",
+    "sourceLanguage": "入力言語",
+    "targetLanguage": "出力言語",
+    "sourceModeOptions": {
+      "auto": "自動検出",
+      "mixed": "混在言語",
+      "fixed": "言語を指定"
+    },
+    "generateTranslation": "翻訳を生成",
+    "generateSummary": "要約レポートを生成",
+    "runtimeProfile": "サービス設定",
+    "profileId": "プロファイル ID",
+    "profileRevision": "プロファイル改訂版",
+    "credential": {
+      "configured": "認証情報はデスクトップアプリに安全に保存されています。",
+      "notConfigured": "このプロファイルには認証情報が設定されていません。",
+      "statusUnavailable": "このプレビューでは認証情報の状態を取得できません。"
+    },
+    "privateRuntimeHint": "この録音を文字起こしするサービスを選択します。タスク開始前にサービス状態を確認します。",
+    "runtimeStatus": "Runtime：{{status}}",
+    "runtimeToken": "Runtime トークン",
+    "saveCredential": "安全に保存",
+    "removeCredential": "削除",
+    "saveAliyunProfile": "Alibaba Cloud 設定を保存",
+    "aliyun": {
+      "configured": "Alibaba Cloud 北京設定を保存しました（{{revision}}）。",
+      "notConfigured": "Alibaba Cloud プロファイルは未設定です。"
+    },
+    "privateRuntime": "プライベート Runtime",
+    "runLiveJob": "{{provider}} で文字起こしを開始",
+    "runSimulatedJob": "文字起こしを開始",
+    "startTranscription": "文字起こしを開始",
+    "saveProcessingSettings": "録音文字起こし設定を保存",
+    "settingsSaved": "録音文字起こし設定を保存しました。",
+    "settingsSaveFailed": "録音文字起こし設定を保存できません。",
+    "serviceSettings": "サービス設定",
+    "providerLabel": "プロバイダー",
+    "model": "モデル",
+    "hotwords": "ホットワード（カンマ区切り）",
+    "summaryInput": "要約の入力",
+    "summarySource": "文字起こし原文",
+    "summaryTranslated": "翻訳結果",
+    "summaryBilingual": "バイリンガル",
+    "reportLanguage": "レポートの言語",
+    "reportLanguageAuto": "アプリの表示言語に従う",
+    "summaryTemplate": "要約テンプレート",
+    "summaryTemplateGeneralMeeting": "一般的な会議要約",
+    "tokenSaved": "保存済みトークン",
+    "provider": {
+      "private": "プライベート Runtime",
+      "aliyun": "Alibaba Cloud Bailian"
+    },
+    "elapsed": "所要 {{duration}}",
+    "jobs": "ジョブ",
+    "noJobs": "録音ジョブはまだありません。",
+    "cancellationRequested": "キャンセルを要求しました。現在の推論が停止するまで待機しています。",
+    "jobProgress": "{{fileName}} のジョブ進行状況",
+    "artifactsFor": "{{fileName}} の成果物",
+    "exportArtifact": "{{fileName}} をエクスポート",
+    "previewArtifact": "{{fileName}} をプレビュー",
+    "previewLimited": "プレビューは 512 KiB に制限されています。完全なファイルはエクスポートしてください。",
+    "deleteJob": "タスク {{fileName}} を削除",
+    "deleteJobConfirm": "タスク「{{fileName}}」を削除しますか？",
+    "deleteJobDetails": "ローカルのタスク記録と成果物を削除します。元の音声ファイルは削除されません。",
+    "deleteJobCloudWarning": "一時的なクラウドファイルは、サーバーのクリーンアップポリシーが実行されるまで残る場合があります。",
+    "status": {
+      "queued": "待機中",
+      "running": "実行中",
+      "waiting_remote": "リモート結果を待機中",
+      "completed": "完了",
+      "failed": "失敗",
+      "cancelled": "キャンセル済み",
+      "pending": "保留中"
+    },
+    "stage": {
+      "audio": "音声の準備",
+      "speech": "文字起こし",
+      "translation": "翻訳",
+      "summary": "要約",
+      "report": "レポート",
+      "cloud": "クラウドのクリーンアップ"
+    },
+    "runtimeState": {
+      "unconfigured": "リモート Runtime は未設定です。URL とトークンを保存してから確認してください。",
+      "ready": "リモート Runtime は準備完了です · {{engine}} · {{model}} · {{backend}} · プロファイル {{revision}}",
+      "disabled": "リモート Runtime には接続できますが、{{engine}} は有効化されていません。",
+      "workerUnavailable": "リモート Runtime は準備できていません。",
+      "unavailable": "リモート Runtime は利用できません：{{detail}}"
+    }
   }
 }

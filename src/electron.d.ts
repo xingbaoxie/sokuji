@@ -4,6 +4,7 @@ interface ElectronAPI {
   removeListener: (channel: string, func: (...args: any[]) => void) => void;
   removeAllListeners: (channel: string) => void;
   invoke: (channel: string, data?: any) => Promise<any>;
+  getPathForFile: (file: File) => string;
 }
 
 declare interface Window {

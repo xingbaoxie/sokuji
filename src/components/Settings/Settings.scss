@@ -18,6 +18,27 @@
   }
 }
 
+.settings-category-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 15px 0;
+  border-bottom: 1px solid vars.$border-subtle;
+
+  button {
+    min-height: 34px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0 10px;
+    color: vars.$text-muted;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+
+    &.is-active { color: vars.$text-primary; border-bottom-color: vars.$color-primary; }
+    &:focus-visible { @include vars.focus-ring; }
+  }
+}
+
 // Shared section styles that apply to both modes
 .config-section,
 .settings-section {

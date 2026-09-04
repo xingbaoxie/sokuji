@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 // Renderer→main invoke allowlist. Single source of truth in ipc-channels.js
 // (guarded against handler drift by ipc-channels.test.js). The bundler inlines
 // this array into the built preload.js, so the shipped artifact stays an
@@ -118,6 +118,9 @@ contextBridge.exposeInMainWorld(
       // path. Reject + warn instead of silently resolving to undefined.
       console.warn(`[Sokuji] [Preload] Blocked unauthorized invoke for channel: ${channel}`);
       return Promise.reject(new Error(`Blocked unauthorized invoke for channel: ${channel}`));
-    }
+    },
+    // Only expose the local path for a File supplied by the user through a
+    // drag-and-drop interaction; no filesystem-reading capability is exposed.
+    getPathForFile: (file) => webUtils.getPathForFile(file),
   }
 );

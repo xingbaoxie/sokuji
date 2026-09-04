@@ -1,0 +1,57 @@
+@use '../../../components/Settings/shared/variables' as vars;
+
+.recording-settings { display: grid; gap: 20px; padding: 16px; color: vars.$text-primary; overflow-y: auto; }
+.recording-settings .settings-section { display: grid; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid vars.$border-default; }
+.recording-settings .settings-section:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.recording-settings h2 { margin: 0; font-size: vars.$font-title; }
+.recording-settings__feature-header { display: flex; align-items: center; justify-content: space-between; min-height: 40px; gap: 16px; padding: 2px 0; }
+.recording-settings__feature-header .toggle-switch-component { flex: 0 0 auto; }
+.recording-settings h3 { margin: 0; font-size: vars.$font-body; }
+.recording-settings label { display: grid; gap: 6px; color: vars.$text-secondary; font-size: vars.$font-caption; }
+.recording-settings input { @include vars.control-base; box-sizing: border-box; width: 100%; min-height: 36px; padding: 0 10px; }
+// Keep recording selects on the exact shared Settings select path. The former
+// blanket `select` rule overrode the shared vertical padding, leaving Chromium
+// base-select text and its picker icon stuck toward the top of a tall control.
+.recording-settings .recording-settings__select {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 40px 0 12px;
+  line-height: 1.2;
+  background-position: right 14px center;
+}
+@supports (appearance: base-select) {
+  .recording-settings .recording-settings__select {
+    display: flex;
+    align-items: center;
+    &::picker-icon { align-self: center; }
+    selectedcontent { display: flex; align-items: center; min-height: 100%; }
+  }
+}
+.recording-settings input[readonly] { color: vars.$text-muted; cursor: default; }
+.recording-settings__secret-input { display: flex; align-items: center; min-height: 36px; overflow: hidden; border: 1px solid vars.$border-default; border-radius: vars.$radius-sm; background: vars.$bg-control; }
+.recording-settings__secret-input:focus-within { border-color: vars.$color-primary; @include vars.focus-ring; }
+.recording-settings__secret-input input { min-width: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.recording-settings__secret-input input:focus { outline: 0; }
+.recording-settings__secret-input button { display: inline-flex; align-items: center; justify-content: center; width: 36px; min-width: 36px; height: 36px; border: 0; border-left: 1px solid vars.$border-default; background: transparent; color: vars.$text-muted; cursor: pointer; }
+.recording-settings__secret-input button:hover { color: vars.$text-primary; background: vars.$bg-surface; }
+.recording-settings__secret-input button:focus-visible { @include vars.focus-ring; outline-offset: -2px; }
+.recording-settings__choices { display: grid; gap: 8px; }
+.recording-settings__choices label { @include vars.option-row; display: flex; align-items: center; min-height: 40px; gap: 9px; cursor: pointer; color: vars.$text-primary; font-size: vars.$font-body; }
+.recording-settings__choices label.is-selected { @include vars.option-row-selected; }
+.recording-settings__choices input { width: auto; min-height: 0; margin: 0; accent-color: vars.$color-primary; }
+.recording-settings__form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.recording-settings__service-card { display: grid; gap: 12px; padding: 14px; border: 1px solid vars.$border-default; border-radius: vars.$radius-md; background: vars.$bg-control; }
+.recording-settings__card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.recording-settings__cloud-group { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid vars.$border-default; }
+.recording-settings__cloud-group h4 { margin: 0; color: vars.$text-primary; font-size: vars.$font-caption; font-weight: 600; }
+.recording-settings__state, .recording-settings__notice { margin: 5px 0 0; color: vars.$text-muted; font-size: vars.$font-caption; line-height: 1.45; }
+.recording-settings__state.is-ready { color: vars.$color-primary; }
+.recording-settings__state.is-unavailable { color: vars.$color-error; }
+.recording-settings__state.is-disabled { color: vars.$color-warning; }
+.recording-settings__notice { margin: 0; color: vars.$text-secondary; }
+@media (max-width: 620px) {
+  .recording-settings__form-grid { grid-template-columns: 1fr; }
+  .recording-settings__feature-header { align-items: flex-start; }
+}

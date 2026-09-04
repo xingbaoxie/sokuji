@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, systemPreferences, desktopCapturer } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, systemPreferences, desktopCapturer, safeStorage, protocol } = require('electron');
 const path = require('path');
 const { betterAuthAdapter } = require('./better-auth-adapter');
 const { setupSubtitleHandlers } = require('./subtitle-window.js');
@@ -19,7 +19,15 @@ if (process.platform === 'win32') {
 
 const { UpdateManager } = require('./update-manager');
 const { NativeHostManager } = require('./native-host-manager');
+const { registerRecordingJobBridge } = require('./recording-job-bridge');
+const { RecordingCredentialStore } = require('./recording-credential-store');
+const { AliyunCloudProfileStore } = require('./aliyun-cloud-profile-store');
+const { RecordingProcessingSettingsStore } = require('./recording-processing-settings');
+const { RecordingSidecarClient } = require('./recording-sidecar-client');
+const { registerRecordingAudioProtocol } = require('./recording-audio-protocol');
 const nativeHost = new NativeHostManager();
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'sokuji-recording', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 
 // Config utility no longer needed - using localStorage in renderer process
 
@@ -453,6 +461,7 @@ function createWindow() {
 
 // Create window when Electron is ready
 app.whenReady().then(async () => {
+  registerRecordingAudioProtocol({ protocol, app });
   if (isDuplicateInstance) return;
   // Windows sandbox recovery (issue #352): if a prior run left a crash marker,
   // scan ACLs and show the native recovery dialog BEFORE creating the (transparent)
@@ -611,6 +620,15 @@ app.on('will-quit', cleanupAndExit);
 
 // IPC handler for app version
 nativeHost.registerIpc(ipcMain);
+registerRecordingJobBridge({
+  ipcMain,
+  dialog,
+  app,
+  credentialStore: new RecordingCredentialStore({ app, safeStorage }),
+  aliyunProfileStore: new AliyunCloudProfileStore({ app }),
+  processingSettingsStore: new RecordingProcessingSettingsStore({ app }),
+  recordingSidecarClient: new RecordingSidecarClient(nativeHost),
+});
 
 // ---- Self-contained sidecar bundle install/status (distribution spec) ----
 // SKU detection + bundle download live in the main process because the sidecar
@@ -1204,4 +1222,3 @@ ipcMain.handle('check-screen-recording-permission', async () => {
     return { status: 'unknown', platform: 'darwin', error: error.message };
   }
 });
-

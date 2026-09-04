@@ -1,0 +1,220 @@
+import { describe, expect, it } from 'vitest';
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { AUDIO_EXTENSIONS, commitStageArtifacts, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, exportResult, getJobPreview, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, stageArtifacts, validateStartPayload, withJobWriteLock } from './recording-job-bridge.js';
+
+const config = { speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss', modelId: '' }, translation: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'source' } };
+
+describe('recording job bridge', () => {
+  it('allows the POC audio formats only', () => {
+    expect(AUDIO_EXTENSIONS.has('.m4a')).toBe(true);
+    expect(AUDIO_EXTENSIONS.has('.flac')).toBe(true);
+    expect(AUDIO_EXTENSIONS.has('.ogg')).toBe(false);
+  });
+
+  it('rejects an unsupported source file before persisting a job', () => {
+    expect(() => validateStartPayload({ file: { path: '/tmp/recording.ogg', name: 'recording.ogg' }, config })).toThrow(/unsupported audio/i);
+  });
+
+  it('keeps Runtime media failures structured for the renderer without preserving raw response bodies', () => {
+    expect(privateRuntimeFailureDetails({ code: 'AUDIO_UNREADABLE', status: 422, message: 'Runtime could not read the audio file' })).toEqual({
+      code: 'AUDIO_UNREADABLE', httpStatus: 422, message: 'Runtime could not read the audio file',
+    });
+  });
+
+  it('projects only the renderer-safe job fields', () => {
+    const result = publicJob({
+      jobId: 'rec_1', sourceFileName: 'meeting.m4a', sourcePath: '/tmp/meeting.m4a', status: 'queued', config,
+      createdAt: '2026-08-28T00:00:00.000Z', updatedAt: '2026-08-28T00:00:00.000Z', runtimeCredential: 'must-not-leak',
+    });
+    expect(result).not.toHaveProperty('runtimeCredential');
+    expect(result).not.toHaveProperty('sourcePath');
+  });
+
+  it('exposes the durable completion timestamp without exposing credentials', () => {
+    const result = publicJob({
+      jobId: 'rec_2', sourceFileName: 'meeting.m4a', sourcePath: '/tmp/meeting.m4a', status: 'completed', config,
+      createdAt: '2026-08-28T00:00:00.000Z', updatedAt: '2026-08-28T00:01:25.000Z', completedAt: '2026-08-28T00:01:25.000Z',
+    });
+    expect(result.completedAt).toBe('2026-08-28T00:01:25.000Z');
+  });
+
+  it('does not persist unrecognized config keys such as a credential', () => {
+    const validated = validateStartPayload({
+      file: { path: '/tmp/meeting.m4a', name: 'meeting.m4a' },
+      config: { ...config, runtimeToken: 'must-not-persist', translation: { ...config.translation, enabled: true, apiKey: 'must-not-persist' } },
+    });
+    expect(JSON.stringify(validated.config)).not.toMatch(/must-not-persist|apiKey|runtimeToken/);
+  });
+
+  it('keeps stage-specific profile ids and does not retain the legacy root profile', () => {
+    const validated = validateStartPayload({
+      file: { path: '/tmp/meeting.m4a', name: 'meeting.m4a' },
+      config: { ...config, profileId: 'legacy-default', translation: { enabled: true, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: true, providerId: 'private-runtime', connectionProfileId: 'summary.private', modelId: 'local-summary', inputMode: 'source' } },
+    });
+    expect(validated.config).toMatchObject({ speech: { connectionProfileId: 'speech.private-moss' }, translation: { connectionProfileId: 'translation.aliyun' }, summary: { connectionProfileId: 'summary.private' } });
+    expect(validated.config).not.toHaveProperty('profileId');
+  });
+
+  it('drops a legacy runtime mode instead of accepting a simulated task request', () => {
+    const validated = validateStartPayload({ file: { path: '/tmp/meeting.m4a', name: 'meeting.m4a' }, config: { ...config, runtimeMode: 'simulation' } });
+    expect(validated.config).not.toHaveProperty('runtimeMode');
+  });
+
+  it('copies a legacy connection into every independent stage profile without overwriting them', async () => {
+    const privateCopies = []; const cloudCopies = [];
+    await migrateLegacyConnectionProfiles({ copy: async (...args) => privateCopies.push(args) }, { copy: async (...args) => cloudCopies.push(args) }, 'default');
+    expect(privateCopies).toContainEqual(['default', 'speech.private-moss']);
+    expect(privateCopies).toContainEqual(['default', 'summary.private']);
+    expect(cloudCopies).toContainEqual(['default', 'speech.aliyun']);
+    expect(cloudCopies).toContainEqual(['default', 'translation.aliyun']);
+  });
+
+  it('creates only the stages required by the selected output options', () => {
+    const stages = createStageRuns({ ...config, translation: { enabled: true }, summary: { enabled: true } });
+    expect(stages.map((stage) => stage.stage)).toEqual(['audio.prepare', 'speech.execute', 'translation.execute', 'summary.execute', 'report.build']);
+  });
+
+  it('does not create translation, summary or report stages when outputs are disabled', () => {
+    expect(createStageRuns(config).map((stage) => stage.stage)).toEqual(['audio.prepare', 'speech.execute']);
+  });
+
+  it('deletes only terminal local job data and never the user source audio', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-delete-job-'));
+    const app = { getPath: () => directory };
+    const jobId = 'rec_delete_1';
+    const sourcePath = path.join(directory, 'user-meeting.mp3');
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(sourcePath, 'original audio bytes');
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourcePath, status: 'completed', config, stageRuns: [], artifacts: [{ fileName: 'transcript.json' }] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'transcript.json'), '{}');
+    try {
+      await expect(deleteTerminalJob(app, jobId)).resolves.toEqual({ jobId });
+      await expect(readFile(path.join(jobDirectory, 'job.json'), 'utf8')).rejects.toThrow();
+      await expect(readFile(sourcePath, 'utf8')).resolves.toBe('original audio bytes');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('refuses to delete a job that is still active', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-delete-active-'));
+    const app = { getPath: () => directory };
+    const jobId = 'rec_active_1';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, status: 'running', config, stageRuns: [] }));
+    try {
+      await expect(deleteTerminalJob(app, jobId)).rejects.toThrow(/only completed, failed, or cancelled/i);
+      await expect(readFile(path.join(jobDirectory, 'job.json'), 'utf8')).resolves.toContain('running');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('renders private Runtime results into portable artifacts', () => {
+    const artifacts = runtimeArtifacts({ sourceFileName: 'meeting.m4a', config }, { transcript: { segments: [{ startMs: 0, endMs: 1200, speakerId: 'S01', text: 'hello' }] } });
+    expect(artifacts.find((artifact) => artifact.fileName === 'transcript.srt').content).toContain('00:00:00,000 --> 00:00:01,200');
+    expect(artifacts.find((artifact) => artifact.fileName === 'report.md')).toBeUndefined();
+  });
+
+  it('preserves a translation source text supplied as a transcript text field', () => {
+    const [artifact] = stageArtifacts({ sourceFileName: 'meeting.m4a', config }, 'translation.execute', {
+      targetLanguage: 'ja', segments: [{ id: 'seg-1', startMs: 0, text: '你好', translatedText: 'こんにちは' }],
+    });
+    expect(JSON.parse(artifact.content).segments[0]).toMatchObject({ text: '你好', translatedText: 'こんにちは' });
+  });
+
+  it('records the selected target language when a provider returns only translation segments', () => {
+    const [artifact] = stageArtifacts({ sourceFileName: 'meeting.m4a', config: { ...config, targetLanguage: 'ja' } }, 'translation.execute', {
+      segments: [{ id: 'seg-1', startMs: 0, text: '你好', translatedText: 'こんにちは' }],
+    });
+    expect(JSON.parse(artifact.content).targetLanguage).toBe('ja');
+  });
+
+  it('uses the task target-language snapshot when reading a legacy translation artifact', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-preview-language-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_preview_language';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({
+      jobId, sourceFileName: 'meeting.mp3', config: { ...config, targetLanguage: 'ja' }, artifacts: [{ kind: 'translation-json', fileName: 'translation.json' }],
+    }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'translation.json'), JSON.stringify({ targetLanguage: 'zh', segments: [{ id: 'seg-1', translatedText: 'こんにちは' }] }));
+    try {
+      await expect(getJobPreview(app, jobId)).resolves.toMatchObject({ translation: { targetLanguage: 'ja', texts: ['こんにちは'] } });
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('exports the text stored in a translation artifact without consulting the transcript', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-export-translation-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_export_translation';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId); const output = path.join(directory, 'translation.txt');
+    const prefix = '[00:00:01.150] [S01] ';
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourceFileName: 'meeting.mp3', artifacts: [
+      { kind: 'transcript-json', fileName: 'transcript.json' }, { kind: 'translation-json', fileName: 'translation.json' },
+    ] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'transcript.json'), JSON.stringify({ segments: [{ id: 'seg-1', startMs: 1150, endMs: 2000, speakerId: 'S01', text: '你好' }] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'translation.json'), JSON.stringify({ targetLanguage: 'ja', segments: [{ id: 'seg-1', startMs: 1150, speakerId: 'S01', text: '你好', translatedText: 'こんにちは' }] }));
+    try {
+      await exportResult(app, { showSaveDialog: async () => ({ canceled: false, filePath: output }) }, jobId, 'translation-txt');
+      await expect(readFile(output, 'utf8')).resolves.toBe(`${prefix}原文：你好\n${' '.repeat(prefix.length)}译文：こんにちは`);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('commits checkpoints incrementally without replacing an earlier result', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-checkpoint-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_checkpoint';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourceFileName: 'meeting.mp3', status: 'running', config, stageRuns: createStageRuns({ ...config, translation: { enabled: true } }), artifacts: [] }));
+    try {
+      await commitStageArtifacts(app, jobId, 'speech.execute', stageArtifacts({ sourceFileName: 'meeting.mp3', config }, 'speech.execute', { segments: [{ id: 'seg-1', startMs: 0, endMs: 10, text: 'hello' }] }));
+      await commitStageArtifacts(app, jobId, 'translation.execute', stageArtifacts({ sourceFileName: 'meeting.mp3', config }, 'translation.execute', { targetLanguage: 'zh', segments: [{ id: 'seg-1', translatedText: '你好', text: 'hello' }] }));
+      const saved = JSON.parse(await readFile(path.join(jobDirectory, 'job.json'), 'utf8'));
+      expect(saved.artifacts.map((item) => item.kind)).toEqual(expect.arrayContaining(['transcript-json', 'subtitle-srt', 'translation-json']));
+      expect(saved.stageRuns.find((stage) => stage.stage === 'speech.execute').status).toBe('completed');
+      expect(await getJobPreview(app, jobId)).toMatchObject({ availability: { transcript: true, translation: true, summary: false }, transcript: { segmentCount: 1 }, translation: { texts: ['你好'] } });
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('continues a per-job write queue after a failed mutation', async () => {
+    await expect(withJobWriteLock('rec_queue', async () => { throw new Error('first write fails'); })).rejects.toThrow('first write fails');
+    await expect(withJobWriteLock('rec_queue', async () => 'second write succeeds')).resolves.toBe('second write succeeds');
+  });
+
+  it('reports remote MOSS readiness without returning the saved token', async () => {
+    const credentialStore = {
+      status: async () => ({ credentialConfigured: true, runtimeBaseUrl: 'http://runtime.internal' }),
+      connection: async () => ({ baseUrl: 'http://runtime.internal', token: 'main-process-only-token' }),
+    };
+    const client = {
+      health: async () => ({ status: 'ok', profileRevision: 'runtime-poc-1' }),
+      capabilities: async () => ({ runtimeProfileRevision: 'runtime-poc-1', speech: { moss: { available: true, model: 'MOSS', backend: 'vllm' } } }),
+    };
+    const status = await getPrivateRuntimeStatus(credentialStore, 'default', 'private-moss', () => client);
+    expect(status).toMatchObject({ state: 'ready', engine: 'moss', engineId: 'moss', model: 'MOSS', modelId: 'MOSS', backend: 'vllm', profileRevision: 'runtime-poc-1', translationModels: [], summaryModels: [] });
+    expect(JSON.stringify(status)).not.toContain('main-process-only-token');
+  });
+
+  it('does not contact a Runtime when the profile has no saved credential', async () => {
+    const status = await getPrivateRuntimeStatus({ status: async () => ({ credentialConfigured: false, runtimeBaseUrl: '' }) }, 'default', 'private-moss');
+    expect(status).toMatchObject({ state: 'unconfigured', engineId: 'moss' });
+  });
+
+  it('resumes an existing Aliyun Filetrans task without uploading or submitting it again', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-cloud-job-'));
+    const app = { getPath: () => directory };
+    const jobId = 'rec_cloud_1';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    const cloudConfig = { speech: { providerId: 'aliyun-cloud', connectionProfileId: 'speech.aliyun', engineId: 'aliyun-filetrans', modelId: 'qwen-audio-3.0-asr-flash-filetrans' }, translation: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'source' } };
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ schemaVersion: 2, jobId, sourceFileName: 'meeting.m4a', sourcePath: '/not-needed-after-submit.m4a', status: 'waiting_remote', config: cloudConfig, cloud: { externalTaskId: 'task-existing', ossObjectKey: 'key' }, stageRuns: createStageRuns(cloudConfig), createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }));
+    const bailian = { getTask: async () => ({ output: { task_status: 'SUCCEEDED', results: [{ subtask_status: 'SUCCEEDED', transcription_url: 'https://result' }] } }), downloadTranscript: async () => ({ transcripts: [{ sentences: [{ begin_time: 0, end_time: 1000, text: 'hello' }] }] }), cancelTask: async () => undefined };
+    try {
+      await executeAliyunCloudJob(app, jobId, { resolve: async () => ({}) }, { bailian: () => bailian, oss: () => ({ upload: async () => { throw new Error('must not upload'); }, signedGetUrl: async () => 'unused', remove: async () => undefined }) });
+      const complete = JSON.parse(await readFile(path.join(jobDirectory, 'job.json'), 'utf8'));
+      expect(complete.status).toBe('completed');
+      expect(complete.artifacts.map((item) => item.fileName)).toContain('transcript.json');
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+});

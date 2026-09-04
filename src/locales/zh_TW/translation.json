@@ -1161,5 +1161,146 @@
         "content": "進階設定 — 語音偵測、提示詞、語音、日誌 — 都在「設定」右上角的「進階」開關後面。隨時可以在「說明」中重看本導覽。"
       }
     }
+  },
+  "recording": {
+    "title": "錄音轉寫",
+    "desktopOnly": "此工作區僅可在 Sokuji 桌面應用程式中使用。",
+    "description": "建立錄音任務。私有 Runtime 模型 Worker 完成基準測試前，預設使用模擬模式。",
+    "audio": {
+      "title": "音訊錄音",
+      "choose": "選擇音訊檔案",
+      "formats": "支援 M4A、MP3、WAV、AAC 或 FLAC · 最長 90 分鐘",
+      "metadata": "{{duration}} 秒 · {{codec}} · {{sampleRate}}",
+      "sampleRateUnknown": "取樣率未知"
+    },
+    "executionMode": "執行模式",
+    "runtimeMode": {
+      "simulation": {
+        "label": "模擬 Runtime",
+        "hint": "預設開發模式，不會發出網路請求。"
+      },
+      "live": {
+        "label": "即時服務",
+        "hint": "使用所選私有 Runtime 或阿里雲服務。"
+      }
+    },
+    "processingScheme": "處理方案",
+    "scheme": {
+      "private-moss": "私有 MOSS",
+      "private-funasr": "私有 FunASR",
+      "aliyun-cloud": "阿里雲百煉"
+    },
+    "languagesAndOutput": "語言與輸出",
+    "sourceMode": "來源語言模式",
+    "sourceLanguage": "來源語言",
+    "targetLanguage": "目標語言",
+    "sourceModeOptions": {
+      "auto": "自動辨識",
+      "mixed": "混合語言",
+      "fixed": "指定語言"
+    },
+    "generateTranslation": "產生翻譯",
+    "generateSummary": "產生摘要報告",
+    "runtimeProfile": "Runtime 設定",
+    "profileId": "設定 ID",
+    "profileRevision": "設定版本",
+    "credential": {
+      "configured": "憑證已安全儲存至桌面應用程式。",
+      "notConfigured": "此設定尚未儲存憑證。",
+      "statusUnavailable": "此預覽無法讀取憑證狀態。"
+    },
+    "privateRuntimeHint": "私有 MOSS 和 FunASR 設定可提供轉寫、說話人、時間戳、SRT 和報告匯出。此 POC 請保持翻譯和摘要關閉。",
+    "runtimeStatus": "Runtime：{{status}}",
+    "runtimeToken": "Runtime 權杖",
+    "saveCredential": "安全儲存",
+    "removeCredential": "移除",
+    "saveAliyunProfile": "儲存阿里雲 POC 設定",
+    "aliyun": {
+      "configured": "阿里雲北京設定已儲存（{{revision}}）。",
+      "notConfigured": "阿里雲設定尚未儲存。"
+    },
+    "privateRuntime": "私有 Runtime",
+    "runLiveJob": "執行{{provider}}任務",
+    "runSimulatedJob": "執行模擬任務",
+    "startTranscription": "開始轉寫",
+    "saveProcessingSettings": "儲存錄音轉寫設定",
+    "settingsSaved": "錄音轉寫設定已儲存。",
+    "settingsSaveFailed": "無法儲存錄音轉寫設定。",
+    "serviceSettings": "服務設定",
+    "providerLabel": "服務供應商",
+    "model": "模型",
+    "hotwords": "熱詞（以逗號分隔）",
+    "summaryInput": "摘要輸入內容",
+    "summarySource": "原始轉寫",
+    "summaryTranslated": "翻譯結果",
+    "summaryBilingual": "雙語內容",
+    "reportLanguage": "報告語言",
+    "reportLanguageAuto": "跟隨介面語言",
+    "summaryTemplate": "總結範本",
+    "summaryTemplateGeneralMeeting": "通用會議總結",
+    "tokenSaved": "已儲存權杖",
+    "provider": {
+      "private": "私有 Runtime",
+      "aliyun": "阿里雲百煉"
+    },
+    "elapsed": "耗時 {{duration}}",
+    "jobs": "任務",
+    "noJobs": "尚無錄音任務。",
+    "cancellationRequested": "已要求取消，正在等待目前推理停止。",
+    "jobProgress": "{{fileName}} 的任務進度",
+    "artifactsFor": "{{fileName}} 的匯出檔案",
+    "exportArtifact": "匯出 {{fileName}}",
+    "previewArtifact": "預覽 {{fileName}}",
+    "previewLimited": "預覽最多顯示 512 KiB；請匯出以查看完整檔案。",
+    "status": {
+      "queued": "排隊中",
+      "running": "執行中",
+      "waiting_remote": "等待遠端結果",
+      "completed": "已完成",
+      "failed": "失敗",
+      "cancelled": "已取消",
+      "pending": "等待中"
+    },
+    "stage": {
+      "audio": "音訊準備",
+      "speech": "轉寫",
+      "translation": "翻譯",
+      "summary": "摘要",
+      "report": "報告",
+      "cloud": "雲端清理"
+    },
+    "runtimeState": {
+      "unconfigured": "遠端 Runtime 尚未設定。請儲存 URL 和權杖後再檢查。",
+      "ready": "遠端 Runtime 已就緒 · {{engine}} · {{model}} · {{backend}} · 設定 {{revision}}",
+      "disabled": "遠端 Runtime 可連線，但 {{engine}} 尚未啟用。",
+      "unavailable": "遠端 Runtime 無法使用：{{detail}}",
+      "workerUnavailable": "Remote Runtime is not ready."
+    },
+    "transcriptionService": "Transcription service",
+    "connectionLabel": "Connection",
+    "transcriptionOption": "Transcription option",
+    "chooseModel": "Choose a model",
+    "modelUnavailable": "This connection does not provide this capability",
+    "serviceReady": "Service ready · {{model}} · profile {{revision}}",
+    "runtimeConnected": "Remote Runtime ready · model {{model}}",
+    "toggleSecret": "Show or hide secret",
+    "connection": {
+      "speech_private_moss": "MOSS Runtime",
+      "speech_private_funasr": "FunASR Runtime",
+      "speech_aliyun": "Aliyun Bailian transcription",
+      "translation_private": "Private Runtime translation",
+      "translation_aliyun": "Aliyun Bailian translation",
+      "summary_private": "Private Runtime summary",
+      "summary_aliyun": "Aliyun Bailian summary"
+    },
+    "engine": {
+      "moss": "MOSS transcription and diarization",
+      "funasr_meeting": "FunASR meeting transcription",
+      "aliyun_filetrans": "Aliyun Filetrans"
+    },
+    "deleteJob": "Delete task {{fileName}}",
+    "deleteJobConfirm": "Delete task “{{fileName}}”?",
+    "deleteJobDetails": "This removes the local task record and exported files. The original audio file is not deleted.",
+    "deleteJobCloudWarning": "A temporary cloud file may remain until the server cleanup policy runs."
   }
 }

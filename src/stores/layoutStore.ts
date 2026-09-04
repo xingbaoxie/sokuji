@@ -8,6 +8,9 @@
 import { create } from 'zustand';
 
 export const SHOW_SETTINGS_SESSION_KEY = 'panelState.showSettings';
+export const WORKSPACE_SESSION_KEY = 'panelState.workspace';
+
+export type Workspace = 'live' | 'recording';
 
 /** Reads the persisted panel state directly from sessionStorage. Exported so
  *  the store's initial value and callers that need a fresh read (tests) share
@@ -28,9 +31,19 @@ function writeSession(value: boolean): void {
   }
 }
 
+function readWorkspaceFromSession(): Workspace {
+  try {
+    return sessionStorage.getItem(WORKSPACE_SESSION_KEY) === 'recording' ? 'recording' : 'live';
+  } catch {
+    return 'live';
+  }
+}
+
 export interface LayoutStore {
   showSettings: boolean;
   setShowSettings: (value: boolean) => void;
+  workspace: Workspace;
+  setWorkspace: (workspace: Workspace) => void;
   /** Ephemeral: Help's "Run setup again" raises it; MainLayout mounts the
    *  wizard as an overlay while it is true. Never persisted. */
   setupWizardOpen: boolean;
@@ -43,11 +56,18 @@ export const useLayoutStore = create<LayoutStore>()((set) => ({
     writeSession(value);
     set({ showSettings: value });
   },
+  workspace: readWorkspaceFromSession(),
+  setWorkspace: (workspace) => {
+    try { sessionStorage.setItem(WORKSPACE_SESSION_KEY, workspace); } catch { /* state still updates */ }
+    set({ workspace });
+  },
   setupWizardOpen: false,
   setSetupWizardOpen: (value) => set({ setupWizardOpen: value }),
 }));
 
 export const useShowSettings = () => useLayoutStore((s) => s.showSettings);
 export const useSetShowSettings = () => useLayoutStore((s) => s.setShowSettings);
+export const useWorkspace = () => useLayoutStore((s) => s.workspace);
+export const useSetWorkspace = () => useLayoutStore((s) => s.setWorkspace);
 export const useSetupWizardOpen = () => useLayoutStore((s) => s.setupWizardOpen);
 export const useSetSetupWizardOpen = () => useLayoutStore((s) => s.setSetupWizardOpen);

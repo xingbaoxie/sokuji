@@ -1,0 +1,111 @@
+services:
+  control-api:
+    build:
+      context: .
+    image: sokuji-recording-runtime:local
+    restart: unless-stopped
+    env_file: ${SOKUJI_RUNTIME_ENV_FILE:-runtime.env}
+    ports:
+      - "${SOKUJI_RUNTIME_BIND:-127.0.0.1}:8080:8080"
+    volumes:
+      - ${SOKUJI_RUNTIME_DATA:?Set SOKUJI_RUNTIME_DATA}:/var/lib/sokuji-recording-runtime
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  # No host port: only the control API reaches this CUDA 13 vLLM worker over
+  # Docker's private network. It is the POC's sole heavy-GPU service.
+  moss-worker:
+    profiles: ["moss"]
+    build:
+      context: ./moss-vllm
+      args:
+        VLLM_EXTRA_INDEX: ${SOKUJI_VLLM_EXTRA_INDEX:-https://wheels.vllm.ai/68b4a1d582818e67adc903bf1b8fc5a5447da2fa/cu130}
+    image: sokuji-moss-vllm:local
+    restart: unless-stopped
+    env_file: ${SOKUJI_RUNTIME_ENV_FILE:-runtime.env}
+    environment:
+      HF_HOME: /models/huggingface
+      SOKUJI_MOSS_WORKER_PORT: "8000"
+      # MOSS chunks long audio itself. Reserve the vLLM encoder cache for one
+      # 60-minute POC request. This is a startup budget, not a model limit;
+      # keeping it requires a successful long-audio benchmark on the target GPU.
+      SOKUJI_MOSS_ENCODER_CACHE_MAX_AUDIO_SECONDS: "${SOKUJI_MOSS_ENCODER_CACHE_MAX_AUDIO_SECONDS:-3600}"
+      # vLLM applies a separate decode-time safety limit before MOSS receives
+      # the audio. Keep it in lockstep with the encoder-cache budget so the
+      # Runtime never advertises a duration that the Worker then rejects.
+      VLLM_MAX_AUDIO_DECODE_DURATION_S: "${SOKUJI_MOSS_MAX_AUDIO_DECODE_DURATION_SECONDS:-3600}"
+      # Native sampling avoids FlashInfer's optional on-host CUDA JIT build.
+      VLLM_USE_FLASHINFER_SAMPLER: "0"
+    volumes:
+      - ${SOKUJI_RUNTIME_DATA:?Set SOKUJI_RUNTIME_DATA}/models:/models
+    gpus: all
+    shm_size: 2g
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777,size=2g
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  # Mutually exclusive with moss-worker on the RTX 3060 12 GB POC host.
+  # It has no host port; control-api is the only HTTP client.
+  funasr-worker:
+    profiles: ["funasr"]
+    build:
+      context: ./funasr-vllm
+      args:
+        FUNASR_UPSTREAM_COMMIT: 2b6294d69e6588a63c0ce06300f1b55ded71ae58
+    image: sokuji-funasr-vllm:local
+    restart: unless-stopped
+    env_file: ${SOKUJI_RUNTIME_ENV_FILE:-runtime.env}
+    environment:
+      HF_HOME: /models/funasr/huggingface
+      MODELSCOPE_CACHE: /models/funasr/modelscope
+      # /tmp is intentionally noexec. Triton must load its generated helper
+      # shared objects from an executable path during vLLM startup.
+      TORCHINDUCTOR_CACHE_DIR: /models/funasr/torchinductor
+      SOKUJI_FUNASR_WORKER_PORT: "8000"
+    volumes:
+      - ${SOKUJI_RUNTIME_DATA:?Set SOKUJI_RUNTIME_DATA}/models:/models
+    gpus: all
+    shm_size: 2g
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777,size=2g
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"

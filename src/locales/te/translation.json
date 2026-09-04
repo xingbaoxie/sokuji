@@ -1161,5 +1161,146 @@
         "content": "అధునాతన సెట్టింగ్‌లు — ప్రసంగ గుర్తింపు, ప్రాంప్ట్‌లు, వాయిస్‌లు, లాగ్స్ — సెట్టింగ్స్ ఎగువ-కుడి మూలలో ఉన్న అధునాతన స్విచ్ వెనుక ఉంటాయి. ఈ గైడ్‌ను సహాయం నుండి ఎప్పుడైనా మళ్ళీ చూడవచ్చు."
       }
     }
+  },
+  "recording": {
+    "title": "Recording transcription",
+    "desktopOnly": "This workspace is available in the Sokuji desktop app.",
+    "description": "Prepare a recording job. Simulation remains the default until the private Runtime model worker has passed its benchmark gate.",
+    "audio": {
+      "title": "Audio recording",
+      "choose": "Choose audio file",
+      "formats": "M4A, MP3, WAV, AAC, or FLAC · Up to 90 minutes",
+      "metadata": "{{duration}} sec · {{codec}} · {{sampleRate}}",
+      "sampleRateUnknown": "sample rate unknown"
+    },
+    "executionMode": "Execution mode",
+    "runtimeMode": {
+      "simulation": {
+        "label": "Simulated Runtime",
+        "hint": "Default development mode. No network request is made."
+      },
+      "live": {
+        "label": "Live provider",
+        "hint": "Runs the selected private Runtime or Aliyun Cloud provider."
+      }
+    },
+    "processingScheme": "Processing scheme",
+    "scheme": {
+      "private-moss": "Private MOSS",
+      "private-funasr": "Private FunASR",
+      "aliyun-cloud": "Aliyun Cloud"
+    },
+    "languagesAndOutput": "Languages and output",
+    "sourceMode": "Source mode",
+    "sourceLanguage": "Source language",
+    "targetLanguage": "Target language",
+    "sourceModeOptions": {
+      "auto": "Auto detect",
+      "mixed": "Mixed language",
+      "fixed": "Fixed language"
+    },
+    "generateTranslation": "Generate translation",
+    "generateSummary": "Generate summary report",
+    "runtimeProfile": "Runtime profile",
+    "profileId": "Profile ID",
+    "profileRevision": "Profile revision",
+    "credential": {
+      "configured": "Credential is securely configured in the desktop app.",
+      "notConfigured": "No credential configured for this profile.",
+      "statusUnavailable": "Credential status is unavailable in this preview."
+    },
+    "privateRuntimeHint": "Private MOSS and FunASR profiles provide transcription, speakers, timestamps, SRT, and report export. Keep translation and summary off for this POC.",
+    "runtimeStatus": "Runtime: {{status}}",
+    "runtimeToken": "Runtime token",
+    "saveCredential": "Save securely",
+    "removeCredential": "Remove",
+    "saveAliyunProfile": "Save Aliyun POC profile",
+    "aliyun": {
+      "configured": "Aliyun Beijing profile configured ({{revision}}).",
+      "notConfigured": "Aliyun profile is not configured."
+    },
+    "privateRuntime": "private Runtime",
+    "runLiveJob": "Run {{provider}} job",
+    "runSimulatedJob": "Run simulated job",
+    "startTranscription": "Start transcription",
+    "saveProcessingSettings": "Save recording settings",
+    "settingsSaved": "Recording settings saved.",
+    "settingsSaveFailed": "Unable to save recording settings.",
+    "serviceSettings": "Service settings",
+    "providerLabel": "Provider",
+    "model": "Model",
+    "hotwords": "Hotwords (comma separated)",
+    "summaryInput": "Summary input",
+    "summarySource": "Source transcript",
+    "summaryTranslated": "Translation",
+    "summaryBilingual": "Bilingual",
+    "reportLanguage": "Report language",
+    "reportLanguageAuto": "Follow app language",
+    "summaryTemplate": "Summary template",
+    "summaryTemplateGeneralMeeting": "General meeting summary",
+    "tokenSaved": "Saved token",
+    "provider": {
+      "private": "Private Runtime",
+      "aliyun": "Aliyun Cloud"
+    },
+    "elapsed": "Took {{duration}}",
+    "jobs": "Jobs",
+    "noJobs": "No recording jobs yet.",
+    "cancellationRequested": "Cancellation requested — waiting for the current inference to stop.",
+    "jobProgress": "Job progress for {{fileName}}",
+    "artifactsFor": "Artifacts for {{fileName}}",
+    "exportArtifact": "Export {{fileName}}",
+    "previewArtifact": "Preview {{fileName}}",
+    "previewLimited": "Preview is limited to 512 KiB. Export for the complete file.",
+    "status": {
+      "queued": "queued",
+      "running": "running",
+      "waiting_remote": "waiting for remote result",
+      "completed": "completed",
+      "failed": "failed",
+      "cancelled": "cancelled",
+      "pending": "pending"
+    },
+    "stage": {
+      "audio": "Audio preparation",
+      "speech": "Transcription",
+      "translation": "Translation",
+      "summary": "Summary",
+      "report": "Report",
+      "cloud": "Cloud cleanup"
+    },
+    "runtimeState": {
+      "unconfigured": "Remote Runtime is not configured. Save its URL and token to check it.",
+      "ready": "Remote Runtime is ready · {{engine}} · {{model}} · {{backend}} · profile {{revision}}",
+      "disabled": "Remote Runtime is reachable, but {{engine}} is not enabled.",
+      "unavailable": "Remote Runtime is unavailable: {{detail}}",
+      "workerUnavailable": "Remote Runtime is not ready."
+    },
+    "transcriptionService": "Transcription service",
+    "connectionLabel": "Connection",
+    "transcriptionOption": "Transcription option",
+    "chooseModel": "Choose a model",
+    "modelUnavailable": "This connection does not provide this capability",
+    "serviceReady": "Service ready · {{model}} · profile {{revision}}",
+    "runtimeConnected": "Remote Runtime ready · model {{model}}",
+    "toggleSecret": "Show or hide secret",
+    "connection": {
+      "speech_private_moss": "MOSS Runtime",
+      "speech_private_funasr": "FunASR Runtime",
+      "speech_aliyun": "Aliyun Bailian transcription",
+      "translation_private": "Private Runtime translation",
+      "translation_aliyun": "Aliyun Bailian translation",
+      "summary_private": "Private Runtime summary",
+      "summary_aliyun": "Aliyun Bailian summary"
+    },
+    "engine": {
+      "moss": "MOSS transcription and diarization",
+      "funasr_meeting": "FunASR meeting transcription",
+      "aliyun_filetrans": "Aliyun Filetrans"
+    },
+    "deleteJob": "Delete task {{fileName}}",
+    "deleteJobConfirm": "Delete task “{{fileName}}”?",
+    "deleteJobDetails": "This removes the local task record and exported files. The original audio file is not deleted.",
+    "deleteJobCloudWarning": "A temporary cloud file may remain until the server cleanup policy runs."
   }
 }

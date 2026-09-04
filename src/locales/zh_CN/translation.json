@@ -1161,5 +1161,146 @@
         "content": "高级设置——说话检测、提示词、语音、日志——在「设置」右上角的高级模式开关后面。随时可以在「帮助」里重看本引导。"
       }
     }
+  },
+  "recording": {
+    "title": "录音转写",
+    "desktopOnly": "此工作区仅在 Sokuji 桌面应用中可用。",
+    "description": " ",
+    "audio": {
+      "title": "音频录音",
+      "choose": "选择音频文件",
+      "formats": "支持 M4A、MP3、WAV、AAC 或 FLAC · 最长 90 分钟",
+      "metadata": "{{duration}} 秒 · {{codec}} · {{sampleRate}}",
+      "sampleRateUnknown": "采样率未知"
+    },
+    "executionMode": "执行模式",
+    "runtimeMode": {
+      "simulation": {
+        "label": "模拟 Runtime",
+        "hint": "默认开发模式，不发出网络请求。"
+      },
+      "live": {
+        "label": "实时服务",
+        "hint": "使用所选私有 Runtime 或阿里云服务。"
+      }
+    },
+    "processingScheme": "转写引擎",
+    "transcriptionService": "转写服务",
+    "connectionLabel": "连接配置",
+    "transcriptionOption": "转写方案",
+    "chooseModel": "选择模型",
+    "modelUnavailable": "当前连接未提供此能力",
+    "serviceReady": "服务已就绪 · {{model}} · 配置 {{revision}}",
+    "runtimeConnected": "远端 Runtime 已就绪 · 模型 {{model}}",
+    "toggleSecret": "显示或隐藏密钥",
+    "connection": {
+      "speech_private_moss": "MOSS Runtime",
+      "speech_private_funasr": "FunASR Runtime",
+      "speech_aliyun": "阿里云百炼转写",
+      "translation_private": "私有 Runtime 翻译",
+      "translation_aliyun": "阿里云百炼翻译",
+      "summary_private": "私有 Runtime 总结",
+      "summary_aliyun": "阿里云百炼总结"
+    },
+    "engine": {
+      "moss": "MOSS 转写与说话人识别",
+      "funasr_meeting": "FunASR 会议转写",
+      "aliyun_filetrans": "阿里云 Filetrans"
+    },
+    "scheme": {
+      "private-moss": "私有 MOSS",
+      "private-funasr": "私有 FunASR",
+      "aliyun-cloud": "阿里云百炼"
+    },
+    "languagesAndOutput": "转写设置",
+    "sourceMode": "源语言模式",
+    "sourceLanguage": "源语言",
+    "targetLanguage": "目标语言",
+    "sourceModeOptions": {
+      "auto": "自动识别",
+      "mixed": "混合语言",
+      "fixed": "指定语言"
+    },
+    "generateTranslation": "生成翻译",
+    "generateSummary": "生成总结报告",
+    "runtimeProfile": "服务设置",
+    "profileId": "配置 ID",
+    "profileRevision": "配置版本",
+    "credential": {
+      "configured": "凭据已安全保存到桌面应用。",
+      "notConfigured": "此配置尚未保存凭据。",
+      "statusUnavailable": "此预览中无法读取凭据状态。"
+    },
+    "privateRuntimeHint": "选择用于转写此音频的服务。开始任务前会检查服务状态。",
+    "runtimeStatus": "Runtime：{{status}}",
+    "runtimeToken": "Runtime 令牌",
+    "saveCredential": "安全保存",
+    "removeCredential": "移除",
+    "saveAliyunProfile": "保存阿里云设置",
+    "aliyun": {
+      "configured": "阿里云北京设置已保存（{{revision}}）。",
+      "notConfigured": "阿里云配置尚未保存。"
+    },
+    "privateRuntime": "私有 Runtime",
+    "runLiveJob": "开始{{provider}}转写",
+    "runSimulatedJob": "开始转写",
+    "startTranscription": "开始转写",
+    "saveProcessingSettings": "保存录音转写设置",
+    "settingsSaved": "录音转写设置已保存。",
+    "settingsSaveFailed": "无法保存录音转写设置。",
+    "serviceSettings": "服务设置",
+    "providerLabel": "服务提供方",
+    "model": "模型",
+    "hotwords": "热词（用逗号分隔）",
+    "summaryInput": "总结输入内容",
+    "summarySource": "原始转写",
+    "summaryTranslated": "翻译结果",
+    "summaryBilingual": "双语内容",
+    "reportLanguage": "报告语言",
+    "reportLanguageAuto": "跟随界面语言",
+    "summaryTemplate": "总结模板",
+    "summaryTemplateGeneralMeeting": "通用会议总结",
+    "tokenSaved": "已保存令牌",
+    "provider": {
+      "private": "私有 Runtime",
+      "aliyun": "阿里云百炼"
+    },
+    "elapsed": "耗时 {{duration}}",
+    "jobs": "任务",
+    "noJobs": "暂无录音任务。",
+    "cancellationRequested": "已请求取消，正在等待当前推理停止。",
+    "jobProgress": "{{fileName}} 的任务进度",
+    "artifactsFor": "{{fileName}} 的导出文件",
+    "exportArtifact": "导出 {{fileName}}",
+    "previewArtifact": "预览 {{fileName}}",
+    "previewLimited": "预览最多显示 512 KiB；请导出以查看完整文件。",
+    "deleteJob": "删除任务 {{fileName}}",
+    "deleteJobConfirm": "删除任务“{{fileName}}”？",
+    "deleteJobDetails": "将删除本地任务记录与导出文件，原始音频文件不会被删除。",
+    "deleteJobCloudWarning": "云端临时文件可能仍保留，直至服务端清理策略执行。",
+    "status": {
+      "queued": "排队中",
+      "running": "运行中",
+      "waiting_remote": "等待远端结果",
+      "completed": "已完成",
+      "failed": "失败",
+      "cancelled": "已取消",
+      "pending": "等待中"
+    },
+    "stage": {
+      "audio": "音频准备",
+      "speech": "转写",
+      "translation": "翻译",
+      "summary": "总结",
+      "report": "报告",
+      "cloud": "云端清理"
+    },
+    "runtimeState": {
+      "unconfigured": "远端 Runtime 尚未配置。请保存 URL 和令牌后再检查。",
+      "ready": "远端 Runtime 已就绪 · {{engine}} · {{model}} · {{backend}} · 配置 {{revision}}",
+      "disabled": "远端 Runtime 可达，但 {{engine}} 尚未启用。",
+      "workerUnavailable": "远端 Runtime 未就绪。",
+      "unavailable": "远端 Runtime 不可用：{{detail}}"
+    }
   }
 }

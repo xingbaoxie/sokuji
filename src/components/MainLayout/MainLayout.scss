@@ -94,6 +94,13 @@
     overflow: hidden; // Prevent content from overflowing
     min-height: 0; // Allow shrinking in flex container
   }
+
+  .main-panel-container--recording {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   
   .settings-panel-container {
     min-width: 300px; /* width is state-driven via inline style (see MainLayout.tsx) */

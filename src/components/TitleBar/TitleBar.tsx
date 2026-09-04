@@ -1,7 +1,8 @@
 // src/components/TitleBar/TitleBar.tsx
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Minus, Square, X, Settings, Terminal } from 'lucide-react';
+import { FileAudio, Minus, Square, X, Settings, Terminal } from 'lucide-react';
+import type { Workspace } from '../../stores/layoutStore';
 import { isElectron, isMacOS } from '../../utils/environment';
 import SubtitleEnterButton from '../Subtitle/SubtitleEnterButton';
 import AccountButton from './AccountButton';
@@ -16,6 +17,8 @@ interface TitleBarProps {
   showLogsButton: boolean;
   onToggleSettings: () => void;
   onToggleLogs: () => void;
+  workspace: Workspace;
+  onToggleWorkspace: () => void;
 }
 
 const TitleBar: React.FC<TitleBarProps> = ({
@@ -24,6 +27,8 @@ const TitleBar: React.FC<TitleBarProps> = ({
   showLogsButton,
   onToggleSettings,
   onToggleLogs,
+  workspace,
+  onToggleWorkspace,
 }) => {
   const { t } = useTranslation();
 
@@ -42,6 +47,7 @@ const TitleBar: React.FC<TitleBarProps> = ({
   const minimizeLabel = t('titleBar.minimize', 'Minimize');
   const maximizeLabel = t('titleBar.maximize', 'Maximize');
   const closeLabel = t('titleBar.close', 'Close');
+  const recordingLabel = t('recording.title', 'Recording transcription');
 
   // Only Electron Win/Linux render the in-app min/max/close buttons. On
   // macOS the OS draws traffic-light buttons (titleBarStyle: hiddenInset),
@@ -62,6 +68,18 @@ const TitleBar: React.FC<TitleBarProps> = ({
       <div className="title-bar__actions">
         <AccountButton />
         <SubtitleEnterButton />
+        {isElectron() && (
+          <button
+            type="button"
+            className={`title-bar__action ${workspace === 'recording' ? 'is-active' : ''}`}
+            onClick={onToggleWorkspace}
+            title={recordingLabel}
+            aria-label={recordingLabel}
+          >
+            <FileAudio size={14} />
+            <span className="title-bar__action-label">{recordingLabel}</span>
+          </button>
+        )}
         <button
           type="button"
           data-tour="settings-button"

@@ -13,12 +13,13 @@ import './MainLayout.scss';
 import { useAnalytics } from '../../lib/analytics';
 import { useProvider, useUIMode, useSetProvider, useSettingsNavigationTarget, useSubtitleModeActive } from '../../stores/settingsStore';
 import { isElectron } from '../../utils/environment';
-import { useShowSettings, useSetShowSettings, useSetupWizardOpen, useSetSetupWizardOpen } from '../../stores/layoutStore';
+import { useShowSettings, useSetShowSettings, useSetupWizardOpen, useSetSetupWizardOpen, useWorkspace, useSetWorkspace } from '../../stores/layoutStore';
 import SubtitleApp from '../Subtitle/SubtitleApp';
 import { useSetupLoaded, useSetupComplete } from '../../stores/setupStore';
 import { useAuth } from '../../lib/auth/hooks';
 import { isKizunaManagedProvider } from '../../types/Provider';
 import { ProviderConfigFactory } from '../../services/providers/ProviderConfigFactory';
+import RecordingWorkspace from '../../features/recording/components/RecordingWorkspace';
 
 type PanelName = 'settings' | 'logs' | 'main';
 
@@ -39,6 +40,8 @@ const MainLayout: React.FC = () => {
   });
   const showSettings = useShowSettings();
   const setShowSettings = useSetShowSettings();
+  const workspace = useWorkspace();
+  const setWorkspace = useSetWorkspace();
   const [panelWidth, setPanelWidth] = useState(() => clampPanelWidth(readPanelWidth(), window.innerWidth));
 
   // Track panel view times
@@ -220,6 +223,12 @@ const MainLayout: React.FC = () => {
         showLogsButton={uiMode === 'advanced'}
         onToggleSettings={toggleSettings}
         onToggleLogs={toggleLogs}
+        workspace={workspace}
+        onToggleWorkspace={() => {
+          setWorkspace(workspace === 'live' ? 'recording' : 'live');
+          setShowSettings(false);
+          setShowLogs(false);
+        }}
       />
     )}
     <div
@@ -227,8 +236,8 @@ const MainLayout: React.FC = () => {
       style={electronSubtitleTakeover ? { display: 'none' } : undefined}
     >
       <div className={`main-content ${(logsVisible || showSettings) ? 'with-panel' : 'full-width'}`}>
-        <div className="main-panel-container">
-          <MainPanel />
+        <div className={`main-panel-container${workspace === 'recording' ? ' main-panel-container--recording' : ''}`}>
+          {workspace === 'recording' ? <RecordingWorkspace /> : <MainPanel />}
         </div>
       </div>
       {(logsVisible || showSettings) && (
