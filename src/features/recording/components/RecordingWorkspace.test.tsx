@@ -35,7 +35,7 @@ vi.mock('../services/recordingService', () => ({
   },
 }));
 
-import RecordingWorkspace, { formatElapsedDuration, formatJobFailure } from './RecordingWorkspace';
+import RecordingWorkspace, { displayRecordingModelName, formatElapsedDuration, formatJobFailure } from './RecordingWorkspace';
 import { useRecordingJobStore } from '../stores/recordingJobStore';
 import { defaultRecordingJobConfig, type RecordingJobSummary } from '../types/recording';
 import { recordingService } from '../services/recordingService';
@@ -66,6 +66,12 @@ describe('RecordingWorkspace', () => {
     expect(formatElapsedDuration('2026-09-01T00:00:00.000Z', '2026-09-01T01:01:25.000Z', 'en')).toBe('1h 1m 25s');
   });
 
+  it('shows a compact model name while retaining the full model id for its hint', () => {
+    expect(displayRecordingModelName('OpenMOSS-Team/MOSS-Transcribe-Diarize')).toBe('MOSS-Transcribe-Diarize');
+    expect(displayRecordingModelName('qwen-audio-3.0-asr-flash-filetrans')).toBe('qwen-audio-3.0-asr-flash-filetrans');
+    expect(displayRecordingModelName()).toBe('');
+  });
+
   it('shows a short user-facing failure instead of the raw provider log', () => {
     expect(formatJobFailure({ code: 'ALIYUN_CLOUD_FAILED', message: "Hostname/IP does not match certificate's altnames" }, 'zh_CN')).toBe('[失败] 对象存储连接失败');
     expect(formatJobFailure({ code: 'AUDIO_UNREADABLE', message: 'hidden internal details' }, 'zh_CN')).toBe('[失败] 远端无法读取音频文件');
@@ -75,21 +81,48 @@ describe('RecordingWorkspace', () => {
     expect(formatJobFailure(undefined, 'ja')).toBe('[失敗] クラウド文字起こしに失敗しました');
   });
 
-  it('renders an artifact preview inside its own task and marks its file as expanded', () => {
+  it('keeps technical artifacts out of a completed task until a user result preview exists', () => {
     const config = { ...defaultRecordingJobConfig(), summary: { ...defaultRecordingJobConfig().summary, enabled: true } };
     const job: RecordingJobSummary = {
-      jobId: 'job-1', sourceFileName: 'meeting.mp3', sourcePath: '/tmp/meeting.mp3', status: 'completed', config,
+      jobId: 'job-1', sourceFileName: 'meeting.mp3', status: 'completed', config,
       createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', completedAt: '2026-09-01T00:01:00.000Z',
       stageRuns: [], artifacts: [{ kind: 'report-markdown', fileName: 'report.md' }],
     };
-    useRecordingJobStore.setState({ jobs: [job], artifactPreview: { jobId: job.jobId, fileName: 'report.md', content: '报告正文', truncated: false } });
+    useRecordingJobStore.setState({ jobs: [job] });
 
     const { container } = render(<RecordingWorkspace />);
-    const preview = screen.getByText('报告正文');
-    expect(preview.closest('li')).toContain(screen.getByText('meeting.mp3'));
-    expect(screen.getByRole('button', { name: 'report.md' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('button', { name: 'report.md' })).toHaveClass('is-expanded');
+    expect(screen.getByText('meeting.mp3')).toBeTruthy();
+    expect(screen.queryByText('report.md')).toBeNull();
     expect(container.querySelector('.recording-section.recording-preview')).toBeNull();
+  });
+
+  it('expands and collapses a result task when its card is clicked', () => {
+    const config = defaultRecordingJobConfig();
+    const job: RecordingJobSummary = {
+      jobId: 'job-expand', sourceFileName: 'meeting.mp3', status: 'completed', config,
+      createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', completedAt: '2026-09-01T00:01:00.000Z',
+      stageRuns: [], artifacts: [{ kind: 'transcript-json', fileName: 'transcript.json' }],
+    };
+    useRecordingJobStore.setState({ jobs: [job] });
+    render(<RecordingWorkspace />);
+    const card = screen.getByText('meeting.mp3').closest('li') as HTMLElement;
+    fireEvent.click(card);
+    expect(card).toHaveClass('is-expanded');
+    fireEvent.click(card);
+    expect(card).not.toHaveClass('is-expanded');
+  });
+
+  it('groups summary generation and report formatting into one user-facing stage', () => {
+    const config = { ...defaultRecordingJobConfig(), summary: { ...defaultRecordingJobConfig().summary, enabled: true } };
+    const job: RecordingJobSummary = {
+      jobId: 'job-summary', sourceFileName: 'meeting.mp3', status: 'completed', config,
+      createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', completedAt: '2026-09-01T00:01:00.000Z',
+      stageRuns: [{ stage: 'summary.execute', status: 'completed', progress: 100 }, { stage: 'report.build', status: 'completed', progress: 100 }], artifacts: [],
+    };
+    useRecordingJobStore.setState({ jobs: [job] });
+    render(<RecordingWorkspace />);
+    expect(screen.getByText('总结报告 已完成')).toBeInTheDocument();
+    expect(screen.queryByText('报告 已完成')).toBeNull();
   });
 
   it('closes the current artifact preview when the same file is clicked again', async () => {
@@ -104,7 +137,7 @@ describe('RecordingWorkspace', () => {
   it('shows deletion only for a terminal task and clears its local row after confirmation', async () => {
     const config = defaultRecordingJobConfig();
     const job: RecordingJobSummary = {
-      jobId: 'job-delete', sourceFileName: 'meeting.mp3', sourcePath: '/tmp/meeting.mp3', status: 'failed', config,
+      jobId: 'job-delete', sourceFileName: 'meeting.mp3', status: 'failed', config,
       createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', stageRuns: [], artifacts: [],
     };
     vi.mocked(recordingService.listJobs).mockResolvedValue([job]);

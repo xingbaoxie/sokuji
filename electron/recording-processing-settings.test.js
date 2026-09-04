@@ -21,19 +21,20 @@ describe('recording processing settings store', () => {
     }
   });
 
-  it('normalizes settings and makes translated summary input depend on translation', async () => {
+  it('preserves an invalid historical summary input mode and rejects it when saving', async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-recording-settings-'));
     const store = new RecordingProcessingSettingsStore({ app: { getPath: () => directory } });
     try {
-      const settings = await store.save({
+      const input = {
         speech: { providerId: 'private-runtime', engineId: 'funasr-meeting' }, sourceLanguageMode: 'fixed', sourceLanguage: 'ja', targetLanguage: 'en',
         hotwords: ['Sokuji', 'Sokuji', ''], translation: { enabled: false, providerId: 'private-runtime', modelId: 'local-mt' },
         summary: { enabled: true, providerId: 'aliyun-cloud', modelId: 'qwen3.8-max', inputMode: 'bilingual' },
-      });
-      expect(settings.hotwords).toEqual(['Sokuji']);
-      expect(settings.summary.inputMode).toBe('source');
-      const raw = await readFile(path.join(directory, 'recording-processing-settings.json'), 'utf8');
-      expect(raw).not.toMatch(/credential|token|secret/i);
+      };
+      await expect(store.save(input)).rejects.toThrow(/translation/i);
+      await writeFile(path.join(directory, 'recording-processing-settings.json'), JSON.stringify(input));
+      const historical = await store.get();
+      expect(historical.hotwords).toEqual(['Sokuji']);
+      expect(historical.summary.inputMode).toBe('bilingual');
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

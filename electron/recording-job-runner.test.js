@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { mergeTranscriptAndTranslation, runRecordingJob } from './recording-job-runner.js';
+import { mergeTranscriptAndTranslation, privateSummaryPayload, runRecordingJob } from './recording-job-runner.js';
 
 describe('recording job runner', () => {
+  it('only sends template metadata to a private Runtime that explicitly supports it', () => {
+    const summary = { profileRevision: 'r1', modelId: 'summary-model', inputMode: 'source', templateId: 'general-meeting', reportLanguage: 'ja', schemaVersion: 1 };
+    expect(privateSummaryPayload(summary, [])).not.toHaveProperty('templateId');
+    expect(privateSummaryPayload({ ...summary, runtimeCapabilities: { summaryTemplateMetadata: true } }, [])).toMatchObject({ templateId: 'general-meeting', reportLanguage: 'ja', schemaVersion: 1 });
+  });
   it('preserves original text and adds translations for bilingual summary input', () => {
     expect(mergeTranscriptAndTranslation(
       [{ id: 'seg-1', text: 'hello' }, { id: 'seg-2', text: 'world' }],

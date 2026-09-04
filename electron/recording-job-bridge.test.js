@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { AUDIO_EXTENSIONS, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, validateStartPayload } from './recording-job-bridge.js';
+import { AUDIO_EXTENSIONS, commitStageArtifacts, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, exportResult, getJobPreview, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, runtimeArtifacts, stageArtifacts, validateStartPayload, withJobWriteLock } from './recording-job-bridge.js';
 
 const config = { speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss', modelId: '' }, translation: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' }, summary: { enabled: false, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'source' } };
 
@@ -29,6 +29,7 @@ describe('recording job bridge', () => {
       createdAt: '2026-08-28T00:00:00.000Z', updatedAt: '2026-08-28T00:00:00.000Z', runtimeCredential: 'must-not-leak',
     });
     expect(result).not.toHaveProperty('runtimeCredential');
+    expect(result).not.toHaveProperty('sourcePath');
   });
 
   it('exposes the durable completion timestamp without exposing credentials', () => {
@@ -113,6 +114,72 @@ describe('recording job bridge', () => {
     const artifacts = runtimeArtifacts({ sourceFileName: 'meeting.m4a', config }, { transcript: { segments: [{ startMs: 0, endMs: 1200, speakerId: 'S01', text: 'hello' }] } });
     expect(artifacts.find((artifact) => artifact.fileName === 'transcript.srt').content).toContain('00:00:00,000 --> 00:00:01,200');
     expect(artifacts.find((artifact) => artifact.fileName === 'report.md')).toBeUndefined();
+  });
+
+  it('preserves a translation source text supplied as a transcript text field', () => {
+    const [artifact] = stageArtifacts({ sourceFileName: 'meeting.m4a', config }, 'translation.execute', {
+      targetLanguage: 'ja', segments: [{ id: 'seg-1', startMs: 0, text: '你好', translatedText: 'こんにちは' }],
+    });
+    expect(JSON.parse(artifact.content).segments[0]).toMatchObject({ text: '你好', translatedText: 'こんにちは' });
+  });
+
+  it('records the selected target language when a provider returns only translation segments', () => {
+    const [artifact] = stageArtifacts({ sourceFileName: 'meeting.m4a', config: { ...config, targetLanguage: 'ja' } }, 'translation.execute', {
+      segments: [{ id: 'seg-1', startMs: 0, text: '你好', translatedText: 'こんにちは' }],
+    });
+    expect(JSON.parse(artifact.content).targetLanguage).toBe('ja');
+  });
+
+  it('uses the task target-language snapshot when reading a legacy translation artifact', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-preview-language-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_preview_language';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({
+      jobId, sourceFileName: 'meeting.mp3', config: { ...config, targetLanguage: 'ja' }, artifacts: [{ kind: 'translation-json', fileName: 'translation.json' }],
+    }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'translation.json'), JSON.stringify({ targetLanguage: 'zh', segments: [{ id: 'seg-1', translatedText: 'こんにちは' }] }));
+    try {
+      await expect(getJobPreview(app, jobId)).resolves.toMatchObject({ translation: { targetLanguage: 'ja', texts: ['こんにちは'] } });
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('exports the text stored in a translation artifact without consulting the transcript', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-export-translation-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_export_translation';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId); const output = path.join(directory, 'translation.txt');
+    const prefix = '[00:00:01.150] [S01] ';
+    await mkdir(path.join(jobDirectory, 'artifacts'), { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourceFileName: 'meeting.mp3', artifacts: [
+      { kind: 'transcript-json', fileName: 'transcript.json' }, { kind: 'translation-json', fileName: 'translation.json' },
+    ] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'transcript.json'), JSON.stringify({ segments: [{ id: 'seg-1', startMs: 1150, endMs: 2000, speakerId: 'S01', text: '你好' }] }));
+    await writeFile(path.join(jobDirectory, 'artifacts', 'translation.json'), JSON.stringify({ targetLanguage: 'ja', segments: [{ id: 'seg-1', startMs: 1150, speakerId: 'S01', text: '你好', translatedText: 'こんにちは' }] }));
+    try {
+      await exportResult(app, { showSaveDialog: async () => ({ canceled: false, filePath: output }) }, jobId, 'translation-txt');
+      await expect(readFile(output, 'utf8')).resolves.toBe(`${prefix}原文：你好\n${' '.repeat(prefix.length)}译文：こんにちは`);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('commits checkpoints incrementally without replacing an earlier result', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'sokuji-checkpoint-'));
+    const app = { getPath: () => directory }; const jobId = 'rec_checkpoint';
+    const jobDirectory = path.join(directory, 'recording-jobs', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    await writeFile(path.join(jobDirectory, 'job.json'), JSON.stringify({ jobId, sourceFileName: 'meeting.mp3', status: 'running', config, stageRuns: createStageRuns({ ...config, translation: { enabled: true } }), artifacts: [] }));
+    try {
+      await commitStageArtifacts(app, jobId, 'speech.execute', stageArtifacts({ sourceFileName: 'meeting.mp3', config }, 'speech.execute', { segments: [{ id: 'seg-1', startMs: 0, endMs: 10, text: 'hello' }] }));
+      await commitStageArtifacts(app, jobId, 'translation.execute', stageArtifacts({ sourceFileName: 'meeting.mp3', config }, 'translation.execute', { targetLanguage: 'zh', segments: [{ id: 'seg-1', translatedText: '你好', text: 'hello' }] }));
+      const saved = JSON.parse(await readFile(path.join(jobDirectory, 'job.json'), 'utf8'));
+      expect(saved.artifacts.map((item) => item.kind)).toEqual(expect.arrayContaining(['transcript-json', 'subtitle-srt', 'translation-json']));
+      expect(saved.stageRuns.find((stage) => stage.stage === 'speech.execute').status).toBe('completed');
+      expect(await getJobPreview(app, jobId)).toMatchObject({ availability: { transcript: true, translation: true, summary: false }, transcript: { segmentCount: 1 }, translation: { texts: ['你好'] } });
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it('continues a per-job write queue after a failed mutation', async () => {
+    await expect(withJobWriteLock('rec_queue', async () => { throw new Error('first write fails'); })).rejects.toThrow('first write fails');
+    await expect(withJobWriteLock('rec_queue', async () => 'second write succeeds')).resolves.toBe('second write succeeds');
   });
 
   it('reports remote MOSS readiness without returning the saved token', async () => {

@@ -1239,6 +1239,10 @@
     "summarySource": "原始转写",
     "summaryTranslated": "翻译结果",
     "summaryBilingual": "双语内容",
+    "reportLanguage": "报告语言",
+    "reportLanguageAuto": "跟随界面语言",
+    "summaryTemplate": "总结模板",
+    "summaryTemplateGeneralMeeting": "通用会议总结",
     "tokenSaved": "已保存令牌",
     "provider": {
       "private": "私有 Runtime",

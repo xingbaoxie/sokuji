@@ -4,6 +4,8 @@
 .recording-settings .settings-section { display: grid; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid vars.$border-default; }
 .recording-settings .settings-section:last-of-type { border-bottom: 0; padding-bottom: 0; }
 .recording-settings h2 { margin: 0; font-size: vars.$font-title; }
+.recording-settings__feature-header { display: flex; align-items: center; justify-content: space-between; min-height: 40px; gap: 16px; padding: 2px 0; }
+.recording-settings__feature-header .toggle-switch-component { flex: 0 0 auto; }
 .recording-settings h3 { margin: 0; font-size: vars.$font-body; }
 .recording-settings label { display: grid; gap: 6px; color: vars.$text-secondary; font-size: vars.$font-caption; }
 .recording-settings input { @include vars.control-base; box-sizing: border-box; width: 100%; min-height: 36px; padding: 0 10px; }
@@ -49,4 +51,7 @@
 .recording-settings__state.is-unavailable { color: vars.$color-error; }
 .recording-settings__state.is-disabled { color: vars.$color-warning; }
 .recording-settings__notice { margin: 0; color: vars.$text-secondary; }
-@media (max-width: 620px) { .recording-settings__form-grid { grid-template-columns: 1fr; } }
+@media (max-width: 620px) {
+  .recording-settings__form-grid { grid-template-columns: 1fr; }
+  .recording-settings__feature-header { align-items: flex-start; }
+}

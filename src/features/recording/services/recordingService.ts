@@ -1,4 +1,4 @@
-import type { RecordingAudioFile, RecordingJobConfig, RecordingJobSummary, RecordingProviderId, RecordingSpeechEngineId } from '../types/recording';
+import type { RecordingAudioFile, RecordingJobConfig, RecordingJobPreview, RecordingJobSummary, RecordingProviderId, RecordingSpeechEngineId, RecordingSummaryResult, RecordingTranscriptResult, RecordingTranslationResult } from '../types/recording';
 
 interface RecordingDesktopApi {
   invoke(channel: string, data?: unknown): Promise<unknown>;
@@ -55,11 +55,12 @@ export interface PrivateRuntimeStatus {
   summaryModels?: Array<{ id: string; revision?: string; backend?: string }>;
   components?: string[] | Record<string, string>;
   validatedMaxDurationSec?: number;
+  summaryCapabilities?: { summaryPrompt?: boolean; summaryRepair?: boolean; summaryTemplateMetadata?: boolean };
 }
 
 export interface RecordingConnectionCatalogItem { id: string; providerId: RecordingProviderId; stage: 'speech' | 'translation' | 'summary'; labelKey: string; }
 export interface RecordingProviderCatalog { providers: Array<{ id: RecordingProviderId; labelKey: string; stages: string[]; speechOptions: Array<{ engineId: RecordingSpeechEngineId; connectionProfileId: string; modelId?: string; labelKey: string; descriptionKey: string }> }>; connections: RecordingConnectionCatalogItem[]; }
-export interface RecordingProviderStatus { state: 'unconfigured' | 'ready' | 'disabled' | 'unavailable'; detail?: string; engineId?: RecordingSpeechEngineId; modelId?: string; modelRevision?: string; profileRevision?: string; backend?: string; models?: Array<{ id: string; revision?: string; backend?: string }>; translationModels?: Array<{ id: string; revision?: string; backend?: string }>; summaryModels?: Array<{ id: string; revision?: string; backend?: string }>; components?: string[] | Record<string, string>; validatedMaxDurationSec?: number; }
+export interface RecordingProviderStatus { state: 'unconfigured' | 'ready' | 'disabled' | 'unavailable'; detail?: string; engineId?: RecordingSpeechEngineId; modelId?: string; modelRevision?: string; profileRevision?: string; backend?: string; models?: Array<{ id: string; revision?: string; backend?: string }>; translationModels?: Array<{ id: string; revision?: string; backend?: string }>; summaryModels?: Array<{ id: string; revision?: string; backend?: string }>; components?: string[] | Record<string, string>; validatedMaxDurationSec?: number; summaryCapabilities?: { summaryPrompt?: boolean; summaryRepair?: boolean; summaryTemplateMetadata?: boolean }; }
 
 function desktopApi(): RecordingDesktopApi {
   const api = window.electron as RecordingDesktopApi | undefined;
@@ -112,6 +113,21 @@ export const recordingService = {
 
   async readArtifact(jobId: string, fileName: string): Promise<{ fileName: string; content: string; truncated: boolean }> {
     return desktopApi().invoke('recording:read-artifact', { jobId, fileName }) as Promise<{ fileName: string; content: string; truncated: boolean }>;
+  },
+  async getJobPreview(jobId: string): Promise<RecordingJobPreview> {
+    return desktopApi().invoke('recording:get-job-preview', { jobId }) as Promise<RecordingJobPreview>;
+  },
+  async getTranscriptResult(jobId: string): Promise<RecordingTranscriptResult> {
+    return desktopApi().invoke('recording:get-transcript-result', { jobId }) as Promise<RecordingTranscriptResult>;
+  },
+  async getTranslationResult(jobId: string): Promise<RecordingTranslationResult> {
+    return desktopApi().invoke('recording:get-translation-result', { jobId }) as Promise<RecordingTranslationResult>;
+  },
+  async getSummaryResult(jobId: string): Promise<RecordingSummaryResult> {
+    return desktopApi().invoke('recording:get-summary-result', { jobId }) as Promise<RecordingSummaryResult>;
+  },
+  async exportResult(jobId: string, resultType: 'transcript-txt' | 'translation-txt' | 'report-txt' | 'report-docx'): Promise<{ path: string } | null> {
+    return desktopApi().invoke('recording:export-result', { jobId, resultType }) as Promise<{ path: string } | null>;
   },
 
   async profileStatus(profileId: string): Promise<RecordingProfileStatus> {

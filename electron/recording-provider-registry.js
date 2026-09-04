@@ -113,6 +113,7 @@ class RecordingProviderRegistry {
         detail: speech?.availabilityReason || '',
         translationModels: Array.isArray(capabilities.translationModels) ? capabilities.translationModels : [],
         summaryModels: Array.isArray(capabilities.summaryModels) ? capabilities.summaryModels : [],
+        summaryCapabilities: { summaryPrompt: Boolean(capabilities.summaryPrompt), summaryRepair: Boolean(capabilities.summaryRepair), summaryTemplateMetadata: Boolean(capabilities.summaryTemplateMetadata) },
       };
       return {
         state: 'ready', engineId, modelId: speech.model || speech.id || '', modelRevision: speech.modelRevision || speech.revision || '',
@@ -121,6 +122,7 @@ class RecordingProviderRegistry {
         validatedMaxDurationSec: speech.validatedMaxDurationSec,
         translationModels: Array.isArray(capabilities.translationModels) ? capabilities.translationModels : [],
         summaryModels: Array.isArray(capabilities.summaryModels) ? capabilities.summaryModels : [],
+        summaryCapabilities: { summaryPrompt: Boolean(capabilities.summaryPrompt), summaryRepair: Boolean(capabilities.summaryRepair), summaryTemplateMetadata: Boolean(capabilities.summaryTemplateMetadata) },
       };
     } catch (error) { return { state: 'unavailable', engineId, detail: runtimeErrorDetail(error) }; }
   }
@@ -135,7 +137,7 @@ class RecordingProviderRegistry {
       try {
         const capabilities = await (await this.privateClient(normalized.connectionProfileId)).capabilities();
         const models = stage === STAGES.TRANSLATION ? capabilities.translationModels : capabilities.summaryModels;
-        return { state: Array.isArray(models) && models.length ? 'ready' : 'disabled', models: Array.isArray(models) ? models : [], profileRevision: capabilities.runtimeProfileRevision || '' };
+        return { state: Array.isArray(models) && models.length ? 'ready' : 'disabled', models: Array.isArray(models) ? models : [], profileRevision: capabilities.runtimeProfileRevision || '', summaryCapabilities: stage === STAGES.SUMMARY ? { summaryPrompt: Boolean(capabilities.summaryPrompt), summaryRepair: Boolean(capabilities.summaryRepair), summaryTemplateMetadata: Boolean(capabilities.summaryTemplateMetadata) } : undefined };
       } catch (error) { return { state: 'unavailable', detail: runtimeErrorDetail(error) }; }
     }
     const profile = await this.aliyunProfileStore.status(normalized.connectionProfileId);

@@ -1,14 +1,17 @@
-const { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } = require('fs/promises');
+const { copyFile, mkdir, open, readFile, readdir, rename, rm, writeFile } = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
-const { createUploadProgressReporter, mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask } = require('./recording-job-runner');
+const { createUploadProgressReporter, mergeTranscriptAndTranslation, normalizePrivateSummaryResult, privateSummaryPayload, runRecordingJob, waitForRemoteTask } = require('./recording-job-runner');
 const { privateSpeechEngine, RecordingRuntimeClient } = require('./recording-runtime-client');
 const { PROVIDER_IDS, RecordingProviderRegistry, STAGES, normalizeSelection, selectedSpeechCapability } = require('./recording-provider-registry');
 const { AliyunOssClient, BailianClient, normalizeTranscript, objectKey, summarizeSegments, translateSegments } = require('./aliyun-cloud-client');
 const { SPEECH_PROFILE_IDS, TEXT_PROFILE_IDS } = require('./recording-processing-settings');
+const { normalizeSummaryConfig, normalizeSummaryResult, normalizeTranscriptResult, normalizeTranslationResult } = require('./recording-result-normalizer');
+const { summaryText, transcriptText, translationText, writeSummaryDocx } = require('./recording-result-exporter');
 
 const AUDIO_EXTENSIONS = new Set(['.m4a', '.mp3', '.wav', '.aac', '.flac']);
 const activeRuntimeClients = new Map();
+const jobWriteQueues = new Map();
 
 function jobsRoot(app) {
   return path.join(app.getPath('userData'), 'recording-jobs');
@@ -41,11 +44,51 @@ async function saveAtomic(filePath, value) {
   await rename(tempPath, filePath);
 }
 
+/** Serialize mutations for one Job without globally blocking unrelated jobs. */
+async function withJobWriteLock(jobId, fn) {
+  const previous = jobWriteQueues.get(jobId) || Promise.resolve();
+  const operation = previous.catch(() => undefined).then(fn);
+  const settled = operation.catch(() => undefined);
+  jobWriteQueues.set(jobId, settled);
+  try {
+    return await operation;
+  } finally {
+    if (jobWriteQueues.get(jobId) === settled) jobWriteQueues.delete(jobId);
+  }
+}
+
+async function mutateJob(app, jobId, mutate) {
+  return withJobWriteLock(jobId, async () => {
+    const job = await loadJob(app, jobId);
+    const next = await mutate(job);
+    if (!next) return job;
+    next.updatedAt = new Date().toISOString();
+    await saveAtomic(jobPath(app, jobId), next);
+    return next;
+  });
+}
+
+async function writeArtifactAtomic(filePath, content) {
+  const temporary = `${filePath}.${crypto.randomUUID()}.tmp`;
+  let handle;
+  try {
+    handle = await open(temporary, 'w', 0o600);
+    await handle.writeFile(content, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await rename(temporary, filePath);
+  } catch (error) {
+    if (handle) await handle.close().catch(() => undefined);
+    await rm(temporary, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
 function publicJob(job) {
   return {
     jobId: job.jobId,
     sourceFileName: job.sourceFileName,
-    sourcePath: job.sourcePath,
     status: job.status,
     config: job.config,
     createdAt: job.createdAt,
@@ -69,34 +112,66 @@ function formatSrtTime(milliseconds) {
 }
 
 function runtimeArtifacts(job, result) {
-  const transcript = result.transcript || { segments: [] };
-  const artifacts = [
-    { kind: 'transcript-json', fileName: 'transcript.json', content: `${JSON.stringify(transcript, null, 2)}\n` },
-    { kind: 'subtitle-srt', fileName: 'transcript.srt', content: transcript.segments.map((segment, index) => `${index + 1}\n${formatSrtTime(segment.startMs)} --> ${formatSrtTime(segment.endMs)}\n${segment.speakerId ? `[${segment.speakerId}] ` : ''}${segment.text || ''}\n`).join('\n') },
+  return [
+    ...stageArtifacts(job, 'speech.execute', result.transcript),
+    ...(result.translation ? stageArtifacts(job, 'translation.execute', result.translation) : []),
+    ...(result.summary ? stageArtifacts(job, 'summary.execute', result.summary) : []),
   ];
-  if (result.translation) artifacts.push({ kind: 'translation-json', fileName: 'translation.json', content: `${JSON.stringify(result.translation, null, 2)}\n` });
-  if (result.summary) artifacts.push({ kind: 'summary-json', fileName: 'summary.json', content: `${JSON.stringify(result.summary, null, 2)}\n` });
-  if (job.config.summary?.enabled && result.summary) {
-    artifacts.push({ kind: 'report-markdown', fileName: 'report.md', content: `# Recording report\n\n- Source: ${job.sourceFileName}\n- Provider: ${job.config.speech.providerId}\n- Model: ${job.config.speech.modelId || job.config.speech.engineId}\n\n## Summary\n\n${JSON.stringify(result.summary, null, 2)}\n\n## Transcript\n\n${transcript.segments.map((segment) => `[${segment.speakerId || 'unknown'}] ${segment.text || ''}`).join('\n')}\n` });
-  }
-  return artifacts;
 }
 
-async function materializeRuntimeArtifacts(app, job, result) {
-  if (job.artifacts?.length) return job;
-  const directory = artifactsDirectory(app, job.jobId);
-  await mkdir(directory, { recursive: true, mode: 0o700 });
-  const generated = runtimeArtifacts(job, result);
-  await Promise.all(generated.map((artifact) => writeFile(path.join(directory, artifact.fileName), artifact.content, { encoding: 'utf8', mode: 0o600 })));
-  return { ...job, artifacts: generated.map(({ kind, fileName }) => ({ kind, fileName })) };
+function stageArtifacts(job, stage, result) {
+  if (stage === 'speech.execute') {
+    const transcript = normalizeTranscriptResult(result);
+    return [
+      { kind: 'transcript-json', fileName: 'transcript.json', content: `${JSON.stringify(transcript, null, 2)}\n` },
+      { kind: 'subtitle-srt', fileName: 'transcript.srt', content: transcript.segments.map((segment, index) => `${index + 1}\n${formatSrtTime(segment.startMs)} --> ${formatSrtTime(segment.endMs)}\n${segment.speakerId ? `[${segment.speakerId}] ` : ''}${segment.text || ''}\n`).join('\n') },
+    ];
+  }
+  if (stage === 'translation.execute') return [{ kind: 'translation-json', fileName: 'translation.json', content: `${JSON.stringify(normalizeTranslationResult(result, job.config?.targetLanguage), null, 2)}\n` }];
+  if (stage === 'summary.execute') {
+    const summary = normalizeSummaryResult(result);
+    return [
+      { kind: 'summary-json', fileName: 'summary.json', content: `${JSON.stringify(summary, null, 2)}\n` },
+      { kind: 'report-markdown', fileName: 'report.md', content: `# 录音总结报告\n\n原音频：${job.sourceFileName}\n\n${summaryText(summary)}\n` },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Commit one successful stage without relying on a stale job snapshot.  The
+ * artifact metadata and completed stage status become visible together.
+ */
+async function commitStageArtifacts(app, jobId, stage, generated) {
+  return withJobWriteLock(jobId, async () => {
+    const job = await loadJob(app, jobId);
+    const directory = artifactsDirectory(app, jobId);
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    for (const artifact of generated) await writeArtifactAtomic(path.join(directory, artifact.fileName), artifact.content);
+    const byKind = new Map((job.artifacts || []).map((artifact) => [artifact.kind, artifact]));
+    for (const artifact of generated) byKind.set(artifact.kind, { kind: artifact.kind, fileName: artifact.fileName });
+    const stageRuns = (job.stageRuns || []).map((run) => run.stage === stage
+      ? { ...run, status: 'completed', progress: 100, error: undefined, errorCode: undefined }
+      : run);
+    const next = { ...job, artifacts: [...byKind.values()], stageRuns };
+    next.updatedAt = new Date().toISOString();
+    await saveAtomic(jobPath(app, jobId), next);
+    return next;
+  });
+}
+
+async function checkpointStageResult(app, jobId, stage, result) {
+  const job = await loadJob(app, jobId);
+  return commitStageArtifacts(app, jobId, stage, stageArtifacts(job, stage, result));
 }
 
 async function updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId, details = {}) {
-  const job = await loadJob(app, jobId);
-  if (job.status === 'cancelled') return;
-  const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
-  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...(remoteTaskId ? { remoteTaskId } : {}) } : run);
-  await saveAtomic(jobPath(app, jobId), { ...job, status: remoteTaskId ? 'waiting_remote' : 'running', stageRuns, updatedAt: new Date().toISOString() });
+  return mutateJob(app, jobId, (job) => {
+    if (job.status === 'cancelled') return null;
+    const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
+    const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...(remoteTaskId ? { remoteTaskId } : {}), ...(details.error ? { error: details.error } : {}) } : run);
+    return { ...job, status: remoteTaskId ? 'waiting_remote' : 'running', stageRuns };
+  });
 }
 
 async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients = {}) {
@@ -104,22 +179,24 @@ async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients =
   try {
     const job = await loadJob(app, jobId);
     if (job.cancellationRequested) {
-      await saveAtomic(jobPath(app, jobId), { ...job, status: 'cancelled', cancellationRequested: false, updatedAt: new Date().toISOString() });
+      await mutateJob(app, jobId, (latest) => ({ ...latest, status: 'cancelled', cancellationRequested: false }));
       return;
     }
-    const result = await runRecordingJob(job, speechClient, (stage, status, remoteTaskId, details) => updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId, details), stageClients);
+    const result = await runRecordingJob(job, speechClient, (stage, status, remoteTaskId, details) => updatePrivateRuntimeStage(app, jobId, stage, status, remoteTaskId, details), {
+      ...stageClients,
+      onResult: (stage, value) => checkpointStageResult(app, jobId, stage, value),
+    });
     const latest = await loadJob(app, jobId);
     if (latest.status === 'cancelled') return;
-    const completed = await materializeRuntimeArtifacts(app, { ...latest, status: 'completed', remoteTaskIds: result.taskIds }, result);
-    completed.completedAt = new Date().toISOString();
-    completed.updatedAt = completed.completedAt;
-    await saveAtomic(jobPath(app, jobId), completed);
+    await mutateJob(app, jobId, (current) => current.status === 'cancelled' ? null : ({ ...current, status: 'completed', remoteTaskIds: result.taskIds, completedAt: new Date().toISOString() }));
   } catch (error) {
     const job = await loadJob(app, jobId);
     if (job.cancellationRequested) {
-      await saveAtomic(jobPath(app, jobId), { ...job, status: 'cancelled', cancellationRequested: false, updatedAt: new Date().toISOString() });
+      await mutateJob(app, jobId, (latest) => ({ ...latest, status: 'cancelled', cancellationRequested: false }));
     } else if (job.status !== 'cancelled') {
-      await saveAtomic(jobPath(app, jobId), { ...job, status: 'failed', error: privateRuntimeFailureDetails(error), updatedAt: new Date().toISOString() });
+      const failure = privateRuntimeFailureDetails(error);
+      const failedStage = error?.recordingStage || job.stageRuns.find((stage) => ['running', 'waiting_remote'].includes(stage.status))?.stage;
+      await mutateJob(app, jobId, (latest) => ({ ...latest, status: 'failed', error: failure, stageRuns: latest.stageRuns.map((stage) => stage.stage === failedStage && stage.status !== 'completed' ? { ...stage, status: 'failed', progress: 100, error: failure.message, errorCode: failure.code } : stage) }));
     }
   } finally {
     activeRuntimeClients.delete(jobId);
@@ -127,14 +204,13 @@ async function executePrivateRuntimeJob(app, jobId, speechClient, stageClients =
 }
 
 async function updateCloudStage(app, jobId, stage, status, details = {}) {
-  const job = await loadJob(app, jobId);
-  if (job.status === 'cancelled') return job;
-  const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
-  const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...details } : run);
-  const jobStatus = job.status === 'completed' ? 'completed' : status === 'waiting_remote' ? 'waiting_remote' : 'running';
-  const next = { ...job, status: jobStatus, stageRuns, ...(details.cloud ? { cloud: { ...(job.cloud || {}), ...details.cloud } } : {}), updatedAt: new Date().toISOString() };
-  await saveAtomic(jobPath(app, jobId), next);
-  return next;
+  return mutateJob(app, jobId, (job) => {
+    if (job.status === 'cancelled') return null;
+    const progress = Number.isFinite(details.progress) ? Math.max(0, Math.min(99, Math.floor(details.progress))) : 50;
+    const stageRuns = job.stageRuns.map((run) => run.stage === stage ? { ...run, status, progress: status === 'completed' ? 100 : progress, ...details } : run);
+    const jobStatus = job.status === 'completed' ? 'completed' : status === 'waiting_remote' ? 'waiting_remote' : 'running';
+    return { ...job, status: jobStatus, stageRuns, ...(details.cloud ? { cloud: { ...(job.cloud || {}), ...details.cloud } } : {}) };
+  });
 }
 
 function privateRuntimeFailureDetails(error) {
@@ -176,7 +252,7 @@ async function waitForCloudTask(client, taskId) {
 }
 
 async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = null, credentialStore = null) {
-  let cloud;
+  let cloud; let activeStage = 'speech.execute';
   try {
     let job = await loadJob(app, jobId);
     const profile = await profileStore.resolve(job.config.speech.connectionProfileId);
@@ -209,7 +285,8 @@ async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = nu
     }
     const remote = await waitForCloudTask(client, taskId);
     transcript = normalizeTranscript(await client.downloadTranscript(remote.transcriptionUrl));
-    await updateCloudStage(app, jobId, 'speech.execute', 'completed', { cloud: { transcript } });
+    await checkpointStageResult(app, jobId, 'speech.execute', transcript);
+    await updateCloudStage(app, jobId, 'speech.execute', 'completed');
     job = await loadJob(app, jobId);
     const privateClients = new Map();
     const requirePrivateClient = async (profileId) => {
@@ -219,6 +296,7 @@ async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = nu
     };
     let translation = null;
     if (job.config.translation?.enabled) {
+      activeStage = 'translation.execute';
       await updateCloudStage(app, jobId, 'translation.execute', 'running');
       if (job.config.translation.providerId === PROVIDER_IDS.PRIVATE_RUNTIME) {
         const runtime = await requirePrivateClient(job.config.translation.connectionProfileId);
@@ -230,37 +308,34 @@ async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = nu
         const translationClient = cloudFactory?.bailian ? cloudFactory.bailian(translationProfile) : new BailianClient(translationProfile);
         translation = await translateSegments(translationClient, job.config, transcript.segments);
       }
-      await updateCloudStage(app, jobId, 'translation.execute', 'completed', { cloud: { translation } });
+      await checkpointStageResult(app, jobId, 'translation.execute', translation);
+      await updateCloudStage(app, jobId, 'translation.execute', 'completed');
     }
     let summary = null;
     if (job.config.summary?.enabled) {
+      activeStage = 'summary.execute';
       if (['translated', 'bilingual'].includes(job.config.summary.inputMode) && !translation) throw new Error('Summary input requires completed translation.');
       const summarySegments = mergeTranscriptAndTranslation(transcript.segments, translation);
       await updateCloudStage(app, jobId, 'summary.execute', 'running');
       if (job.config.summary.providerId === PROVIDER_IDS.PRIVATE_RUNTIME) {
         const runtime = await requirePrivateClient(job.config.summary.connectionProfileId);
-        const request = await runtime.submit('summary', {
-          profileRevision: job.config.summary.profileRevision || 'development', modelId: job.config.summary.modelId,
-          inputMode: job.config.summary.inputMode, segments: summarySegments,
-        });
+        const request = await runtime.submit('summary', privateSummaryPayload(job.config.summary, summarySegments));
         await updateCloudStage(app, jobId, 'summary.execute', 'waiting_remote', { remoteTaskId: request.taskId });
-        summary = await waitForRemoteTask(runtime, request.taskId);
+        summary = await normalizePrivateSummaryResult(runtime, job.config.summary, await waitForRemoteTask(runtime, request.taskId));
       } else {
         const summaryProfile = await profileStore.resolve(job.config.summary.connectionProfileId);
         const summaryClient = cloudFactory?.bailian ? cloudFactory.bailian(summaryProfile) : new BailianClient(summaryProfile);
         summary = await summarizeSegments(summaryClient, job.config, summarySegments);
       }
-      await updateCloudStage(app, jobId, 'summary.execute', 'completed', { cloud: { summary } });
+      await checkpointStageResult(app, jobId, 'summary.execute', summary);
+      await updateCloudStage(app, jobId, 'summary.execute', 'completed');
     }
     if (job.config.summary?.enabled) await updateCloudStage(app, jobId, 'report.build', 'running');
     const latest = await loadJob(app, jobId); if (latest.status === 'cancelled') return;
-    const completed = await materializeRuntimeArtifacts(app, {
-      ...latest,
-      status: 'completed',
-      remoteTaskIds: { speech: taskId },
-      stageRuns: latest.stageRuns.map((stage) => stage.stage === 'report.build' && latest.config.summary?.enabled ? { ...stage, status: 'completed', progress: 100 } : stage),
-    }, { transcript, translation, summary });
-    completed.completedAt = new Date().toISOString(); completed.updatedAt = completed.completedAt; await saveAtomic(jobPath(app, jobId), completed);
+    await mutateJob(app, jobId, (current) => current.status === 'cancelled' ? null : ({
+      ...current, status: 'completed', remoteTaskIds: { ...(current.remoteTaskIds || {}), speech: taskId }, completedAt: new Date().toISOString(),
+      stageRuns: current.stageRuns.map((stage) => stage.stage === 'report.build' && current.config.summary?.enabled ? { ...stage, status: 'completed', progress: 100 } : stage),
+    }));
     if (latest.cloud?.ossObjectKey) {
       await updateCloudStage(app, jobId, 'cloud.cleanup', 'running');
       try { await oss.remove(latest.cloud.ossObjectKey); await updateCloudStage(app, jobId, 'cloud.cleanup', 'completed'); }
@@ -273,10 +348,13 @@ async function executeAliyunCloudJob(app, jobId, profileStore, cloudFactory = nu
     const job = await loadJob(app, jobId);
     if (job.status !== 'cancelled') {
       const failure = cloudFailureDetails(error);
-      const stageRuns = job.stageRuns.map((stage) => stage.stage === 'speech.execute' && ['running', 'waiting_remote'].includes(stage.status)
-        ? { ...stage, status: 'failed', progress: 100, error: failure.message, errorCode: failure.providerCode || failure.code, ...(failure.requestId ? { requestId: failure.requestId } : {}) }
-        : stage);
-      await saveAtomic(jobPath(app, jobId), { ...job, status: 'failed', stageRuns, error: failure, updatedAt: new Date().toISOString() });
+      const failedStage = error?.recordingStage || activeStage;
+      await mutateJob(app, jobId, (latest) => ({
+        ...latest, status: 'failed', error: failure,
+        stageRuns: latest.stageRuns.map((stage) => stage.stage === failedStage && stage.status !== 'completed'
+          ? { ...stage, status: 'failed', progress: 100, error: failure.message, errorCode: failure.providerCode || failure.code, ...(failure.requestId ? { requestId: failure.requestId } : {}) }
+          : stage),
+      }));
     }
   } finally { activeRuntimeClients.delete(jobId); }
 }
@@ -321,15 +399,27 @@ async function resumePrivateRuntimeJobs(app, credentialStore, aliyunProfileStore
           }
           void executePrivateRuntimeJob(app, job.jobId, client, { translationClient, summaryClient, cloudAdapter });
         } else if (job.privateRuntime && ['waiting_remote', 'running'].includes(job.status)) {
-          await saveAtomic(jobPath(app, job.jobId), {
-            ...job,
+          await mutateJob(app, job.jobId, (latest) => ({
+            ...latest,
             status: 'failed',
             error: { code: 'PRIVATE_RUNTIME_RESTARTED_BEFORE_SUBMIT', message: 'The app restarted before the private Runtime returned a task id. Start a new job to retry safely.' },
-            updatedAt: new Date().toISOString(),
-          });
+          }));
         }
       } catch { /* an old profile or one broken job must not prevent startup */ }
     }
+  } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+}
+
+async function cleanupTemporaryArtifacts(app) {
+  try {
+    const entries = await readdir(jobsRoot(app), { withFileTypes: true });
+    await Promise.all(entries.filter((entry) => entry.isDirectory()).map(async (entry) => {
+      const directory = artifactsDirectory(app, entry.name);
+      try {
+        const files = await readdir(directory);
+        await Promise.all(files.filter((file) => file.endsWith('.tmp')).map((file) => rm(path.join(directory, file), { force: true })));
+      } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    }));
   } catch (error) { if (error?.code !== 'ENOENT') throw error; }
 }
 
@@ -352,6 +442,7 @@ async function loadJob(app, jobId) {
 }
 
 async function getJob(app, jobId) {
+  if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
   const job = await loadJob(app, jobId);
   return publicJob(job);
 }
@@ -373,20 +464,97 @@ async function listJobs(app) {
   }
 }
 
+const RESULT_ARTIFACTS = Object.freeze({
+  transcript: 'transcript-json', translation: 'translation-json', summary: 'summary-json',
+});
+const MAX_RESULT_BYTES = 10 * 1024 * 1024;
+
+function findArtifact(job, kind) {
+  const artifact = (job.artifacts || []).find((item) => item.kind === kind);
+  if (!artifact) throw new Error('Recording result is not available.');
+  if (path.basename(artifact.fileName) !== artifact.fileName) throw new Error('Recording result path is invalid.');
+  return artifact;
+}
+
+async function readResultJson(app, jobId, type) {
+  if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
+  const job = await loadJob(app, jobId);
+  const artifact = findArtifact(job, RESULT_ARTIFACTS[type]);
+  const filePath = path.join(artifactsDirectory(app, jobId), artifact.fileName);
+  const handle = await open(filePath, 'r');
+  let parsed;
+  try {
+    const stat = await handle.stat();
+    if (stat.size > MAX_RESULT_BYTES) throw new Error('Recording result is too large to display.');
+    const raw = await handle.readFile('utf8');
+    parsed = JSON.parse(raw);
+  } finally { await handle.close(); }
+  if (type === 'transcript') return normalizeTranscriptResult(parsed);
+  if (type === 'translation') return normalizeTranslationResult({
+    ...parsed,
+    ...(job.config?.targetLanguage ? { targetLanguage: job.config.targetLanguage } : {}),
+  });
+  return normalizeSummaryResult(parsed);
+}
+
+async function getJobPreview(app, jobId) {
+  if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
+  const job = await loadJob(app, jobId);
+  const availability = Object.fromEntries(Object.entries(RESULT_ARTIFACTS).map(([type, kind]) => [type, (job.artifacts || []).some((artifact) => artifact.kind === kind)]));
+  const preview = { availability };
+  if (availability.transcript) {
+    const transcript = await readResultJson(app, jobId, 'transcript');
+    preview.transcript = {
+      segmentCount: transcript.segments.length,
+      speakerCount: new Set(transcript.segments.map((segment) => segment.speakerId).filter(Boolean)).size,
+      durationMs: transcript.segments.reduce((maximum, segment) => Math.max(maximum, segment.endMs || 0), 0),
+      segments: transcript.segments.slice(0, 3),
+    };
+  }
+  if (availability.translation) {
+    const translation = await readResultJson(app, jobId, 'translation');
+    preview.translation = { targetLanguage: translation.targetLanguage, texts: translation.segments.slice(0, 3).map((segment) => segment.translatedText) };
+  }
+  if (availability.summary) {
+    const summary = await readResultJson(app, jobId, 'summary');
+    preview.summary = { topic: summary.topic, conclusions: summary.conclusions.slice(0, 2), actionItems: summary.actionItems.slice(0, 2).map((item) => item.task) };
+  }
+  return preview;
+}
+
+async function exportResult(app, dialog, jobId, resultType) {
+  if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
+  const job = await loadJob(app, jobId);
+  const [type, format] = String(resultType || '').split('-');
+  if (!['transcript', 'translation', 'report'].includes(type) || !['txt', 'docx'].includes(format)) throw new Error('Unsupported recording result export.');
+  if (format === 'docx' && type !== 'report') throw new Error('Only a summary report can be exported as Word.');
+  const extension = format === 'docx' ? 'docx' : 'txt';
+  const result = await dialog.showSaveDialog({ title: 'Export recording result', defaultPath: `${path.parse(job.sourceFileName).name}-${type}.${extension}` });
+  if (result.canceled || !result.filePath) return null;
+  if (type === 'transcript') await writeFile(result.filePath, transcriptText(await readResultJson(app, jobId, 'transcript')), 'utf8');
+  else if (type === 'translation') await writeFile(result.filePath, translationText(await readResultJson(app, jobId, 'translation')), 'utf8');
+  else {
+    const summary = await readResultJson(app, jobId, 'summary');
+    if (format === 'docx') await writeSummaryDocx(result.filePath, { sourceFileName: job.sourceFileName, createdAt: job.completedAt || job.updatedAt, summary });
+    else await writeFile(result.filePath, summaryText(summary), 'utf8');
+  }
+  return { path: result.filePath };
+}
+
 function isSafeJobId(jobId) {
   return typeof jobId === 'string' && /^[a-zA-Z0-9_-]+$/.test(jobId);
 }
 
 async function deleteTerminalJob(app, jobId) {
   if (!isSafeJobId(jobId)) throw new Error('Invalid recording job id.');
-  const job = await loadJob(app, jobId);
-  if (!['completed', 'failed', 'cancelled'].includes(job.status)) {
-    throw new Error('Only completed, failed, or cancelled recording jobs can be deleted.');
-  }
-  // Deliberately remove only Sokuji-managed job data. `sourcePath` belongs to
-  // the user and can point anywhere on disk, so it is never part of deletion.
-  await rm(path.join(jobsRoot(app), jobId), { recursive: true, force: true });
-  return { jobId };
+  return withJobWriteLock(jobId, async () => {
+    const job = await loadJob(app, jobId);
+    if (!['completed', 'failed', 'cancelled'].includes(job.status)) throw new Error('Only completed, failed, or cancelled recording jobs can be deleted.');
+    // Deliberately remove only Sokuji-managed job data. `sourcePath` belongs to
+    // the user and can point anywhere on disk, so it is never part of deletion.
+    await rm(path.join(jobsRoot(app), jobId), { recursive: true, force: true });
+    return { jobId };
+  });
 }
 
 function validateStartPayload(payload) {
@@ -412,11 +580,27 @@ function validateStartPayload(payload) {
       summary: {
         enabled: Boolean(config.summary?.enabled),
         ...normalizeSelection(STAGES.SUMMARY, config.summary),
-        templateId: typeof config.summary?.templateId === 'string' ? config.summary.templateId : 'meeting-report-v1',
+        templateId: normalizeSummaryConfig({ templateId: config.summary?.templateId }).templateId,
         inputMode: ['source', 'translated', 'bilingual'].includes(config.summary?.inputMode) ? config.summary.inputMode : 'bilingual',
-        reportLanguage: typeof config.summary?.reportLanguage === 'string' ? config.summary.reportLanguage : 'zh',
+        reportLanguage: ['auto', 'zh', 'en', 'ja'].includes(config.summary?.reportLanguage) ? config.summary.reportLanguage : 'auto',
       },
     },
+  };
+}
+
+function resolvedReportLanguage(app, value) {
+  if (['zh', 'en', 'ja'].includes(value)) return value;
+  const locale = String(app.getLocale?.() || '').toLowerCase();
+  return locale.startsWith('ja') ? 'ja' : locale.startsWith('en') ? 'en' : 'zh';
+}
+
+function snapshotSummaryConfig(app, summary) {
+  const normalized = normalizeSummaryConfig(summary);
+  return {
+    ...normalized,
+    reportLanguage: resolvedReportLanguage(app, normalized.reportLanguage),
+    templateVersion: normalized.templateVersion,
+    schemaVersion: normalized.schemaVersion,
   };
 }
 
@@ -458,6 +642,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     let translationProfileRevision = '';
     let summaryClient = null;
     let summaryProfileRevision = '';
+    let summaryRuntimeCapabilities = null;
     if (config.translation.enabled && config.translation.providerId === PROVIDER_IDS.PRIVATE_RUNTIME) {
       translationClient = await providerRegistry.privateClient(config.translation.connectionProfileId);
       const textCapabilities = await translationClient.capabilities();
@@ -473,6 +658,9 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
       if (!summaryModel) throw new Error('Summary is not available for the selected private Runtime.');
       summaryProfileRevision = textCapabilities.runtimeProfileRevision || '';
       config.summary.modelRevision = summaryModel.revision || summaryModel.modelRevision || config.summary.modelRevision;
+      summaryRuntimeCapabilities = {
+        summaryPrompt: Boolean(textCapabilities.summaryPrompt), summaryRepair: Boolean(textCapabilities.summaryRepair), summaryTemplateMetadata: Boolean(textCapabilities.summaryTemplateMetadata),
+      };
     }
     const jobId = `rec_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
@@ -485,7 +673,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
         profileRevision: capabilities.runtimeProfileRevision || selectedCapability.profileRevision || config.speech.profileRevision || '',
       },
       translation: { ...config.translation, ...(translationProfileRevision ? { profileRevision: translationProfileRevision } : {}) },
-      summary: { ...config.summary, ...(summaryProfileRevision ? { profileRevision: summaryProfileRevision } : {}) },
+      summary: { ...snapshotSummaryConfig(app, config.summary), ...(summaryProfileRevision ? { profileRevision: summaryProfileRevision } : {}), ...(summaryRuntimeCapabilities ? { runtimeCapabilities: summaryRuntimeCapabilities } : {}) },
     };
     const job = {
       schemaVersion: 3, jobId, sourceFileName: file.name, sourcePath: file.path,
@@ -536,7 +724,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
       if (providerStatus.state !== 'ready' || !selectedModel) {
         throw new Error(`${stage === 'translation' ? 'Translation' : 'Summary'} is not available for the selected private Runtime.`);
       }
-      privateTextModelRevisions[stage] = { profileRevision: providerStatus.profileRevision || stageConfig.profileRevision || '', modelRevision: selectedModel.revision || selectedModel.modelRevision || stageConfig.modelRevision || '' };
+      privateTextModelRevisions[stage] = { profileRevision: providerStatus.profileRevision || stageConfig.profileRevision || '', modelRevision: selectedModel.revision || selectedModel.modelRevision || stageConfig.modelRevision || '', ...(stage === 'summary' ? { runtimeCapabilities: providerStatus.summaryCapabilities || {} } : {}) };
     }
     const jobId = `rec_${crypto.randomUUID()}`; const now = new Date().toISOString();
     const speechProfile = await aliyunProfileStore.status(config.speech.connectionProfileId);
@@ -544,7 +732,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
       ...config,
       speech: { ...config.speech, profileRevision: speechProfile.profileRevision || config.speech.profileRevision || '' },
       translation: { ...config.translation, ...(privateTextModelRevisions.translation || {}) },
-      summary: { ...config.summary, ...(privateTextModelRevisions.summary || {}) },
+      summary: { ...snapshotSummaryConfig(app, config.summary), ...(privateTextModelRevisions.summary || {}) },
     };
     const job = { schemaVersion: 3, jobId, sourceFileName: file.name, sourcePath: file.path, status: 'queued', config: effectiveConfig, stageRuns: createStageRuns(effectiveConfig), cloud: { profileRevision: speechProfile.profileRevision }, createdAt: now, updatedAt: now };
     await mkdir(path.dirname(jobPath(app, jobId)), { recursive: true, mode: 0o700 }); await saveAtomic(jobPath(app, jobId), job);
@@ -583,6 +771,10 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     if (!payload?.jobId || typeof payload.jobId !== 'string') throw new Error('Recording job id is required.');
     return getJob(app, payload.jobId);
   });
+  ipcMain.handle('recording:get-job-preview', async (_event, payload) => getJobPreview(app, payload?.jobId));
+  ipcMain.handle('recording:get-transcript-result', async (_event, payload) => readResultJson(app, payload?.jobId, 'transcript'));
+  ipcMain.handle('recording:get-translation-result', async (_event, payload) => readResultJson(app, payload?.jobId, 'translation'));
+  ipcMain.handle('recording:get-summary-result', async (_event, payload) => readResultJson(app, payload?.jobId, 'summary'));
   ipcMain.handle('recording:cancel-job', async (_event, payload) => {
     if (!payload?.jobId || typeof payload.jobId !== 'string') throw new Error('Recording job id is required.');
     const job = await loadJob(app, payload.jobId);
@@ -594,8 +786,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
         return ids;
       }, {}));
       await Promise.all(remoteTaskIds.map((taskId) => client ? client.cancel(taskId).catch(() => undefined) : Promise.resolve()));
-      const next = { ...job, status: remoteTaskIds.length ? 'waiting_remote' : 'cancelled', cancellationRequested: Boolean(remoteTaskIds.length), updatedAt: new Date().toISOString() };
-      await saveAtomic(jobPath(app, job.jobId), next);
+      const next = await mutateJob(app, job.jobId, (latest) => ({ ...latest, status: remoteTaskIds.length ? 'waiting_remote' : 'cancelled', cancellationRequested: Boolean(remoteTaskIds.length) }));
       return publicJob(next);
     }
     const client = activeRuntimeClients.get(job.jobId);
@@ -606,10 +797,8 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
       }, job.cloud?.externalTaskId ? { speech: job.cloud.externalTaskId } : {}));
       await Promise.all(remoteTaskIds.map((taskId) => client.cancel(taskId).catch(() => undefined)));
     }
-    job.status = 'cancelled';
-    job.updatedAt = new Date().toISOString();
-    await saveAtomic(jobPath(app, job.jobId), job);
-    return publicJob(job);
+    const next = await mutateJob(app, job.jobId, (latest) => ({ ...latest, status: 'cancelled' }));
+    return publicJob(next);
   });
   ipcMain.handle('recording:delete-job', async (_event, payload) => {
     if (!payload?.jobId || typeof payload.jobId !== 'string') throw new Error('Recording job id is required.');
@@ -617,6 +806,7 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
   });
   ipcMain.handle('recording:export-artifact', async (_event, payload) => {
     if (!payload?.jobId || !payload?.fileName) throw new Error('Recording job id and artifact file name are required.');
+    if (!isSafeJobId(payload.jobId) || path.basename(payload.fileName) !== payload.fileName) throw new Error('Invalid recording artifact request.');
     const job = await loadJob(app, payload.jobId);
     const artifact = (job.artifacts || []).find((entry) => entry.fileName === payload.fileName);
     if (!artifact) throw new Error('Recording artifact was not found.');
@@ -625,8 +815,10 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
     await copyFile(path.join(artifactsDirectory(app, job.jobId), artifact.fileName), result.filePath);
     return { path: result.filePath };
   });
+  ipcMain.handle('recording:export-result', async (_event, payload) => exportResult(app, dialog, payload?.jobId, payload?.resultType));
   ipcMain.handle('recording:read-artifact', async (_event, payload) => {
     if (!payload?.jobId || !payload?.fileName) throw new Error('Recording job id and artifact file name are required.');
+    if (!isSafeJobId(payload.jobId) || path.basename(payload.fileName) !== payload.fileName) throw new Error('Invalid recording artifact request.');
     const job = await loadJob(app, payload.jobId);
     const artifact = (job.artifacts || []).find((entry) => entry.fileName === payload.fileName);
     if (!artifact) throw new Error('Recording artifact was not found.');
@@ -677,9 +869,10 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
       await migrateLegacyConnectionProfiles(credentialStore, aliyunProfileStore, migration.legacyProfileId || 'default');
     }
     if (migration.upgraded || migration.created || migration.legacyProfileId) await rm(jobsRoot(app), { recursive: true, force: true });
+    await cleanupTemporaryArtifacts(app);
     if (aliyunProfileStore) await resumeAliyunCloudJobs(app, aliyunProfileStore, cloudFactory, credentialStore);
     await resumePrivateRuntimeJobs(app, credentialStore, aliyunProfileStore, cloudFactory);
   })().catch(() => undefined);
 }
 
-module.exports = { AUDIO_EXTENSIONS, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, executePrivateRuntimeJob, getJob, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, validateStartPayload, registerRecordingJobBridge };
+module.exports = { AUDIO_EXTENSIONS, cleanupTemporaryArtifacts, commitStageArtifacts, createStageRuns, deleteTerminalJob, executeAliyunCloudJob, executePrivateRuntimeJob, exportResult, getJob, getJobPreview, getPrivateRuntimeStatus, migrateLegacyConnectionProfiles, privateRuntimeFailureDetails, publicJob, readResultJson, resumeAliyunCloudJobs, resumePrivateRuntimeJobs, runtimeArtifacts, runtimeStatusDetail, selectedSpeechCapability, stageArtifacts, validateStartPayload, withJobWriteLock, registerRecordingJobBridge };

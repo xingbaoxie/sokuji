@@ -4,7 +4,11 @@ import {
   defaultRecordingJobConfig,
   type RecordingAudioFile,
   type RecordingJobConfig,
+  type RecordingJobPreview,
   type RecordingJobSummary,
+  type RecordingSummaryResult,
+  type RecordingTranscriptResult,
+  type RecordingTranslationResult,
 } from '../types/recording';
 import type { AliyunCloudProfileStatus, PrivateRuntimeStatus } from '../services/recordingService';
 
@@ -19,6 +23,13 @@ interface RecordingJobStore {
   runtimeStatuses: Record<string, PrivateRuntimeStatus>;
   aliyunProfile: AliyunCloudProfileStatus | null;
   artifactPreview: { jobId: string; fileName: string; content: string; truncated: boolean } | null;
+  jobPreviews: Record<string, RecordingJobPreview | undefined>;
+  previewLoadingByJob: Record<string, boolean | undefined>;
+  previewArtifactSignatures: Record<string, string | undefined>;
+  resultLoadingByJob: Record<string, boolean | undefined>;
+  transcriptResults: Record<string, RecordingTranscriptResult | undefined>;
+  translationResults: Record<string, RecordingTranslationResult | undefined>;
+  summaryResults: Record<string, RecordingSummaryResult | undefined>;
   setFile: (file: RecordingAudioFile | null) => void;
   setDroppedFile: (file: File) => void;
   setConfig: (update: Partial<RecordingJobConfig>) => void;
@@ -36,6 +47,11 @@ interface RecordingJobStore {
   refreshAliyunProfile: () => Promise<void>;
   saveAliyunProfile: (profile: Record<string, unknown>) => Promise<void>;
   previewArtifact: (jobId: string, fileName: string) => Promise<void>;
+  ensureJobPreview: (jobId: string) => Promise<void>;
+  getTranscriptResult: (jobId: string) => Promise<RecordingTranscriptResult>;
+  getTranslationResult: (jobId: string) => Promise<RecordingTranslationResult>;
+  getSummaryResult: (jobId: string) => Promise<RecordingSummaryResult>;
+  exportResult: (jobId: string, type: 'transcript-txt' | 'translation-txt' | 'report-txt' | 'report-docx') => Promise<void>;
 }
 
 export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
@@ -49,6 +65,7 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
   runtimeStatuses: {},
   aliyunProfile: null,
   artifactPreview: null,
+  jobPreviews: {}, previewLoadingByJob: {}, previewArtifactSignatures: {}, resultLoadingByJob: {}, transcriptResults: {}, translationResults: {}, summaryResults: {},
   setFile: (file) => set({ file, error: null }),
   setDroppedFile: (droppedFile) => {
     const file = recordingService.droppedAudioFile(droppedFile);
@@ -70,7 +87,14 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
   },
   hydrate: async () => {
     try {
-      set({ jobs: await recordingService.listJobs() });
+      const jobs = await recordingService.listJobs();
+      set((state) => {
+        const validIds = new Set(jobs.map((job) => job.jobId));
+        const expected = (job: RecordingJobSummary) => job.artifacts.filter((artifact) => ['transcript-json', 'translation-json', 'summary-json'].includes(artifact.kind)).map((artifact) => artifact.kind).sort().join('|');
+        const retainedPreviews = Object.fromEntries(Object.entries(state.jobPreviews).filter(([id]) => validIds.has(id) && state.previewArtifactSignatures[id] === expected(jobs.find((job) => job.jobId === id)!)));
+        const retainedSignatures = Object.fromEntries(Object.keys(retainedPreviews).map((id) => [id, state.previewArtifactSignatures[id]]));
+        return { jobs, jobPreviews: retainedPreviews, previewArtifactSignatures: retainedSignatures };
+      });
     } catch {
       // The feature remains usable in browser/extension development previews.
     }
@@ -103,6 +127,13 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
       set((state) => ({
         jobs: state.jobs.filter((item) => item.jobId !== jobId),
         artifactPreview: state.artifactPreview?.jobId === jobId ? null : state.artifactPreview,
+        jobPreviews: Object.fromEntries(Object.entries(state.jobPreviews).filter(([id]) => id !== jobId)),
+        previewLoadingByJob: Object.fromEntries(Object.entries(state.previewLoadingByJob).filter(([id]) => id !== jobId)),
+        previewArtifactSignatures: Object.fromEntries(Object.entries(state.previewArtifactSignatures).filter(([id]) => id !== jobId)),
+        resultLoadingByJob: Object.fromEntries(Object.entries(state.resultLoadingByJob).filter(([id]) => id !== jobId)),
+        transcriptResults: Object.fromEntries(Object.entries(state.transcriptResults).filter(([id]) => id !== jobId)),
+        translationResults: Object.fromEntries(Object.entries(state.translationResults).filter(([id]) => id !== jobId)),
+        summaryResults: Object.fromEntries(Object.entries(state.summaryResults).filter(([id]) => id !== jobId)),
       }));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unable to delete the recording job.' });
@@ -184,5 +215,43 @@ export const useRecordingJobStore = create<RecordingJobStore>()((set, get) => ({
     } finally {
       set({ loading: false });
     }
+  },
+  ensureJobPreview: async (jobId) => {
+    if (get().jobPreviews[jobId] || get().previewLoadingByJob[jobId]) return;
+    set((state) => ({ previewLoadingByJob: { ...state.previewLoadingByJob, [jobId]: true } }));
+    try {
+      const preview = await recordingService.getJobPreview(jobId);
+      set((state) => {
+        const job = state.jobs.find((item) => item.jobId === jobId);
+        const signature = job?.artifacts.filter((artifact) => ['transcript-json', 'translation-json', 'summary-json'].includes(artifact.kind)).map((artifact) => artifact.kind).sort().join('|') || '';
+        return { jobPreviews: { ...state.jobPreviews, [jobId]: preview }, previewArtifactSignatures: { ...state.previewArtifactSignatures, [jobId]: signature } };
+      });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Unable to load the recording result preview.' });
+    } finally {
+      set((state) => ({ previewLoadingByJob: { ...state.previewLoadingByJob, [jobId]: false } }));
+    }
+  },
+  getTranscriptResult: async (jobId) => {
+    const cached = get().transcriptResults[jobId]; if (cached) return cached;
+    set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: true } }));
+    try { const result = await recordingService.getTranscriptResult(jobId); set((state) => ({ transcriptResults: { ...state.transcriptResults, [jobId]: result } })); return result; }
+    finally { set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: false } })); }
+  },
+  getTranslationResult: async (jobId) => {
+    const cached = get().translationResults[jobId]; if (cached) return cached;
+    set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: true } }));
+    try { const result = await recordingService.getTranslationResult(jobId); set((state) => ({ translationResults: { ...state.translationResults, [jobId]: result } })); return result; }
+    finally { set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: false } })); }
+  },
+  getSummaryResult: async (jobId) => {
+    const cached = get().summaryResults[jobId]; if (cached) return cached;
+    set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: true } }));
+    try { const result = await recordingService.getSummaryResult(jobId); set((state) => ({ summaryResults: { ...state.summaryResults, [jobId]: result } })); return result; }
+    finally { set((state) => ({ resultLoadingByJob: { ...state.resultLoadingByJob, [jobId]: false } })); }
+  },
+  exportResult: async (jobId, type) => {
+    try { await recordingService.exportResult(jobId, type); }
+    catch (error) { set({ error: error instanceof Error ? error.message : 'Unable to export the recording result.' }); }
   },
 }));

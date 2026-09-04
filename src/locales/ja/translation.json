@@ -1239,6 +1239,10 @@
     "summarySource": "文字起こし原文",
     "summaryTranslated": "翻訳結果",
     "summaryBilingual": "バイリンガル",
+    "reportLanguage": "レポートの言語",
+    "reportLanguageAuto": "アプリの表示言語に従う",
+    "summaryTemplate": "要約テンプレート",
+    "summaryTemplateGeneralMeeting": "一般的な会議要約",
     "tokenSaved": "保存済みトークン",
     "provider": {
       "private": "プライベート Runtime",

@@ -2,8 +2,9 @@ const { mkdir, readFile, rename, writeFile } = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 const { PROVIDER_IDS, STAGES, normalizeSelection } = require('./recording-provider-registry');
+const { normalizeTemplateId } = require('./recording-summary-templates');
 
-const SETTINGS_VERSION = 3;
+const SETTINGS_VERSION = 4;
 const SPEECH_PROFILE_IDS = Object.freeze({ 'private-moss': 'speech.private-moss', 'private-funasr': 'speech.private-funasr', 'aliyun-cloud': 'speech.aliyun' });
 const TEXT_PROFILE_IDS = Object.freeze({ translation: { 'private-runtime': 'translation.private', 'aliyun-cloud': 'translation.aliyun' }, summary: { 'private-runtime': 'summary.private', 'aliyun-cloud': 'summary.aliyun' } });
 
@@ -15,7 +16,7 @@ function defaultProcessingSettings() {
     speech: normalizeSelection(STAGES.SPEECH, { providerId: PROVIDER_IDS.PRIVATE_RUNTIME, engineId: 'moss' }),
     sourceLanguageMode: 'auto', targetLanguage: 'zh', hotwords: [],
     translation: { enabled: false, ...normalizeSelection(STAGES.TRANSLATION, { providerId: PROVIDER_IDS.ALIYUN_CLOUD }) },
-    summary: { enabled: false, ...normalizeSelection(STAGES.SUMMARY, { providerId: PROVIDER_IDS.ALIYUN_CLOUD }), templateId: 'meeting-report-v1', inputMode: 'bilingual', reportLanguage: 'zh' },
+    summary: { enabled: false, ...normalizeSelection(STAGES.SUMMARY, { providerId: PROVIDER_IDS.ALIYUN_CLOUD }), templateId: 'general-meeting', inputMode: 'bilingual', reportLanguage: 'auto' },
   };
 }
 
@@ -33,9 +34,9 @@ function normalizeTextStage(stage, input, defaults) {
     enabled: Boolean(input?.enabled),
     ...normalizeSelection(stage, { ...input, providerId }),
     ...(stage === STAGES.SUMMARY ? {
-      templateId: String(input?.templateId || defaults.summary.templateId).trim(),
+      templateId: normalizeTemplateId(input?.templateId || defaults.summary.templateId),
       inputMode: ['source', 'translated', 'bilingual'].includes(input?.inputMode) ? input.inputMode : defaults.summary.inputMode,
-      reportLanguage: ['zh', 'en', 'ja'].includes(input?.reportLanguage) ? input.reportLanguage : defaults.summary.reportLanguage,
+      reportLanguage: ['auto', 'zh', 'en', 'ja'].includes(input?.reportLanguage) ? input.reportLanguage : defaults.summary.reportLanguage,
     } : {}),
   };
 }
@@ -45,7 +46,6 @@ function normalize(input = {}) {
   const sourceLanguageMode = ['auto', 'mixed', 'fixed'].includes(input.sourceLanguageMode) ? input.sourceLanguageMode : defaults.sourceLanguageMode;
   const translation = normalizeTextStage(STAGES.TRANSLATION, input.translation, defaults);
   const summary = normalizeTextStage(STAGES.SUMMARY, input.summary, defaults);
-  if (!translation.enabled && summary.enabled && summary.inputMode !== 'source') summary.inputMode = 'source';
   return {
     version: SETTINGS_VERSION,
     speech: legacySpeech(input),

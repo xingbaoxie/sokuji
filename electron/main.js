@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, systemPreferences, desktopCapturer, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, session, systemPreferences, desktopCapturer, safeStorage, protocol } = require('electron');
 const path = require('path');
 const { betterAuthAdapter } = require('./better-auth-adapter');
 const { setupSubtitleHandlers } = require('./subtitle-window.js');
@@ -23,7 +23,10 @@ const { RecordingCredentialStore } = require('./recording-credential-store');
 const { AliyunCloudProfileStore } = require('./aliyun-cloud-profile-store');
 const { RecordingProcessingSettingsStore } = require('./recording-processing-settings');
 const { RecordingSidecarClient } = require('./recording-sidecar-client');
+const { registerRecordingAudioProtocol } = require('./recording-audio-protocol');
 const nativeHost = new NativeHostManager();
+
+protocol.registerSchemesAsPrivileged([{ scheme: 'sokuji-recording', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 
 // Config utility no longer needed - using localStorage in renderer process
 
@@ -458,6 +461,7 @@ function createWindow() {
 
 // Create window when Electron is ready
 app.whenReady().then(async () => {
+  registerRecordingAudioProtocol({ protocol, app });
   if (isDuplicateInstance) return;
   // Windows sandbox recovery (issue #352): if a prior run left a crash marker,
   // scan ACLs and show the native recovery dialog BEFORE creating the (transparent)

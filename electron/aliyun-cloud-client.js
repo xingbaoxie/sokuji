@@ -1,4 +1,7 @@
 const OSS = require('ali-oss');
+const { parseAndValidateSummary } = require('./recording-summary-schema');
+const { renderRepairPrompt, renderSummaryPrompt } = require('./recording-summary-templates');
+const { normalizeSummaryResult } = require('./recording-result-normalizer');
 
 const MODELS = Object.freeze({ speech: 'qwen-audio-3.0-asr-flash-filetrans', translation: 'qwen-mt-plus', summary: 'qwen3.8-max' });
 const MIXED_LANGUAGE_HINTS = ['zh', 'en', 'ja'];
@@ -51,11 +54,7 @@ function parseMarkerBatch(raw, expectedIds) {
   if (values.size !== expectedIds.length || expectedIds.some((id) => !values.has(id))) throw new Error('Translation marker output is missing segment ids.');
   return expectedIds.map((id) => ({ id, translatedText: values.get(id) }));
 }
-function parseSummary(raw, allowedIds) {
-  const value = JSON.parse(String(raw).replace(/^```json\s*|\s*```$/g, '').trim());
-  for (const collection of ['topics', 'decisions', 'actions', 'openQuestions', 'risks', 'facts']) for (const item of value[collection] || []) for (const id of item.sourceSegmentIds || []) if (!allowedIds.has(id)) throw new Error(`Summary references an unknown source segment: ${id}`);
-  return value;
-}
+function parseSummary(raw) { return parseAndValidateSummary(raw); }
 
 async function translateBatch(client, config, segments, strict = false) {
   const ids = segments.map((segment) => segment.id);
@@ -88,22 +87,20 @@ async function translateSegments(client, config, segments) {
 }
 
 async function summarizeOnce(client, config, segments) {
-  const allowedIds = new Set(segments.map((segment) => segment.id));
   const source = config.summary.inputMode === 'translated'
     ? segments.map((segment) => ({ ...segment, text: segment.translatedText || '' }))
     : segments;
-  const content = JSON.stringify(source.map(({ id, speakerId, startMs, endMs, text, translatedText }) => ({ id, speakerId, startMs, endMs, text, ...(config.summary.inputMode === 'bilingual' ? { translatedText } : {}) })));
-  const prompt = `请根据以下录音片段生成 JSON：summary、topics、decisions、actions、openQuestions、risks、facts。每个数组项必须含 text 与 sourceSegmentIds，且来源只能使用输入 ID。只返回 JSON。\n${content}`;
+  const prompt = renderSummaryPrompt({ templateId: config.summary.templateId, reportLanguage: config.summary.reportLanguage, segments: source }).messages;
   const model = config.summary?.modelId || MODELS.summary;
-  let raw = await client.chat(model, [{ role: 'user', content: prompt }]);
-  try { return parseSummary(raw, allowedIds); } catch {
-    raw = await client.chat(model, [{ role: 'user', content: `${prompt}\n上次输出无效。只返回合法 JSON，且不得引用未知 ID。` }]);
-    return parseSummary(raw, allowedIds);
+  let raw = await client.chat(model, prompt);
+  try { return parseSummary(raw); } catch {
+    raw = await client.chat(model, [{ role: 'system', content: prompt[0].content }, { role: 'user', content: renderRepairPrompt(raw) }]);
+    return parseSummary(raw);
   }
 }
 
 async function summarizeSegments(client, config, segments) {
-  return summarizeOnce(client, config, segments);
+  return normalizeSummaryResult(await summarizeOnce(client, config, segments));
 }
 
 class AliyunOssClient {

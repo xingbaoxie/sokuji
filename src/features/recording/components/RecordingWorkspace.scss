@@ -66,7 +66,6 @@
 
 .recording-history ul { margin: 0; padding: 0; list-style: none; }
 .recording-history li { display: flex; align-items: center; justify-content: space-between; gap: vars.$space-3; padding: vars.$space-3 0; border-top: 1px solid vars.$border-subtle; }
-.recording-history li:first-child { border-top: 0; }
 .recording-history li > div { min-width: 0; display: grid; gap: 3px; }
 .recording-history li > div > span { color: vars.$text-muted; font-size: vars.$font-caption; }
 .recording-job-error { display: inline-flex; align-items: center; gap: 5px; margin: 2px 0 0; color: #ffb3b3; font-size: vars.$font-caption; font-weight: vars.$weight-medium; line-height: 1.4; }
@@ -89,6 +88,62 @@
 .recording-artifact-preview h3 { margin: 0 0 vars.$space-2; font-size: vars.$font-body; font-weight: vars.$weight-semibold; }
 .recording-artifact-preview pre { max-height: 360px; overflow: auto; margin: 0; padding: vars.$space-3; border-radius: vars.$radius-md; background: vars.$bg-page; color: vars.$text-secondary; font-size: vars.$font-caption; white-space: pre-wrap; word-break: break-word; }
 
+.recording-history .recording-job-card { position: relative; align-items: flex-start; }
+.recording-job-card__body { flex: 1; min-width: 0; }
+.recording-job-card.is-expandable { cursor: pointer; }
+.recording-job-card.is-expandable:hover > .recording-job-card__body { color: vars.$text-primary; }
+.recording-job-card__title { display: flex; align-items: center; gap: 6px; width: fit-content; }
+.recording-job-fold-cue { width: 24px; min-height: 24px; display: grid; place-items: center; padding: 0; border: 0; border-radius: vars.$radius-sm; color: vars.$text-muted; background: transparent; cursor: pointer; transition: color vars.$transition-fast, background-color vars.$transition-fast, transform vars.$transition-fast; }
+.recording-job-fold-cue:hover { color: vars.$text-primary; background: vars.$bg-control; }
+.recording-job-card.is-expanded .recording-job-fold-cue { color: vars.$color-primary; }
+.recording-result-previews { display: grid; gap: vars.$space-3; margin-top: vars.$space-3; }
+.recording-result-previews > section { padding: vars.$space-3; border: 1px solid vars.$border-subtle; border-radius: vars.$radius-md; background: rgba(255, 255, 255, .015); }
+.recording-result-previews header { display: flex; align-items: center; justify-content: space-between; gap: vars.$space-2; }
+.recording-result-previews h3, .recording-result-previews h4, .recording-result-previews p { margin: 0; }
+.recording-result-previews h3 { font-size: vars.$font-body; }
+.recording-result-previews header button, .recording-result-dialog footer button { border: 0; background: transparent; color: vars.$color-primary; cursor: pointer; font: inherit; }
+.recording-result-previews > section > p + p { margin-top: 5px; }
+.recording-result-previews time { margin-right: 6px; color: vars.$text-muted; font-variant-numeric: tabular-nums; }
+.recording-result-previews__failed { color: #ffb3b3; }
+.recording-result-dialog__backdrop { position: fixed; z-index: 4000; inset: 0; display: grid; place-items: center; padding: vars.$space-4; background: rgba(0, 0, 0, .66); }
+.recording-result-dialog { width: min(760px, 100%); max-height: min(820px, calc(100vh - 32px)); overflow: auto; padding: vars.$space-4; border: 1px solid vars.$border-default; border-radius: vars.$radius-lg; background: vars.$bg-surface; box-shadow: 0 24px 80px rgba(0, 0, 0, .46); }
+.recording-result-dialog > header { position: sticky; top: calc(-1 * vars.$space-4); z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: vars.$space-3; margin: calc(-1 * vars.$space-4) calc(-1 * vars.$space-4) 0; padding: vars.$space-4 vars.$space-4 vars.$space-2; border-bottom: 1px solid vars.$border-subtle; border-radius: vars.$radius-lg vars.$radius-lg 0 0; background: vars.$bg-surface; }
+.recording-result-dialog > header h2 { margin: 0; font-size: vars.$font-title; }
+.recording-result-dialog > header button { width: 36px; min-height: 36px; display: grid; place-items: center; border: 0; border-radius: vars.$radius-md; color: vars.$text-secondary; background: transparent; cursor: pointer; }
+.recording-result-dialog__tools { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); align-items: end; gap: vars.$space-3; margin: vars.$space-3 0; padding: vars.$space-3; border: 1px solid vars.$border-subtle; border-radius: vars.$radius-md; background: rgba(255, 255, 255, .015); }
+.recording-speaker-filter { display: grid; gap: 7px; min-width: 0; color: vars.$text-secondary; font-size: vars.$font-caption; }
+.recording-speaker-filter__choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.recording-speaker-filter__choices button { min-height: 32px; padding: 0 10px; border: 1px solid vars.$border-default; border-radius: 999px; color: vars.$text-secondary; background: vars.$bg-control; cursor: pointer; font: inherit; font-size: vars.$font-caption; transition: background-color vars.$transition-fast, border-color vars.$transition-fast, color vars.$transition-fast; }
+.recording-speaker-filter__choices button:hover { color: vars.$text-primary; border-color: vars.$border-strong; }
+.recording-speaker-filter__choices button.is-selected { color: #c8fff3; border-color: rgba(vars.$color-primary, .7); background: rgba(vars.$color-primary, .2); }
+.recording-result-search { position: relative; display: flex; align-items: center; min-height: 38px; border: 1px solid vars.$border-default; border-radius: vars.$radius-sm; color: vars.$text-muted; background: vars.$bg-control; }
+.recording-result-search:focus-within { border-color: vars.$color-primary; box-shadow: 0 0 0 1px rgba(vars.$color-primary, .22); }
+.recording-result-search svg { flex: 0 0 auto; margin-left: 11px; }
+.recording-result-search input { width: 100%; min-width: 0; height: 36px; border: 0; padding: 0 vars.$space-2; outline: 0; color: vars.$text-primary; background: transparent; font: inherit; }
+.recording-workspace .recording-result-search input:focus-visible { outline: 0; outline-offset: 0; }
+.recording-result-list { display: grid; gap: vars.$space-2; max-height: 430px; overflow: auto; }
+.recording-result-list button { display: grid; grid-template-columns: auto auto 1fr; gap: vars.$space-2; padding: vars.$space-2; border: 0; border-radius: vars.$radius-sm; color: vars.$text-primary; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+.recording-result-list button:hover { background: vars.$bg-control; }
+.recording-result-list time { color: vars.$text-muted; font-variant-numeric: tabular-nums; }
+.recording-result-list mark { padding: 0 2px; border-radius: 3px; color: #d5fff5; background: rgba(vars.$color-primary, .18); box-shadow: inset 0 -1px 0 rgba(vars.$color-primary, .62); }
+.recording-result-list button span + span { grid-column: 3; }
+.recording-translation-list button { row-gap: 6px; }
+.recording-translation-list button > .recording-translation-line { display: grid; grid-column: 3; grid-template-columns: 3.25em minmax(0, 1fr); column-gap: vars.$space-2; align-items: baseline; line-height: 1.55; }
+.recording-translation-line > strong { color: vars.$text-secondary; font-weight: 600; }
+.recording-translation-line > span { min-width: 0; }
+.recording-audio-player { display: flex; align-items: center; gap: vars.$space-2; margin-top: vars.$space-3; }
+.recording-audio-player button { display: grid; place-items: center; width: 34px; min-height: 34px; border: 0; border-radius: 50%; color: #fff; background: vars.$color-primary; cursor: pointer; }
+.recording-audio-player span { color: vars.$text-muted; font-size: vars.$font-caption; white-space: nowrap; }
+.recording-audio-player input { flex: 1; accent-color: vars.$color-primary; }
+.recording-result-dialog footer { display: flex; justify-content: flex-end; gap: vars.$space-3; margin-top: vars.$space-4; }
+.recording-summary-report h3 { margin: vars.$space-4 0 vars.$space-2; font-size: vars.$font-body; }
+.recording-summary-report h3:first-child { margin-top: 0; }
+.recording-summary-report p { line-height: 1.6; }
+.recording-summary-report article { margin: vars.$space-2 0; }
+.recording-summary-report article h4, .recording-summary-report article p { margin: 0; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
 .recording-workspace button:focus-visible,
 .recording-workspace input:focus-visible,
 .recording-workspace select:focus-visible,
@@ -98,4 +153,5 @@
 
 @media (max-width: 620px) {
   .recording-workspace { padding: vars.$space-4 vars.$space-3 32px; }
+  .recording-result-dialog__tools { grid-template-columns: 1fr; }
 }

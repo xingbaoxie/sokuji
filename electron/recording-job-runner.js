@@ -1,3 +1,6 @@
+const { normalizeSummaryResult } = require('./recording-result-normalizer');
+const { renderRepairPrompt } = require('./recording-summary-templates');
+
 async function waitForRemoteTask(client, taskId, { pollMs = 1500, timeoutMs = 2 * 60 * 60 * 1000, maxPolls = Infinity } = {}) {
   const deadline = Date.now() + timeoutMs;
   for (let attempt = 0; attempt < maxPolls && Date.now() < deadline; attempt += 1) {
@@ -18,6 +21,26 @@ function mergeTranscriptAndTranslation(transcriptSegments = [], translation = nu
     const translated = translatedById.get(segment.id);
     return translated?.translatedText === undefined ? segment : { ...segment, translatedText: translated.translatedText };
   });
+}
+
+function privateSummaryPayload(summary, segments) {
+  const capabilities = summary.runtimeCapabilities || {};
+  return {
+    profileRevision: summary.profileRevision || 'development', modelId: summary.modelId, inputMode: summary.inputMode, segments,
+    ...(capabilities.summaryTemplateMetadata ? { templateId: summary.templateId, reportLanguage: summary.reportLanguage, schemaVersion: summary.schemaVersion } : {}),
+  };
+}
+
+async function normalizePrivateSummaryResult(client, summary, result) {
+  try { return normalizeSummaryResult(result); }
+  catch (error) {
+    if (!summary.runtimeCapabilities?.summaryRepair) throw error;
+    const request = await client.submit('summary', {
+      profileRevision: summary.profileRevision || 'development', modelId: summary.modelId,
+      repair: true, prompt: renderRepairPrompt(typeof result === 'string' ? result : JSON.stringify(result)), schemaVersion: summary.schemaVersion || 1,
+    });
+    return normalizeSummaryResult(await waitForRemoteTask(client, request.taskId));
+  }
 }
 
 function createUploadProgressReporter(onStage, stage) {
@@ -48,8 +71,10 @@ function createUploadProgressReporter(onStage, stage) {
   };
 }
 
-async function runRecordingJob(job, speechClient, onStage, { translationClient = speechClient, summaryClient = speechClient, cloudAdapter = null } = {}) {
-  const taskIds = {};
+async function runRecordingJob(job, speechClient, onStage, { translationClient = speechClient, summaryClient = speechClient, cloudAdapter = null, onResult = null } = {}) {
+  const taskIds = {}; let activeStage = 'speech.execute';
+  const checkpoint = async (stage, result) => { activeStage = stage; if (onResult) await onResult(stage, result); };
+  try {
   const persistedSpeechTaskId = job.remoteTaskIds?.speech || job.stageRuns?.find((stage) => stage.stage === 'speech.execute')?.remoteTaskId;
   if (persistedSpeechTaskId) {
     await onStage('audio.prepare', 'completed');
@@ -72,9 +97,11 @@ async function runRecordingJob(job, speechClient, onStage, { translationClient =
     await onStage('speech.execute', 'running', speech.taskId);
   }
   const transcript = await waitForRemoteTask(speechClient, taskIds.speech);
+  await checkpoint('speech.execute', transcript);
   await onStage('speech.execute', 'completed');
   let translation = null;
   if (job.config.translation?.enabled) {
+    activeStage = 'translation.execute';
     await onStage('translation.execute', 'running');
     if (job.config.translation.providerId === 'aliyun-cloud') {
       if (!cloudAdapter) throw new Error('Aliyun Cloud translation is not configured.');
@@ -85,24 +112,24 @@ async function runRecordingJob(job, speechClient, onStage, { translationClient =
       await onStage('translation.execute', 'running', request.taskId);
       translation = await waitForRemoteTask(translationClient, request.taskId);
     }
+    await checkpoint('translation.execute', translation);
     await onStage('translation.execute', 'completed');
   }
   let summary = null;
   if (job.config.summary?.enabled) {
+    activeStage = 'summary.execute';
     const summarySegments = mergeTranscriptAndTranslation(transcript.segments, translation);
     await onStage('summary.execute', 'running');
     if (job.config.summary.providerId === 'aliyun-cloud') {
       if (!cloudAdapter) throw new Error('Aliyun Cloud summary is not configured.');
       summary = await cloudAdapter.summarize(job.config, summarySegments);
     } else {
-      const request = await summaryClient.submit('summary', {
-        profileRevision: job.config.summary.profileRevision || 'development', modelId: job.config.summary.modelId,
-        inputMode: job.config.summary.inputMode, segments: summarySegments,
-      });
+      const request = await summaryClient.submit('summary', privateSummaryPayload(job.config.summary, summarySegments));
       taskIds.summary = request.taskId;
       await onStage('summary.execute', 'running', request.taskId);
-      summary = await waitForRemoteTask(summaryClient, request.taskId);
+      summary = await normalizePrivateSummaryResult(summaryClient, job.config.summary, await waitForRemoteTask(summaryClient, request.taskId));
     }
+    await checkpoint('summary.execute', summary);
     await onStage('summary.execute', 'completed');
   }
   if (job.config.summary?.enabled) {
@@ -110,6 +137,10 @@ async function runRecordingJob(job, speechClient, onStage, { translationClient =
     await onStage('report.build', 'completed');
   }
   return { transcript, translation, summary, taskIds };
+  } catch (error) {
+    error.recordingStage ||= activeStage;
+    throw error;
+  }
 }
 
-module.exports = { createUploadProgressReporter, mergeTranscriptAndTranslation, runRecordingJob, waitForRemoteTask };
+module.exports = { createUploadProgressReporter, mergeTranscriptAndTranslation, normalizePrivateSummaryResult, privateSummaryPayload, runRecordingJob, waitForRemoteTask };

@@ -64,8 +64,9 @@ describe('Aliyun Cloud client', () => {
     expect(client.chat).toHaveBeenCalledTimes(2);
   });
 
-  it('enforces marker and summary source integrity', () => {
+  it('enforces marker and canonical summary structure', () => {
     expect(() => parseMarkerBatch('<<<SEG:x>>>\na\n<<<END_SEG>>>', ['seg-1'])).toThrow(/unknown/i);
-    expect(() => parseSummary('{"summary":"x","actions":[{"text":"x","sourceSegmentIds":["bad"]}]}', new Set(['seg-1']))).toThrow(/unknown/i);
+    expect(() => parseSummary('{"summary":"x","actions":[{"text":"x"}]}')).toThrow(/invalid structure/i);
+    expect(() => parseSummary('{"topic":"x","conclusions":[],"discussionPoints":[],"actionItems":[],"keywords":[]}')).not.toThrow();
   });
 });

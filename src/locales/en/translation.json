@@ -1239,6 +1239,10 @@
     "summarySource": "Source transcript",
     "summaryTranslated": "Translation",
     "summaryBilingual": "Bilingual",
+    "reportLanguage": "Report language",
+    "reportLanguageAuto": "Follow app language",
+    "summaryTemplate": "Summary template",
+    "summaryTemplateGeneralMeeting": "General meeting summary",
     "tokenSaved": "Saved token",
     "provider": {
       "private": "Private Runtime",

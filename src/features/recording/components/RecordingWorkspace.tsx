@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { CircleAlert, Download, FileAudio, LoaderCircle, Play, Square, Trash2, Upload } from 'lucide-react';
+import { FileAudio, LoaderCircle, Play, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isElectron } from '../../../utils/environment';
 import { useRecordingJobStore } from '../stores/recordingJobStore';
+import { RecordingJobCard } from './RecordingJobCard';
 import './RecordingWorkspace.scss';
 
 export function formatElapsedDuration(startedAt: string, finishedAt: string, language: string): string | null {
@@ -42,10 +43,16 @@ export function formatJobFailure(error: { code: string; message: string; provide
   return text('[失败] 云端转写失败', '[失敗] クラウド文字起こしに失敗しました', '[Failed] Cloud transcription failed');
 }
 
+export function displayRecordingModelName(modelId?: string): string {
+  const parts = String(modelId || '').trim().split('/').filter(Boolean);
+  return parts.at(-1) || '';
+}
+
 function visibleStages(job: { config: { translation?: { enabled?: boolean }; summary?: { enabled?: boolean } }; stageRuns: Array<{ stage: string }> }) {
   return job.stageRuns.filter((stage) => {
     if (stage.stage === 'translation.execute') return job.config.translation?.enabled;
-    if (stage.stage === 'summary.execute' || stage.stage === 'report.build') return job.config.summary?.enabled;
+    if (stage.stage === 'summary.execute') return job.config.summary?.enabled;
+    if (stage.stage === 'report.build') return false;
     return true;
   });
 }
@@ -73,19 +80,24 @@ const RecordingWorkspace: React.FC = () => {
   const jobs = useRecordingJobStore((state) => state.jobs);
   const loading = useRecordingJobStore((state) => state.loading);
   const error = useRecordingJobStore((state) => state.error);
-  const artifactPreview = useRecordingJobStore((state) => state.artifactPreview);
+  const jobPreviews = useRecordingJobStore((state) => state.jobPreviews);
+  const previewLoadingByJob = useRecordingJobStore((state) => state.previewLoadingByJob);
   const pickFile = useRecordingJobStore((state) => state.pickFile);
   const setDroppedFile = useRecordingJobStore((state) => state.setDroppedFile);
   const hydrate = useRecordingJobStore((state) => state.hydrate);
   const start = useRecordingJobStore((state) => state.start);
   const cancel = useRecordingJobStore((state) => state.cancel);
   const deleteJob = useRecordingJobStore((state) => state.deleteJob);
-  const exportArtifact = useRecordingJobStore((state) => state.exportArtifact);
-  const previewArtifact = useRecordingJobStore((state) => state.previewArtifact);
+  const ensureJobPreview = useRecordingJobStore((state) => state.ensureJobPreview);
+  const getTranscriptResult = useRecordingJobStore((state) => state.getTranscriptResult);
+  const getTranslationResult = useRecordingJobStore((state) => state.getTranslationResult);
+  const getSummaryResult = useRecordingJobStore((state) => state.getSummaryResult);
+  const exportResult = useRecordingJobStore((state) => state.exportResult);
   const speechLabel = (job: typeof jobs[number]) => {
     const provider = job.config.speech.providerId === 'private-runtime' ? t('recording.provider.private') : t('recording.provider.aliyun');
     const engine = job.config.speech.engineId === 'moss' ? t('recording.engine.moss') : job.config.speech.engineId === 'funasr-meeting' ? t('recording.engine.funasr_meeting') : t('recording.engine.aliyun_filetrans');
-    return `${provider} · ${engine}`;
+    const modelName = displayRecordingModelName(job.config.speech.modelId);
+    return { label: `${provider} · ${modelName || engine}`, title: modelName ? `${provider} · ${job.config.speech.modelId}` : undefined };
   };
 
   useEffect(() => {
@@ -114,24 +126,16 @@ const RecordingWorkspace: React.FC = () => {
       {jobs.length === 0 ? <p className="recording-hint">{t('recording.noJobs')}</p> : <ul>{jobs.map((job) => {
         const elapsed = job.status === 'completed' ? formatElapsedDuration(job.createdAt, job.completedAt ?? job.updatedAt, i18n.resolvedLanguage ?? i18n.language) : null;
         const language = i18n.resolvedLanguage ?? i18n.language;
-        const preview = artifactPreview?.jobId === job.jobId ? artifactPreview : null;
-        const confirmDelete = () => {
+        const confirmDelete = (target = job) => {
           const message = [
-            t('recording.deleteJobConfirm', { fileName: job.sourceFileName }),
+            t('recording.deleteJobConfirm', { fileName: target.sourceFileName }),
             t('recording.deleteJobDetails'),
-            ...(cloudCleanupMayRemain(job) ? [t('recording.deleteJobCloudWarning')] : []),
+            ...(cloudCleanupMayRemain(target) ? [t('recording.deleteJobCloudWarning')] : []),
           ].join('\n\n');
-          if (window.confirm(message)) void deleteJob(job.jobId);
+          if (window.confirm(message)) void deleteJob(target.jobId);
         };
-        return <li key={job.jobId}><div><strong>{job.sourceFileName}</strong><span>{speechLabel(job)} · {t(`recording.status.${job.status}`, { defaultValue: job.status.replace('_', ' ') })}{elapsed && ` · ${t('recording.elapsed', { duration: elapsed })}`}</span>{job.cancellationRequested && <span>{t('recording.cancellationRequested')}</span>}
-          {job.status === 'failed' && <p className="recording-job-error" role="alert"><CircleAlert size={14} aria-hidden="true" />{formatJobFailure(job.error, language)}</p>}
-          {job.status !== 'cancelled' && visibleStages(job).length > 0 && <div className="recording-stage-progress" aria-label={t('recording.jobProgress', { fileName: job.sourceFileName })}>{visibleStages(job).map((stage) => {
-            const status = job.status === 'failed' && stage.stage === 'speech.execute' && stage.status !== 'completed' ? 'failed' : stage.status;
-            return <span key={stage.stage} className={`is-${status}`} title={`${stage.stage}: ${stage.progress}%`}>{t(`recording.stage.${stage.stage.split('.')[0]}`, { defaultValue: stage.stage.split('.')[0] })} {status === 'running' ? `${stage.progress}%` : t(`recording.status.${status}`, { defaultValue: status })}</span>;
-          })}</div>}
-          {job.status === 'completed' && visibleArtifacts(job).length > 0 && <div className="recording-artifacts" aria-label={t('recording.artifactsFor', { fileName: job.sourceFileName })}>{visibleArtifacts(job).map((artifact) => { const expanded = preview?.fileName === artifact.fileName; return <span key={artifact.fileName}><button type="button" className={expanded ? 'is-expanded' : undefined} aria-expanded={expanded} onClick={() => void previewArtifact(job.jobId, artifact.fileName)} disabled={loading}>{artifact.fileName}</button><button type="button" aria-label={t('recording.exportArtifact', { fileName: artifact.fileName })} onClick={() => void exportArtifact(job.jobId, artifact.fileName)} disabled={loading}><Download size={13} aria-hidden="true" /></button></span>; })}</div>}
-          {preview && <section className="recording-artifact-preview" aria-label={t('recording.previewArtifact', { fileName: preview.fileName })}><h3>{preview.fileName}</h3>{preview.truncated && <p className="recording-hint">{t('recording.previewLimited')}</p>}<pre>{preview.content}</pre></section>}
-        </div><div className="recording-job-actions">{(job.status === 'queued' || job.status === 'running' || job.status === 'waiting_remote') && <button type="button" className="recording-cancel" onClick={() => void cancel(job.jobId)} disabled={job.cancellationRequested}><Square size={14} aria-hidden="true" /> {t('common.cancel')}</button>}{isTerminalJob(job.status) && <button type="button" className="recording-delete" onClick={confirmDelete} disabled={loading} aria-label={t('recording.deleteJob', { fileName: job.sourceFileName })} title={t('recording.deleteJob', { fileName: job.sourceFileName })}><Trash2 size={15} aria-hidden="true" /></button>}</div></li>;
+        const speech = speechLabel(job);
+        return <RecordingJobCard key={job.jobId} job={job} language={language} speechLabel={speech.label} speechTitle={speech.title} elapsed={elapsed} preview={jobPreviews[job.jobId]} previewLoading={previewLoadingByJob[job.jobId]} ensurePreview={ensureJobPreview} cancel={(jobId) => void cancel(jobId)} remove={confirmDelete} exportResult={(jobId, type) => void exportResult(job.jobId, type)} getTranscript={getTranscriptResult} getTranslation={getTranslationResult} getSummary={getSummaryResult} failureText={formatJobFailure} />;
       })}</ul>}
     </section>
   </main>;
