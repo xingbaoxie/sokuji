@@ -93,6 +93,10 @@ const RecordingWorkspace: React.FC = () => {
   const getTranslationResult = useRecordingJobStore((state) => state.getTranslationResult);
   const getSummaryResult = useRecordingJobStore((state) => state.getSummaryResult);
   const exportResult = useRecordingJobStore((state) => state.exportResult);
+  // Lazy-loaded interface catalogs can render correctly through `t()` before
+  // i18next refreshes `resolvedLanguage`, which still points at the English
+  // fallback. UI-specific labels must follow the selected interface language.
+  const interfaceLanguage = i18n.language || i18n.resolvedLanguage || 'en';
   const speechLabel = (job: typeof jobs[number]) => {
     const provider = job.config.speech.providerId === 'private-runtime' ? t('recording.provider.private') : t('recording.provider.aliyun');
     const engine = job.config.speech.engineId === 'moss' ? t('recording.engine.moss') : job.config.speech.engineId === 'funasr-meeting' ? t('recording.engine.funasr_meeting') : t('recording.engine.aliyun_filetrans');
@@ -124,8 +128,8 @@ const RecordingWorkspace: React.FC = () => {
     <section className="recording-section recording-history" aria-labelledby="recording-history-title">
       <h2 id="recording-history-title">{t('recording.jobs')}</h2>
       {jobs.length === 0 ? <p className="recording-hint">{t('recording.noJobs')}</p> : <ul>{jobs.map((job) => {
-        const elapsed = job.status === 'completed' ? formatElapsedDuration(job.createdAt, job.completedAt ?? job.updatedAt, i18n.resolvedLanguage ?? i18n.language) : null;
-        const language = i18n.resolvedLanguage ?? i18n.language;
+        const elapsed = job.status === 'completed' ? formatElapsedDuration(job.createdAt, job.completedAt ?? job.updatedAt, interfaceLanguage) : null;
+        const language = interfaceLanguage;
         const confirmDelete = (target = job) => {
           const message = [
             t('recording.deleteJobConfirm', { fileName: target.sourceFileName }),

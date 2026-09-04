@@ -23,7 +23,9 @@ vi.mock('react-i18next', () => ({
       'recording.deleteJobDetails': '将删除本地任务记录与导出文件，原始音频文件不会被删除。',
       'recording.deleteJobCloudWarning': '云端临时文件可能仍保留，直至服务端清理策略执行。',
     }[key] ?? key),
-    i18n: { language: 'zh_CN', resolvedLanguage: 'zh_CN' },
+    // During lazy catalog loading, i18next may still report the English
+    // fallback as resolvedLanguage although the selected UI language is Chinese.
+    i18n: { language: 'zh_CN', resolvedLanguage: 'en' },
   }),
 }));
 vi.mock('../../../utils/environment', () => ({ isElectron: () => true }));
