@@ -78,6 +78,7 @@ const RecordingWorkspace: React.FC = () => {
   const { t, i18n } = useTranslation();
   const file = useRecordingJobStore((state) => state.file);
   const jobs = useRecordingJobStore((state) => state.jobs);
+  const hasActiveJobs = useRecordingJobStore((state) => state.jobs.some((job) => !isTerminalJob(job.status)));
   const loading = useRecordingJobStore((state) => state.loading);
   const error = useRecordingJobStore((state) => state.error);
   const jobPreviews = useRecordingJobStore((state) => state.jobPreviews);
@@ -106,9 +107,10 @@ const RecordingWorkspace: React.FC = () => {
 
   useEffect(() => {
     void hydrate();
-    const timer = window.setInterval(() => { void hydrate(); }, 750);
+    if (!hasActiveJobs) return undefined;
+    const timer = window.setInterval(() => { void hydrate(); }, 3000);
     return () => window.clearInterval(timer);
-  }, [hydrate]);
+  }, [hydrate, hasActiveJobs]);
 
   if (!isElectron()) return <main className="recording-workspace recording-workspace--unavailable"><FileAudio size={32} aria-hidden="true" /><h1>{t('recording.title')}</h1><p>{t('recording.desktopOnly')}</p></main>;
 

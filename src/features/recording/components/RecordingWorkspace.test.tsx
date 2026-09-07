@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({
@@ -51,6 +51,8 @@ beforeEach(() => {
     }, aliyunProfile: { profileId: 'default', configured: false, region: 'beijing' }, artifactPreview: null,
   });
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('RecordingWorkspace', () => {
   it('keeps the workbench focused on uploading and tasks', () => {
@@ -125,6 +127,21 @@ describe('RecordingWorkspace', () => {
     render(<RecordingWorkspace />);
     expect(screen.getByText('总结报告 已完成')).toBeInTheDocument();
     expect(screen.queryByText('报告 已完成')).toBeNull();
+  });
+
+  it('polls only while a task is active, at a restrained interval', () => {
+    const setIntervalSpy = vi.spyOn(window, 'setInterval');
+    const config = defaultRecordingJobConfig();
+    const completed: RecordingJobSummary = { jobId: 'job-completed', sourceFileName: 'done.mp3', status: 'completed', config, createdAt: '2026-09-01T00:00:00.000Z', updatedAt: '2026-09-01T00:01:00.000Z', stageRuns: [], artifacts: [] };
+    useRecordingJobStore.setState({ jobs: [completed] });
+    const { unmount } = render(<RecordingWorkspace />);
+    expect(setIntervalSpy).not.toHaveBeenCalled();
+    unmount();
+
+    const active: RecordingJobSummary = { ...completed, jobId: 'job-running', sourceFileName: 'running.mp3', status: 'running' };
+    useRecordingJobStore.setState({ jobs: [active] });
+    render(<RecordingWorkspace />);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 3000);
   });
 
   it('closes the current artifact preview when the same file is clicked again', async () => {

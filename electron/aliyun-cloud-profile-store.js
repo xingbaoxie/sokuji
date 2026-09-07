@@ -8,6 +8,7 @@ const DEFAULT_MODEL_IDS = Object.freeze({
   'translation.aliyun': 'qwen-mt-plus',
   'summary.aliyun': 'qwen3.8-max',
 });
+const SECRET_FIELDS = Object.freeze(['dashscopeApiKey', 'ossAccessKeyId', 'ossAccessKeySecret']);
 
 function profileFile(app) { return path.join(app.getPath('userData'), 'recording-aliyun-profiles.json'); }
 
@@ -54,7 +55,7 @@ function normalizeProfile(input, { requiresOss = false, defaultModelId = '' } = 
 }
 
 function profileConfigured(profile, requiresOss) {
-  return requiredFields(requiresOss).every((key) => String(profile?.[key] || '').trim());
+  return requiredFields(requiresOss).every((key) => String(profile?.[key] || profile?.[`${key}Encrypted`] || '').trim());
 }
 
 function validateProfile(input, options = {}) {
@@ -72,8 +73,45 @@ async function atomicWrite(file, value) {
 }
 
 class AliyunCloudProfileStore {
-  constructor({ app }) { this.app = app; }
+  constructor({ app, safeStorage }) { this.app = app; this.safeStorage = safeStorage; }
   async readAll() { try { return JSON.parse(await readFile(profileFile(this.app), 'utf8')); } catch (error) { if (error?.code === 'ENOENT') return { version: 1, profiles: {} }; throw error; } }
+  requireEncryption() {
+    if (!this.safeStorage?.isEncryptionAvailable()) throw new Error('OS secure storage is unavailable; Aliyun credentials cannot be saved.');
+  }
+  sealSecrets(profile) {
+    const stored = { ...profile };
+    for (const key of SECRET_FIELDS) {
+      const value = String(profile[key] || '').trim();
+      if (value) {
+        this.requireEncryption();
+        stored[`${key}Encrypted`] = this.safeStorage.encryptString(value).toString('base64');
+      } else delete stored[`${key}Encrypted`];
+      delete stored[key];
+    }
+    return stored;
+  }
+  revealSecrets(profile) {
+    const revealed = { ...profile };
+    for (const key of SECRET_FIELDS) {
+      const encrypted = profile?.[`${key}Encrypted`];
+      if (encrypted) {
+        this.requireEncryption();
+        revealed[key] = this.safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+      } else revealed[key] = String(profile?.[key] || '');
+    }
+    return revealed;
+  }
+  async writeAll(document) {
+    await mkdir(path.dirname(profileFile(this.app)), { recursive: true, mode: 0o700 });
+    await atomicWrite(profileFile(this.app), document);
+  }
+  async migrateLegacyProfile(document, profileId) {
+    const profile = document.profiles[profileId];
+    if (!profile || !SECRET_FIELDS.some((key) => String(profile[key] || '').trim())) return profile;
+    document.profiles[profileId] = this.sealSecrets(profile);
+    await this.writeAll(document);
+    return document.profiles[profileId];
+  }
   async save(profileId, input) {
     if (!profileId) throw new Error('Aliyun profile id is required.');
     const document = await this.readAll();
@@ -82,38 +120,39 @@ class AliyunCloudProfileStore {
     // Settings are written field by field, just like subtitle provider
     // settings.  A partially entered profile is valid storage; it only becomes
     // executable after resolve() verifies every field required by the stage.
-    document.profiles[profileId] = normalizeProfile(
-      { ...(document.profiles[profileId] || {}), ...(input || {}) },
+    const existing = document.profiles[profileId] ? this.revealSecrets(document.profiles[profileId]) : {};
+    document.profiles[profileId] = this.sealSecrets(normalizeProfile(
+      { ...existing, ...(input || {}) },
       { requiresOss: profileId === ALIYUN_SPEECH_PROFILE_ID, defaultModelId: DEFAULT_MODEL_IDS[profileId] || '' },
-    );
-    await mkdir(path.dirname(profileFile(this.app)), { recursive: true, mode: 0o700 });
-    await atomicWrite(profileFile(this.app), document);
+    ));
+    await this.writeAll(document);
     return this.status(profileId);
   }
   async resolve(profileId) {
-    const profile = (await this.readAll()).profiles[profileId];
+    const document = await this.readAll();
+    const profile = await this.migrateLegacyProfile(document, profileId);
     if (!profile) throw new Error('Aliyun cloud profile is not configured.');
-    return validateProfile(profile, { requiresOss: profileId === ALIYUN_SPEECH_PROFILE_ID, defaultModelId: DEFAULT_MODEL_IDS[profileId] || '' });
+    return validateProfile(this.revealSecrets(profile), { requiresOss: profileId === ALIYUN_SPEECH_PROFILE_ID, defaultModelId: DEFAULT_MODEL_IDS[profileId] || '' });
   }
   async status(profileId, { includeSecrets = false } = {}) {
-    const value = (await this.readAll()).profiles[profileId];
+    const document = await this.readAll();
+    const value = await this.migrateLegacyProfile(document, profileId);
     return value ? {
       profileId, configured: profileConfigured(value, profileId === ALIYUN_SPEECH_PROFILE_ID), region: value.region, workspaceId: value.workspaceId, apiBaseUrl: value.apiBaseUrl || (value.workspaceId ? apiBaseUrl(value.workspaceId) : ''), modelId: value.modelId || DEFAULT_MODEL_IDS[profileId] || '', ossBucket: value.ossBucket,
       ossEndpoint: value.ossEndpoint, objectPrefix: value.objectPrefix, profileRevision: value.profileRevision,
       requiresOss: Boolean(value.requiresOss),
-      ...(includeSecrets ? { dashscopeApiKey: value.dashscopeApiKey, ossAccessKeyId: value.ossAccessKeyId, ossAccessKeySecret: value.ossAccessKeySecret } : {}),
+      ...(includeSecrets ? (({ dashscopeApiKey, ossAccessKeyId, ossAccessKeySecret }) => ({ dashscopeApiKey, ossAccessKeyId, ossAccessKeySecret }))(this.revealSecrets(value)) : {}),
     } : { profileId, configured: false, region: 'cn-beijing' };
   }
   async copy(fromProfileId, toProfileId) {
     const document = await this.readAll();
     if (document.profiles[toProfileId] || !document.profiles[fromProfileId]) return false;
-    const source = document.profiles[fromProfileId];
+    const source = await this.migrateLegacyProfile(document, fromProfileId);
     document.profiles[toProfileId] = { ...source, requiresOss: toProfileId === ALIYUN_SPEECH_PROFILE_ID, updatedAt: new Date().toISOString() };
-    await mkdir(path.dirname(profileFile(this.app)), { recursive: true, mode: 0o700 });
-    await atomicWrite(profileFile(this.app), document);
+    await this.writeAll(document);
     return true;
   }
-  async remove(profileId) { const document = await this.readAll(); delete document.profiles[profileId]; await mkdir(path.dirname(profileFile(this.app)), { recursive: true, mode: 0o700 }); await atomicWrite(profileFile(this.app), document); return this.status(profileId); }
+  async remove(profileId) { const document = await this.readAll(); delete document.profiles[profileId]; await this.writeAll(document); return this.status(profileId); }
 }
 
-module.exports = { ALIYUN_SPEECH_PROFILE_ID, AliyunCloudProfileStore, DEFAULT_MODEL_IDS, apiBaseUrl, normalizeApiBaseUrl, normalizeOssEndpoint, validateProfile };
+module.exports = { ALIYUN_SPEECH_PROFILE_ID, AliyunCloudProfileStore, DEFAULT_MODEL_IDS, SECRET_FIELDS, apiBaseUrl, normalizeApiBaseUrl, normalizeOssEndpoint, validateProfile };

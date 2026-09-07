@@ -625,7 +625,7 @@ registerRecordingJobBridge({
   dialog,
   app,
   credentialStore: new RecordingCredentialStore({ app, safeStorage }),
-  aliyunProfileStore: new AliyunCloudProfileStore({ app }),
+  aliyunProfileStore: new AliyunCloudProfileStore({ app, safeStorage }),
   processingSettingsStore: new RecordingProcessingSettingsStore({ app }),
   recordingSidecarClient: new RecordingSidecarClient(nativeHost),
 });

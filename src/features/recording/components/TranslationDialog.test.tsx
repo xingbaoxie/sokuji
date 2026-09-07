@@ -32,4 +32,15 @@ describe('TranslationDialog', () => {
     fireEvent.blur(search);
     expect(screen.getByText('你好', { selector: 'mark' })).toBeInTheDocument();
   });
+
+  it('uses English labels for the English interface and copied text', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    render(<TranslationDialog jobId="rec_1" result={result} language="en" onClose={vi.fn()} onExport={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Translation result' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Search content' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy all translations' }));
+    const prefix = '[00:01:45.600] [S01] ';
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(`${prefix}Original: 你好\n${' '.repeat(prefix.length)}Translation: こんにちは`));
+  });
 });

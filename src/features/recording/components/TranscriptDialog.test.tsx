@@ -37,4 +37,11 @@ describe('TranscriptDialog', () => {
 
     expect(document.activeElement).toBe(search);
   });
+
+  it('renders the Japanese dialog controls in Japanese', () => {
+    render(<TranscriptDialog jobId="rec_1" language="ja" result={{ segments: [] }} onClose={vi.fn()} onExport={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: '完全な文字起こし' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: '内容を検索' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '全文をコピー' })).toBeInTheDocument();
+  });
 });

@@ -13,4 +13,13 @@ describe('SpeakerFilter', () => {
     fireEvent.click(screen.getByRole('button', { name: '全部' }));
     expect(onChange).toHaveBeenLastCalledWith([]);
   });
+
+  it('uses the selected Japanese or English interface language', () => {
+    const { rerender } = render(<SpeakerFilter speakers={[]} selected={[]} onChange={vi.fn()} language="ja" />);
+    expect(screen.getByText('話者')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'すべて' })).toBeInTheDocument();
+    rerender(<SpeakerFilter speakers={[]} selected={[]} onChange={vi.fn()} language="en" />);
+    expect(screen.getByText('Speaker')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+  });
 });
