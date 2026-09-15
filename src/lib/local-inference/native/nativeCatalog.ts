@@ -190,6 +190,32 @@ export function resolveNativeTranslation(choice: string): string | undefined {
 }
 
 /**
+ * Translation models whose prompt is assembled entirely by the model's own chat
+ * template, leaving nowhere for a user-supplied system prompt to go.
+ *
+ * TranslateGemma's upstream template raises on a system role and builds the whole
+ * instruction from the source/target language codes, so the sidecar's
+ * GemmaStrategy is right to discard `system_prompt` — the UI was wrong to ask for
+ * one and then drop it silently (#526).
+ *
+ * Pinned by id because the renderer cannot see the sidecar's `prompt_family`:
+ * that field is not on the wire. `sidecar/tests/test_catalog.py::
+ * test_only_translategemma_uses_the_gemma_prompt_family` fails if a second gemma
+ * card is added without updating this set.
+ */
+const TEMPLATE_OWNS_PROMPT: ReadonlySet<string> = new Set(['translategemma-4b']);
+
+/**
+ * Whether a translation model honours a user-supplied system prompt.
+ *
+ * An unknown or still-unresolved id answers true: the control's resting state is
+ * "available", not a claim that a model the user has not picked yet refuses it.
+ */
+export function supportsCustomPrompt(translationModelId: string): boolean {
+  return !TEMPLATE_OWNS_PROMPT.has(translationModelId);
+}
+
+/**
  * The native model ids a given config requires (for download/readiness). Always
  * an ASR model + a translation model, plus a TTS model when speech output is on.
  * No substitution: '' now means "resolution found nothing", and the Start gate
@@ -348,20 +374,26 @@ export function formatTps(tps: number): string {
  *  label in the component; `warn` marks the degraded/fallback row. */
 export type BackendTooltipRow = { key: string; value: string; warn?: boolean };
 
+// Keyed by the backend ids the sidecar emits (catalog.py `_tc_row backend=`,
+// `_llm_translate_row`, `_tts_gguf_row`; accel.py `tiers[].backend`). The ASR ids
+// have been native_asr / native_asr_stream since the ggml-only sidecar (#459); the
+// pre-#459 `transcribe_cpp*` spellings have no producer any more — the app's strict
+// sidecar version gate (spec S2) never runs an older bundle — so they are not here.
 const FRAMEWORK_LABELS: Record<string, string> = {
-  transcribe_cpp: 'transcribe.cpp',
-  transcribe_cpp_stream: 'transcribe.cpp',
+  native_asr: 'transcribe.cpp',
+  native_asr_stream: 'transcribe.cpp',
   native_translate: 'llama.cpp',
   native_tts: 'audio.cpp',
 };
 
 /** Engine/library label for a sidecar backend id. Falls back by prefix so a new
- *  transcribe_cpp_X id still resolves, else echoes the raw id. The old
- *  `X_onnx` → 'ONNXRuntime' fallback died with the ONNX backends themselves
- *  (slice 5) — no backend id ends in `_onnx` anymore. */
+ *  native_asr_X id still resolves (the underscore is part of the prefix:
+ *  `native_asrfoo` is not a backend id shape and echoes raw), else echoes the raw
+ *  id. The old `X_onnx` → 'ONNXRuntime' fallback died with the ONNX backends
+ *  themselves (slice 5) — no backend id ends in `_onnx` anymore. */
 export function frameworkLabel(backendId: string): string {
   if (FRAMEWORK_LABELS[backendId]) return FRAMEWORK_LABELS[backendId];
-  if (backendId.startsWith('transcribe_cpp')) return 'transcribe.cpp';
+  if (backendId.startsWith('native_asr_')) return 'transcribe.cpp';
   return backendId;
 }
 

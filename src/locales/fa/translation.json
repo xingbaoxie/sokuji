@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini برای صدای طرف مقابل پاسخ‌های صوتی تولید می‌کند که دور ریخته می‌شوند و باعث مصرف توکن اضافی می‌شود.",
     "help": "راهنما",
     "helpEmailTooltip": "گزارش اشکال یا دریافت کمک",
+    "diagnosticLogs": "گزارش‌های عیب‌یابی",
+    "diagnosticLogsTooltip": "کارهای برنامه را ثبت می‌کند تا بتوانید آن را به گزارش خطا پیوست کنید. به‌طور پیش‌فرض خاموش است. وقتی روشن باشد، دکمهٔ «گزارش‌ها» در نوار عنوان نمایش داده می‌شود و این تنظیم پس از راه‌اندازی مجدد هم روشن می‌ماند.",
     "helpDiscussions": "گفت‌وگوها",
     "helpDiscussionsTooltip": "درخواست ویژگی، بازخورد و گفت‌وگوهای انجمن",
     "auto": "خودکار",
@@ -335,23 +337,21 @@
     "participantSource": "منبع صدای طرف مقابل",
     "participantSourceDesc": "انتخاب کنید کدام برنامه ترجمه شود. «صدای سیستم» هر آنچه می‌شنوید را ضبط می‌کند، از جمله بازی‌ها و موسیقی.",
     "turnOffParticipant": "خاموش کردن صدای طرف مقابل",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "باز کردن تنظیمات سیستم",
+    "screenRecordingDeniedText2Named": "لطفاً به System Settings > Privacy & Security > Screen Recording بروید و «{{app}}» را فعال کنید.",
+    "audioCaptureDeniedText2Named": "System Settings > Privacy & Security > System Audio Recording Only را باز کنید و «{{app}}» را فعال کنید.",
     "screenRecordingHasAlternative": "می‌توانید کاملاً از این مجوز صرف‌نظر کنید: به جای آن یک برنامه مشخص را به عنوان منبع صدای طرف مقابل انتخاب کنید. برنامه‌ها فقط زمانی در آن فهرست ظاهر می‌شوند که در حال پخش صدا باشند.",
     "participantSourceSwitchFailed": "تعویض منبع صدای طرف مقابل ممکن نشد. برای تغییر آن، نشست را متوقف و دوباره شروع کنید.",
     "participantFellBackToSystemAudio": "ضبط برنامهٔ انتخاب‌شده متوقف شد، بنابراین اکنون کل صدای سیستم ترجمه می‌شود. برای محدود کردن دوباره، برنامه را دوباره انتخاب کنید.",
     "loopbackMicNotice": "هشدار ورودی لوپ‌بک",
     "loopbackMicWarningTitle": "این ورودی آنچه را این رایانه پخش می‌کند دوباره ضبط می‌کند.",
     "loopbackMicWarningText1": "ورودی‌های لوپ‌بک مانند «Stereo Mix» یا دستگاه‌های «Monitor of ...» خروجی صوتی خود سیستم را ضبط می‌کنند. در جلسه‌ای که گفتار ترجمه‌شدهٔ Sokuji را شامل شود، Sokuji صدای خود را می‌شنود و در یک حلقه خود را ترجمه می‌کند.",
-    "loopbackMicWarningText2": "اگر این مسیر عمدی است دستگاه انتخاب‌شده می‌ماند، اما برای استفادهٔ عادی لطفاً یک میکروفون فیزیکی انتخاب کنید."
+    "loopbackMicWarningText2": "اگر این مسیر عمدی است دستگاه انتخاب‌شده می‌ماند، اما برای استفادهٔ عادی لطفاً یک میکروفون فیزیکی انتخاب کنید.",
+    "participantNoAudioYet": "هنوز صدایی از منبع انتخاب‌شده دریافت نشده است. اگر در حال پخش است و چیزی ترجمه نمی‌شود، در System Settings > Privacy & Security > System Audio Recording Only به Sokuji اجازه دهید (macOS) و سپس جلسه را دوباره شروع کنید.",
+    "audioCaptureUnprovenNotice": "هنوز چیزی ضبط نشده است",
+    "audioCaptureUnprovenTitle": "هنوز صدایی از منبع انتخاب‌شده دریافت نشده است",
+    "audioCaptureUnprovenText1": "اگر منبع در حال پخش است و چیزی ترجمه نمی‌شود، احتمالاً macOS سکوت تحویل می‌دهد: ضبط صدای یک برنامه به مجوز «System Audio Recording Only» نیاز دارد و بدون آن خطایی رخ نمی‌دهد، فقط سکوت است.",
+    "audioCaptureUnprovenText3Named": "«{{app}}» تنها پس از یک بار تلاش برای ضبط در آن فهرست ظاهر می‌شود، که هم‌اکنون انجام شد. پس از فعال کردن آن، جلسه را دوباره شروع کنید. اگر منبع صرفاً ساکت بوده است، نیازی به تغییر چیزی نیست."
   },
   "auth": {
     "signIn": "ورود",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "قدرت گرفته از مدل‌های GPT"
+      "name": "OpenAI Realtime",
+      "description": "مدل گفتاری همه‌منظورهٔ GPT Realtime، کاملاً قابل تنظیم"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "فناوری هوش مصنوعی Google"
     },
     "openaiCompatible": {
-      "name": "API سازگار با OpenAI",
-      "description": "نقطه پایانی سفارشی سازگار با OpenAI",
+      "name": "سازگار با OpenAI (Realtime قدیمی)",
+      "description": "نقطه پایانی شخص ثالث با پروتکل قدیمی Realtime بتای OpenAI. برای خود OpenAI نیست.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "مدل ترجمه بلادرنگ اختصاصی OpenAI"
+      "description": "مدل ترجمهٔ اختصاصی با تشخیص خودکار زبان مبدأ"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "مترجم GPT-Live-1، محاسبهٔ هزینه به ازای هر دقیقه جلسه شامل سکوت"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "هر دو",
       "source": "اصلی",
       "translation": "ترجمه",
-      "tooltip": "{{scope}} — برای تغییر کلیک کنید\nاکنون نمایش: {{mode}}\n• اصلی: فقط گفتار اصلی\n• ترجمه: فقط ترجمه\n• هر دو: هر دو خط",
-      "ariaLabel": "{{scope}}: {{mode}} — برای تغییر کلیک کنید"
+      "ariaLabel": "{{scope}}: {{mode}} — برای تغییر کلیک کنید",
+      "none": "خاموش",
+      "title": "{{scope}} — برای تغییر کلیک کنید\nاکنون نمایش: {{mode}}",
+      "legendSource": "اصلی: فقط گفتار اصلی",
+      "legendTranslation": "ترجمه: فقط ترجمه",
+      "legendBoth": "هر دو: هر دو خط",
+      "legendNone": "خاموش: پنهان کردن این طرف"
     },
     "playItemAudio": "پخش صوت این مورد",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "من",
       "speakerOther": "طرف مقابل",
       "translationSuffix": "(ترج.)",
+      "scopeLabel": "شامل کردن",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "چیزی انتخاب نشده است",
       "headerTitle": "خروجی گفتگوی Sokuji",
       "headerGenerated": "تولید شده",
       "headerProvider": "ارائه‌دهنده",
       "headerModels": "مدل‌ها",
       "headerSource": "زبان من",
       "headerTarget": "زبان طرف مقابل",
-      "headerNote": "توجه: تنظیمات وضعیت فعلی هنگام خروجی را نشان می‌دهند، نه تغییرات میانی جلسه."
+      "headerNote": "توجه: تنظیمات وضعیت فعلی هنگام خروجی را نشان می‌دهند، نه تغییرات میانی جلسه.",
+      "headerNarrowed": "توجه: دامنه این خروجی هنگام خروجی‌گیری محدود شد — برخی خطوط حذف شده‌اند."
     },
     "waveformOutputTooltip": "صدای ارسال‌شده به میکروفون مجازی (ترجمه + عبور صدای اصلی)",
     "waveformMicTooltip": "میکروفون شما — صدای شما که برای ترجمه ضبط می‌شود",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox در حال حاضر با ظرفیت کامل کار می‌کند. لطفاً کمی بعد دوباره تلاش کنید.",
     "sonioxBudgetExhausted": "موجودی نشست شما به پایان رسیده است. برای ادامه ترجمه، موجودی خود را شارژ کنید.",
     "sonioxTtsFailed": "ترجمه گفتاری متوقف شد. رونویسی و ترجمه متنی همچنان کار می‌کنند.",
+    "sonioxTtsSegmentLost": "بخشی از ترجمه گفتاری پخش نشد. رونویسی و ترجمه متنی تحت تأثیر قرار نگرفته‌اند.",
     "sonioxSegmentEnded": "این بخش به پایان رسید — برای ادامه روی «شروع جلسه» ضربه بزنید.",
     "sonioxConnectionLost": "اتصال قطع شد — لحظه‌ای بعد برای ادامه روی «شروع جلسه» ضربه بزنید.",
+    "openaiLiveConnectionLost": "اتصال قطع شد — لحظه‌ای بعد برای ادامه روی «شروع جلسه» ضربه بزنید.",
     "sonioxVoiceClipMissing": "این دستگاه هیچ ضبط صوتی‌ای ندارد، بنابراین این نشست از یک صدای پیش‌فرض استفاده می‌کند. برای صحبت با صدای خودتان در اینجا، یکی را در تنظیمات ضبط کنید.",
     "sonioxVoicePoolBusy": "در حال حاضر همه جایگاه‌های صدای سفارشی در حال استفاده هستند، بنابراین این نشست از یک صدای پیش‌فرض استفاده می‌کند. صدای خودتان دفعه بعد دوباره استفاده خواهد شد.",
     "sonioxVoiceBuildFailed": "صدای سفارشی شما ساخته نشد، بنابراین این نشست از یک صدای پیش‌فرض استفاده می‌کند. یک کلیپ واضح‌تر در تنظیمات ضبط کنید.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "به حدود {{need}} حافظه GPU نیاز دارد",
     "wontFit": "روی این دستگاه جا نمی‌شود",
     "variantNoGpuFits": "هیچ نسخه‌ای در GPU جا نمی‌شود — روی CPU اجرا می‌شود.",
+    "variantRunsOnCpu": "روی این دستگاه روی CPU اجرا می‌شود.",
     "hwFramework": "موتور",
     "hwDevice": "دستگاه",
     "hwApi": "شتاب‌دهی",
@@ -933,7 +949,77 @@
     "unstable": "ناپایدار",
     "voice": "صدا",
     "voiceBuilderClosed": "Supertone سرویس Voice Builder را در ۳۱ اوت ۲۰۲۶ تعطیل کرد. فایل‌های صدایی که قبلاً دانلود کرده‌اید همچنان قابل وارد کردن هستند.",
-    "refreshList": "به‌روزرسانی فهرست صداها"
+    "refreshList": "به‌روزرسانی فهرست صداها",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "بلندگوهای شما گفتار ترجمه‌شدهٔ Sokuji را به میکروفون بازمی‌گردانند.",

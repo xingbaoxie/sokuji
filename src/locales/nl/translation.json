@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini genereert voor de audio van de ander audioantwoorden die worden weggegooid, wat extra tokenverbruik veroorzaakt.",
     "help": "Help",
     "helpEmailTooltip": "Bugs melden of hulp krijgen",
+    "diagnosticLogs": "Diagnostische logboeken",
+    "diagnosticLogsTooltip": "Legt vast wat de app doet, zodat je het bij een bugmelding kunt voegen. Standaard uit. Zolang dit aan staat, verschijnt er een knop ‘Logs’ in de titelbalk, en de instelling blijft aan na een herstart.",
     "helpDiscussions": "Discussies",
     "helpDiscussionsTooltip": "Functieverzoeken, feedback en communitydiscussies",
     "auto": "Auto",
@@ -335,23 +337,21 @@
     "participantSource": "Audiobron van de ander",
     "participantSourceDesc": "Kies welke applicatie vertaald moet worden. 'Systeemaudio' legt alles vast wat je hoort, inclusief games en muziek.",
     "turnOffParticipant": "Audio van de ander uitschakelen",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Systeeminstellingen openen",
+    "screenRecordingDeniedText2Named": "Ga naar Systeeminstellingen > Privacy en beveiliging > Schermopname en schakel '{{app}}' in.",
+    "audioCaptureDeniedText2Named": "Open Systeeminstellingen > Privacy en beveiliging > Alleen systeemaudio-opname en schakel '{{app}}' in.",
     "screenRecordingHasAlternative": "U kunt deze toestemming volledig vermijden: kies in plaats daarvan een specifieke applicatie als audiobron van de ander. Applicaties verschijnen alleen in die lijst zolang ze audio afspelen.",
     "participantSourceSwitchFailed": "Kan de audiobron van de ander niet wisselen. Stop en start de sessie om deze te wijzigen.",
     "participantFellBackToSystemAudio": "Het vastleggen van de geselecteerde applicatie is gestopt, dus wordt nu alle systeemaudio vertaald. Kies de applicatie opnieuw om het bereik weer te beperken.",
     "loopbackMicNotice": "Melding loopback-invoer",
     "loopbackMicWarningTitle": "Deze invoer neemt opnieuw op wat deze computer afspeelt.",
     "loopbackMicWarningText1": "Loopback-invoer zoals \"Stereo Mix\" of een \"Monitor of ...\"-apparaat neemt de audio-uitvoer van het systeem zelf op. Tijdens een sessie met Sokuji's vertaalde spraak zou Sokuji zichzelf horen en in een lus vertalen.",
-    "loopbackMicWarningText2": "Het apparaat blijft geselecteerd voor het geval deze routering opzettelijk is, maar kies voor normaal gebruik een fysieke microfoon."
+    "loopbackMicWarningText2": "Het apparaat blijft geselecteerd voor het geval deze routering opzettelijk is, maar kies voor normaal gebruik een fysieke microfoon.",
+    "participantNoAudioYet": "Er is nog geen audio van de geselecteerde bron binnengekomen. Speelt die af en wordt er niets vertaald, sta Sokuji dan toe onder Systeeminstellingen > Privacy en beveiliging > Alleen systeemaudio-opname (macOS) en start de sessie opnieuw.",
+    "audioCaptureUnprovenNotice": "Nog niets vastgelegd",
+    "audioCaptureUnprovenTitle": "Er is nog geen audio van de geselecteerde bron binnengekomen",
+    "audioCaptureUnprovenText1": "Speelt de bron af en wordt er niets vertaald, dan levert macOS waarschijnlijk stilte: het vastleggen van een app vereist de toestemming 'Alleen systeemaudio-opname', en zonder die toestemming is er geen fout, alleen stilte.",
+    "audioCaptureUnprovenText3Named": "'{{app}}' verschijnt pas in die lijst nadat er één keer is geprobeerd vast te leggen, wat zojuist is gebeurd. Start de sessie opnieuw nadat u die hebt ingeschakeld. Was de bron gewoon stil, dan hoeft er niets te veranderen."
   },
   "auth": {
     "signIn": "Inloggen",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Aangedreven door GPT modellen"
+      "name": "OpenAI Realtime",
+      "description": "Algemeen GPT Realtime-spraakmodel, volledig instelbaar"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google's AI technologie"
     },
     "openaiCompatible": {
-      "name": "OpenAI Compatibele API",
-      "description": "Aangepast OpenAI-compatibel eindpunt",
+      "name": "OpenAI-compatibel (verouderde Realtime)",
+      "description": "Endpoint van derden met OpenAI's oudere beta-Realtime-protocol. Niet voor OpenAI zelf.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI's speciale realtime vertalingsmodel"
+      "description": "Speciaal vertaalmodel dat de brontaal automatisch herkent"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1-tolk, gefactureerd per sessieminuut inclusief stilte"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Beide",
       "source": "Origineel",
       "translation": "Vertaling",
-      "tooltip": "{{scope}} — klik om te wijzigen\nWordt getoond: {{mode}}\n• Origineel: alleen originele spraak\n• Vertaling: alleen vertaling\n• Beide: beide regels",
-      "ariaLabel": "{{scope}}: {{mode}} — klik om te wijzigen"
+      "ariaLabel": "{{scope}}: {{mode}} — klik om te wijzigen",
+      "none": "Uit",
+      "title": "{{scope}} — klik om te wijzigen\nWordt getoond: {{mode}}",
+      "legendSource": "Origineel: alleen originele spraak",
+      "legendTranslation": "Vertaling: alleen vertaling",
+      "legendBoth": "Beide: beide regels",
+      "legendNone": "Uit: deze kant verbergen"
     },
     "playItemAudio": "Audio van dit item afspelen",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Ik",
       "speakerOther": "Ander",
       "translationSuffix": "(vert.)",
+      "scopeLabel": "Opnemen",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Niets geselecteerd",
       "headerTitle": "Sokuji gespreksexport",
       "headerGenerated": "Gegenereerd",
       "headerProvider": "Aanbieder",
       "headerModels": "Modellen",
       "headerSource": "Mijn taal",
       "headerTarget": "Taal van de ander",
-      "headerNote": "Opmerking: instellingen weerspiegelen de huidige staat bij export, niet wijzigingen tijdens de sessie."
+      "headerNote": "Opmerking: instellingen weerspiegelen de huidige staat bij export, niet wijzigingen tijdens de sessie.",
+      "headerNarrowed": "Let op: deze export is bij het exporteren beperkt — sommige regels ontbreken."
     },
     "waveformOutputTooltip": "Audio die naar de virtuele microfoon wordt gestuurd (vertaling + doorvoer)",
     "waveformMicTooltip": "Uw microfoon — uw stem die wordt vastgelegd voor vertaling",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox zit momenteel aan zijn volledige capaciteit. Probeer het binnenkort opnieuw.",
     "sonioxBudgetExhausted": "Het saldo van uw sessie is op. Laad uw saldo op om door te gaan met vertalen.",
     "sonioxTtsFailed": "De gesproken vertaling is gestopt. Transcriptie en tekstvertaling werken nog steeds.",
+    "sonioxTtsSegmentLost": "Een deel van de gesproken vertaling kon niet worden afgespeeld. Transcriptie en tekstvertaling werken gewoon door.",
     "sonioxSegmentEnded": "Dit segment is beëindigd — tik op ‘Sessie starten’ om door te gaan.",
     "sonioxConnectionLost": "De verbinding is verbroken — tik zo op ‘Sessie starten’ om door te gaan.",
+    "openaiLiveConnectionLost": "De verbinding is verbroken — tik zo op ‘Sessie starten’ om door te gaan.",
     "sonioxVoiceClipMissing": "Dit apparaat heeft geen stemopname, dus deze sessie gebruikt een preset-stem. Neem er een op in Instellingen om hier met uw eigen stem te spreken.",
     "sonioxVoicePoolBusy": "Alle plekken voor aangepaste stemmen zijn op dit moment bezet, dus deze sessie gebruikt een preset-stem. Uw eigen stem wordt de volgende keer weer gebruikt.",
     "sonioxVoiceBuildFailed": "Uw aangepaste stem kon niet worden gebouwd, dus deze sessie gebruikt een preset-stem. Probeer een duidelijkere opname te maken in Instellingen.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Vereist ~{{need}} GPU-geheugen",
     "wontFit": "Past niet op deze machine",
     "variantNoGpuFits": "Geen GPU-variant past — draait op de CPU.",
+    "variantRunsOnCpu": "Draait op de CPU op deze machine.",
     "hwFramework": "Engine",
     "hwDevice": "Apparaat",
     "hwApi": "Versnelling",
@@ -933,7 +949,77 @@
     "unstable": "onstabiel",
     "voice": "Stem",
     "voiceBuilderClosed": "Supertone heeft zijn Voice Builder-dienst op 31 augustus 2026 gesloten. Al gedownloade stembestanden kunnen nog steeds worden geïmporteerd.",
-    "refreshList": "Stemlijst vernieuwen"
+    "refreshList": "Stemlijst vernieuwen",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Uw luidsprekers voeren Sokuji's vertaalde spraak terug in de microfoon.",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { voiceCapability, requiresVoiceClip, resolveNativeTts, resolveNativeTranslation, requiredNativeModels, nativeAsrCards, nativeTranslationCards, nativeTtsCards, supportsLanguage, compatibleNativeAsr, incompatibleNativeAsr, nativeAsrIncompatibleCards, nativeAsrForLanguage, tierLabel, hardwareGated, gpuTierAvailable, formatRtf, formatTps, estimateNativeMemoryByDevice, formatMemMb, actualNativeMemoryByDevice, resolvedTierState, statusReposFor, pinsFromSelections, defaultTtsVoice, curatedBuiltinVoices, infoToCard, frameworkLabel, accelApiLabel, buildBackendTooltipRows } from './nativeCatalog';
+import { voiceCapability, requiresVoiceClip, resolveNativeTts, resolveNativeTranslation, requiredNativeModels, nativeAsrCards, nativeTranslationCards, nativeTtsCards, supportsLanguage, compatibleNativeAsr, incompatibleNativeAsr, nativeAsrIncompatibleCards, nativeAsrForLanguage, tierLabel, hardwareGated, gpuTierAvailable, formatRtf, formatTps, estimateNativeMemoryByDevice, formatMemMb, actualNativeMemoryByDevice, resolvedTierState, statusReposFor, pinsFromSelections, defaultTtsVoice, curatedBuiltinVoices, infoToCard, frameworkLabel, accelApiLabel, buildBackendTooltipRows, supportsCustomPrompt } from './nativeCatalog';
 import type { NativeModelInfo, NativeVoiceInfo } from './nativeProtocol';
 
 const V = (name: string, language: string | undefined, curated: boolean, def = false): NativeVoiceInfo =>
@@ -470,20 +470,28 @@ describe('nativeCatalog', () => {
 describe('frameworkLabel', () => {
   it('maps every known backend id to its engine label', () => {
     const cases: Record<string, string> = {
-      transcribe_cpp: 'transcribe.cpp',
-      transcribe_cpp_stream: 'transcribe.cpp',
+      // The ids the sidecar actually emits (catalog.py _tc_row backend=,
+      // accel.py tiers[].backend): native_asr / native_asr_stream since the
+      // ggml-only sidecar (#459). Before this row existed both fell through
+      // to the raw-echo branch and the tooltip showed "native_asr".
+      native_asr: 'transcribe.cpp',
+      native_asr_stream: 'transcribe.cpp',
       native_translate: 'llama.cpp',
       native_tts: 'audio.cpp',
     };
     for (const [id, label] of Object.entries(cases)) expect(frameworkLabel(id)).toBe(label);
   });
-  it('derives transcribe_cpp_X ids by prefix; a plain unknown id just echoes', () => {
+  it('derives native_asr_X ids by prefix; a plain or retired id just echoes', () => {
     // The old `X_onnx` -> 'ONNXRuntime' fallback died with the ONNX backends
-    // themselves (slice 5) — no backend id ends in _onnx anymore, so an id
-    // shaped like one now falls through to the same raw-echo path as any
-    // other unknown id.
+    // themselves (slice 5), and the pre-#459 transcribe_cpp* ids have no
+    // producer the app would run (strict sidecar version gate) — both fall
+    // through to the same raw-echo path as any other unknown id.
     expect(frameworkLabel('foo_onnx')).toBe('foo_onnx');
-    expect(frameworkLabel('transcribe_cpp_x')).toBe('transcribe.cpp');
+    expect(frameworkLabel('transcribe_cpp')).toBe('transcribe_cpp');
+    expect(frameworkLabel('transcribe_cpp_stream')).toBe('transcribe_cpp_stream');
+    expect(frameworkLabel('native_asr_x')).toBe('transcribe.cpp');
+    // Near miss: the underscore is part of the documented prefix.
+    expect(frameworkLabel('native_asrfoo')).toBe('native_asrfoo');
     expect(frameworkLabel('brand_new_backend')).toBe('brand_new_backend');
   });
 });
@@ -558,5 +566,33 @@ describe('buildBackendTooltipRows', () => {
     expect(nativeTts.find((r) => r.key === 'repo')?.value).toBe('org/model');
     const onnx = buildBackendTooltipRows({ tier: 'cpu', backendId: 'moss_onnx', resolved: null, repo: 'org/onnx-assets' });
     expect(onnx.find((r) => r.key === 'repo')?.value).toBe('org/onnx-assets');
+  });
+});
+
+describe('supportsCustomPrompt', () => {
+  // #526: the UI offered an Advanced custom-prompt box for TranslateGemma and
+  // silently discarded what the user typed. Its upstream chat template raises on
+  // a system role and assembles the whole instruction from the language codes,
+  // so there is nowhere for user wording to go — GemmaStrategy is right to drop
+  // it, the UI was wrong to ask for it.
+  it('refuses TranslateGemma, whose own template assembles the whole prompt', () => {
+    expect(supportsCustomPrompt('translategemma-4b')).toBe(false);
+  });
+
+  it('allows the Qwen and Hunyuan families, which do honour a system prompt', () => {
+    expect(supportsCustomPrompt('qwen2.5-0.5b')).toBe(true);
+    expect(supportsCustomPrompt('qwen3-0.6b')).toBe(true);
+    expect(supportsCustomPrompt('qwen3.5-4b')).toBe(true);
+    expect(supportsCustomPrompt('hy-mt2-1.8b')).toBe(true);
+    expect(supportsCustomPrompt('hy-mt15-7b')).toBe(true);
+    expect(supportsCustomPrompt('eurollm-1.7b')).toBe(true);
+  });
+
+  it('allows an unresolved id rather than showing "unsupported" by default', () => {
+    // Before a direction resolves, the id is ''. Defaulting to false there would
+    // flash "this model does not support custom prompts" at a user who has not
+    // picked anything yet.
+    expect(supportsCustomPrompt('')).toBe(true);
+    expect(supportsCustomPrompt('some-future-model')).toBe(true);
   });
 });

@@ -1,7 +1,9 @@
+@use '../../styles/tokens' as tk;
+
 .display-mode-btn {
   background: none;
   border: none;
-  color: #555;
+  color: tk.$color-toolbar-icon;
   cursor: pointer;
   padding: 4px 6px;
   display: inline-flex;

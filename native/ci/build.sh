@@ -14,7 +14,35 @@ JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 cmake -S "$ROOT" -B "$BUILD" -DCMAKE_BUILD_TYPE=Release -DSOKUJI_GPU="$LANE"
 cmake --build "$BUILD" -j"$JOBS"
 ctest --test-dir "$BUILD" --output-on-failure
-rm -rf "$BUILD/stage" "$ROOT/python/sokuji_native/_native"
+# Op recordings (spec A §3.2, README's "Bumping a pin" checklist): re-record every family
+# whose SK_TEST_* model is present and diff against the shipped src/ops/*.ops. Always its own
+# CPU-only build/record tree (SOKUJI_GPU=none) regardless of this script's own LANE: the
+# asr/translate recordings are backend-agnostic and gate here; the TTS recordings were taken
+# on a real GPU (tests/test_ops_coverage.cpp's F2 note, spec A §3.2's host=1 rule — audio.cpp
+# builds a different graph on a host backend) and are checked on the fleet via a
+# build/record-vk tree, so this tree prints SKIPPED for them.
+#
+# This is a SECOND full configure+build of ggml and all three engines (~30 min a lane), so it
+# only runs when it can actually check something: test_ops_coverage hard-requires
+# SK_TEST_TTS_SUPERTONIC_DIR once any model is present (rc 1, not a skip — the clone-only
+# families' reference clip comes from it), and the variable doubles as the "is the test cache
+# populated at all" probe, so an unset one means the whole tree would be built to prove nothing.
+# SOKUJI_BUILD_RECORD=0 forces it off even when the models are present.
+RECORD_BUILD="$ROOT/build/record"
+if [ -z "${SK_TEST_TTS_SUPERTONIC_DIR:-}" ]; then
+    echo "ci/build.sh: skipping the op-recording drift gate — SK_TEST_TTS_SUPERTONIC_DIR is not set (no cached TTS models)."
+elif [ "${SOKUJI_BUILD_RECORD:-1}" = "0" ]; then
+    echo "ci/build.sh: skipping the op-recording drift gate — SOKUJI_BUILD_RECORD=0."
+else
+    cmake -S "$ROOT" -B "$RECORD_BUILD" -DCMAKE_BUILD_TYPE=Release -DSOKUJI_GPU=none -DSOKUJI_RECORD_OPS=ON
+    cmake --build "$RECORD_BUILD" -j"$JOBS"
+    ctest --test-dir "$RECORD_BUILD" -R test_ops_coverage --output-on-failure
+fi
+# python/build is setuptools' own scratch tree and is NOT keyed by lane: a stale
+# build/lib.*/sokuji_native/_native left by an earlier lane carries that lane's
+# libggml-*.so into this lane's wheel (a CPU-lane wheel was seen reporting a Vulkan device
+# for exactly this reason). Clear it with the staged tree it feeds.
+rm -rf "$BUILD/stage" "$ROOT/python/sokuji_native/_native" "$ROOT/python/build"
 # Only the sokuji component: the fetched upstreams carry their own install() rules
 # (headers, static libs, cmake configs) in the default component, which must not run.
 cmake --install "$BUILD" --prefix "$BUILD/stage" --component sokuji
@@ -29,7 +57,7 @@ fi
 cp -r "$BUILD/stage" "$ROOT/python/sokuji_native/_native"
 # The binding's own tests, against the SOURCE package (PYTHONPATH) and this stage — not
 # against whatever sokuji_native happens to be installed in this interpreter.
-"$PYTHON" -m pip install -q pytest numpy
+"$PYTHON" -m pip install -q pytest numpy soundfile
 export SK_TEST_SAMPLE_WAV="$BUILD/_deps/transcribe-src/samples/jfk.wav"
 # -s: keep pytest from capturing stderr — a GGML_ASSERT abort otherwise dies with
 # its message trapped in the capture buffer, unrecoverable from the CI log.

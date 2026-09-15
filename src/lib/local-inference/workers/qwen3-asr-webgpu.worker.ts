@@ -43,6 +43,7 @@ import type {
   AsrDisposeMessage,
   AsrWorkerOutMessage,
 } from '../types';
+import { acquireWebGpuAdapter, bindCheckedWebGpuAdapter } from './shaderF16Gate';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -179,15 +180,14 @@ let processingVad = false;
 /** The decode currently running or queued; decodes are serialized through it (see transcribe). */
 let currentDecodePromise: Promise<void> | null = null;
 
+/**
+ * Whether this worker can run on the GPU — and, in the same step, WHICH adapter
+ * it will run on. `acquireWebGpuAdapter` remembers it on the runtime env, so the
+ * f16 gate checks the adapter the model actually loads on instead of requesting
+ * a second one that could answer differently (#513).
+ */
 async function hasWebGPU(): Promise<boolean> {
-  try {
-    const gpu = (self as unknown as { navigator?: { gpu?: { requestAdapter(): Promise<unknown> } } }).navigator?.gpu;
-    if (!gpu) return false;
-    const adapter = await gpu.requestAdapter();
-    return !!adapter;
-  } catch {
-    return false;
-  }
+  return !!(await acquireWebGpuAdapter(ortEnv));
 }
 
 function inputTypesOf(session: InferenceSession): Record<string, string> {
@@ -394,6 +394,10 @@ async function handleInit(msg: Qwen3AsrInitMessage): Promise<void> {
     const variant = typeof msg.dtype === 'string' && msg.dtype in cfg.variants ? msg.dtype : 'q4';
     const v = cfg.variants[variant];
     if (!v) throw new Error(`Qwen3-ASR: prompt_config.json has no variant "${variant}"`);
+    // The resolved variant, not msg.dtype: an unknown dtype falls back to q4
+    // above, and gating on the request rather than the fallback would refuse a
+    // load that is about to run in q4 anyway.
+    await bindCheckedWebGpuAdapter(ortEnv, variant, 'Qwen3-ASR');
     const filters = JSON.parse(await text(cfg.mel?.filters_file ?? 'mel_filters.json')) as MelFilterbank;
     const decoder = createBpeDecoder(JSON.parse(await text('tokenizer.json')));
 
@@ -478,6 +482,11 @@ async function handleFlush(): Promise<void> {
 }
 
 async function handleDispose(): Promise<void> {
+  // Only reachable when the host waits for `disposed`. In the app, WorkerSession.dispose()
+  // posts `dispose` and terminates this worker on the next line, so the drain below runs in the
+  // worker harness only; Stop is meant to be immediate, and PTT release finishes an utterance
+  // through flush, not dispose.
+
   // Flush remaining speech; handleFlush waits for that decode to finish.
   await handleFlush();
 

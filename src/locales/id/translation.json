@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini menghasilkan respons audio untuk audio lawan bicara yang dibuang, sehingga menimbulkan penggunaan token tambahan.",
     "help": "Bantuan",
     "helpEmailTooltip": "Laporkan bug atau dapatkan bantuan",
+    "diagnosticLogs": "Log diagnostik",
+    "diagnosticLogsTooltip": "Mencatat apa yang dilakukan aplikasi agar Anda dapat melampirkannya ke laporan bug. Nonaktif secara default. Saat aktif, tombol “Log” muncul di bilah judul, dan pengaturan tetap aktif setelah dimulai ulang.",
     "helpDiscussions": "Diskusi",
     "helpDiscussionsTooltip": "Permintaan fitur, masukan, dan diskusi komunitas",
     "auto": "Otomatis",
@@ -335,23 +337,21 @@
     "participantSource": "Sumber audio lawan bicara",
     "participantSourceDesc": "Pilih aplikasi mana yang akan diterjemahkan. \"Audio sistem\" menangkap semua yang Anda dengar, termasuk game dan musik.",
     "turnOffParticipant": "Matikan audio lawan bicara",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Buka Pengaturan Sistem",
+    "screenRecordingDeniedText2Named": "Silakan buka System Settings > Privacy & Security > Screen Recording dan aktifkan \"{{app}}\".",
+    "audioCaptureDeniedText2Named": "Buka System Settings > Privacy & Security > System Audio Recording Only dan aktifkan \"{{app}}\".",
     "screenRecordingHasAlternative": "Anda dapat menghindari izin ini sepenuhnya: pilih aplikasi tertentu sebagai sumber audio lawan bicara. Aplikasi hanya muncul dalam daftar itu selama sedang memutar audio.",
     "participantSourceSwitchFailed": "Tidak dapat mengganti sumber audio lawan bicara. Hentikan dan mulai sesi untuk mengubahnya.",
     "participantFellBackToSystemAudio": "Penangkapan aplikasi yang dipilih berhenti, jadi seluruh audio sistem kini diterjemahkan. Pilih kembali aplikasinya untuk mempersempit cakupan.",
     "loopbackMicNotice": "Pemberitahuan Input Loopback",
     "loopbackMicWarningTitle": "Input ini menangkap kembali apa yang diputar komputer ini.",
     "loopbackMicWarningText1": "Input loopback seperti \"Stereo Mix\" atau perangkat \"Monitor of ...\" merekam keluaran audio sistem itu sendiri. Dalam sesi yang menyertakan suara terjemahan Sokuji, Sokuji akan mendengar dan menerjemahkan dirinya sendiri dalam loop.",
-    "loopbackMicWarningText2": "Perangkat tetap terpilih jika perutean ini disengaja, tetapi untuk penggunaan normal pilihlah mikrofon fisik."
+    "loopbackMicWarningText2": "Perangkat tetap terpilih jika perutean ini disengaja, tetapi untuk penggunaan normal pilihlah mikrofon fisik.",
+    "participantNoAudioYet": "Belum ada audio yang masuk dari sumber yang dipilih. Jika sumber sedang diputar tetapi tidak ada yang diterjemahkan, izinkan Sokuji di System Settings > Privacy & Security > System Audio Recording Only (macOS), lalu mulai sesi lagi.",
+    "audioCaptureUnprovenNotice": "Belum ada yang ditangkap",
+    "audioCaptureUnprovenTitle": "Belum ada audio yang masuk dari sumber yang dipilih",
+    "audioCaptureUnprovenText1": "Jika sumber sedang diputar tetapi tidak ada yang diterjemahkan, macOS kemungkinan mengirimkan keheningan: menangkap sebuah aplikasi memerlukan izin \"System Audio Recording Only\", dan tanpa izin itu tidak ada kesalahan, hanya keheningan.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" baru muncul di daftar itu setelah mencoba menangkap satu kali, yang baru saja terjadi. Mulai sesi lagi setelah mengaktifkannya. Jika sumber memang hening, tidak ada yang perlu diubah."
   },
   "auth": {
     "signIn": "Masuk",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Didukung oleh model GPT"
+      "name": "OpenAI Realtime",
+      "description": "Model suara GPT Realtime serbaguna, dapat dikonfigurasi sepenuhnya"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Teknologi AI Google"
     },
     "openaiCompatible": {
-      "name": "API Kompatibel OpenAI",
-      "description": "Endpoint kustom yang kompatibel dengan OpenAI",
+      "name": "Kompatibel OpenAI (Realtime lama)",
+      "description": "Endpoint pihak ketiga yang memakai protokol Realtime beta lama OpenAI. Bukan untuk OpenAI sendiri.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "Model terjemahan real-time khusus dari OpenAI"
+      "description": "Model terjemahan khusus yang mendeteksi bahasa sumber secara otomatis"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "Juru bahasa GPT-Live-1, ditagih per menit sesi termasuk keheningan"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Keduanya",
       "source": "Asli",
       "translation": "Terjemahan",
-      "tooltip": "{{scope}} — klik untuk mengubah\nMenampilkan: {{mode}}\n• Asli: hanya ucapan asli\n• Terjemahan: hanya terjemahan\n• Keduanya: kedua baris",
-      "ariaLabel": "{{scope}}: {{mode}} — klik untuk mengubah"
+      "ariaLabel": "{{scope}}: {{mode}} — klik untuk mengubah",
+      "none": "Mati",
+      "title": "{{scope}} — klik untuk mengubah\nMenampilkan: {{mode}}",
+      "legendSource": "Asli: hanya ucapan asli",
+      "legendTranslation": "Terjemahan: hanya terjemahan",
+      "legendBoth": "Keduanya: kedua baris",
+      "legendNone": "Mati: sembunyikan sisi ini"
     },
     "playItemAudio": "Putar audio item ini",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Saya",
       "speakerOther": "Lawan bicara",
       "translationSuffix": "(terj.)",
+      "scopeLabel": "Sertakan",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Tidak ada yang dipilih",
       "headerTitle": "Ekspor percakapan Sokuji",
       "headerGenerated": "Dibuat",
       "headerProvider": "Penyedia",
       "headerModels": "Model",
       "headerSource": "Bahasa saya",
       "headerTarget": "Bahasa lawan bicara",
-      "headerNote": "Catatan: pengaturan mencerminkan kondisi saat ekspor, bukan perubahan selama sesi berlangsung."
+      "headerNote": "Catatan: pengaturan mencerminkan kondisi saat ekspor, bukan perubahan selama sesi berlangsung.",
+      "headerNarrowed": "Catatan: ekspor ini dipersempit saat mengekspor — beberapa baris tidak disertakan."
     },
     "waveformOutputTooltip": "Audio yang dikirim ke mikrofon virtual (terjemahan + passthrough audio asli)",
     "waveformMicTooltip": "Mikrofon Anda — suara Anda yang ditangkap untuk diterjemahkan",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox sedang berada pada kapasitas penuh. Silakan coba lagi sebentar lagi.",
     "sonioxBudgetExhausted": "Saldo sesi Anda telah habis. Isi ulang saldo Anda untuk terus menerjemahkan.",
     "sonioxTtsFailed": "Terjemahan suara telah berhenti. Transkripsi dan terjemahan teks masih berjalan.",
+    "sonioxTtsSegmentLost": "Sebagian terjemahan suara tidak dapat diputar. Transkripsi dan terjemahan teks tidak terpengaruh.",
     "sonioxSegmentEnded": "Segmen ini telah berakhir — ketuk “Mulai sesi” untuk melanjutkan.",
     "sonioxConnectionLost": "Koneksi terputus — ketuk “Mulai sesi” sebentar lagi untuk melanjutkan.",
+    "openaiLiveConnectionLost": "Koneksi terputus — ketuk “Mulai sesi” sebentar lagi untuk melanjutkan.",
     "sonioxVoiceClipMissing": "Perangkat ini tidak memiliki rekaman suara, sehingga sesi ini menggunakan suara preset. Rekam satu di Pengaturan untuk berbicara dengan suara Anda sendiri di sini.",
     "sonioxVoicePoolBusy": "Semua slot suara kustom sedang digunakan saat ini, sehingga sesi ini menggunakan suara preset. Suara Anda sendiri akan digunakan lagi lain kali.",
     "sonioxVoiceBuildFailed": "Suara kustom Anda tidak dapat dibangun, sehingga sesi ini menggunakan suara preset. Coba rekam klip yang lebih jelas di Pengaturan.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Perlu ~{{need}} memori GPU",
     "wontFit": "Tidak muat di mesin ini",
     "variantNoGpuFits": "Tidak ada varian GPU yang muat — berjalan di CPU.",
+    "variantRunsOnCpu": "Berjalan di CPU pada mesin ini.",
     "hwFramework": "Mesin",
     "hwDevice": "Perangkat",
     "hwApi": "Akselerasi",
@@ -933,7 +949,77 @@
     "unstable": "tidak stabil",
     "voice": "Suara",
     "voiceBuilderClosed": "Supertone menutup layanan Voice Builder pada 31 Agustus 2026. File suara yang sudah Anda unduh masih dapat diimpor.",
-    "refreshList": "Segarkan daftar suara"
+    "refreshList": "Segarkan daftar suara",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Speaker Anda mengembalikan suara terjemahan Sokuji ke mikrofon.",

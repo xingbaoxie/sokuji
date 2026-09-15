@@ -42,3 +42,11 @@ $color-usage-deep:  #d35400;  // the far stop of the high-usage gradient
 // A validated key, a connected session, a finished download, credit in.
 // Green is the right colour for this and is not the brand's to take.
 $color-success: #10a37f;
+
+// ── Toolbar chrome ──
+// The conversation toolbar's icon buttons at rest — one value for the whole
+// row, so the two filter buttons never stand out from their neighbours. 4.83:1
+// on the #1e1e1e toolbar (#555 measured 2.24:1, under the 3:1 floor for UI),
+// below the conversation's source text (#9aa0a6) so chrome never outranks
+// content, and clearly under the #ccc hover / filtering state.
+$color-toolbar-icon: #8a8a8a;

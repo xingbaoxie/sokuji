@@ -76,6 +76,13 @@ describe('subtitleStore', () => {
     expect(useSubtitleStore.getState().participantDisplayMode).toBe('source');
   });
 
+  it('accepts the none display mode on either side', async () => {
+    await useSubtitleStore.getState().setParticipantDisplayMode('none');
+    expect(useSubtitleStore.getState().participantDisplayMode).toBe('none');
+    await useSubtitleStore.getState().setSpeakerDisplayMode('none');
+    expect(useSubtitleStore.getState().speakerDisplayMode).toBe('none');
+  });
+
   it('saveWindowBounds stores the rect (Electron path)', async () => {
     const b = { x: 10, y: 20, width: 800, height: 200 };
     await useSubtitleStore.getState().saveWindowBounds(b);

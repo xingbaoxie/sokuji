@@ -43,6 +43,7 @@ import {
 import useSessionStore, { useSession, useIsReconnecting, useSetIsReconnecting, useSetItems as useSetStoreItems, useSetParticipantItems as useSetStoreParticipantItems, useLockedMode, useSetLockedMode, useClearConversationVersion, useRequestClearConversation } from '../../stores/sessionStore';
 import useAudioStore, { useAudioContext, useNoiseSuppressionMode, useMode, useSetMode, useIsMicMuted, useIsMonitorMuted, useIsParticipantMuted, useSelectedParticipantSource, useParticipantSources } from '../../stores/audioStore';
 import { resolveParticipantSourceId, needsLoopbackStream } from '../../lib/modern-audio/participantSource';
+import { silentNoPermissionPresentation } from './participantWarnings';
 import { useLogActions } from '../../stores/logStore';
 import { useNativeAsrLoading } from '../../stores/nativeModelStore';
 import type { RealtimeEvent, EventData } from '../../stores/logStore';
@@ -89,7 +90,9 @@ import { usePlaybackStore, usePlaybackHighlight } from '../../stores/playbackSto
 import ModePicker from './ModePicker';
 import SplitDegradedChip from './SplitDegradedChip';
 import { resolveSplitDegraded, type SplitDegradedReason } from './splitDegraded';
+import { reportError, describeCause } from '../../lib/diagnostics/report';
 import { buildChannelTelemetryHandlers, type ChannelTelemetryPorts } from './participantTelemetry';
+import { sessionModelTelemetry, legModelsOf, type LegModels } from './sessionModelTelemetry';
 import { NO_CHANNELS_RECONNECTING, type ReconnectingState } from './reconnectingChannels';
 import ModeDevicePopover from './ModeDevicePopover';
 import WaveformStrip from './WaveformStrip';
@@ -366,11 +369,30 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   // there is no participant waveform to be missing.
   const [splitDegraded, setSplitDegraded] = useState<SplitDegradedReason | null>(null);
 
-  // Whether the text-input row renders is the provider's own claim.
+  // Whether the provider accepts typed input at all is its own claim.
   const supportsTextInput = useMemo(
     () => ProviderConfigFactory.getDescriptor(provider).getConfig().capabilities.supportsTextInput ?? false,
     [provider]
   );
+
+  // #544: the text box is a SPEAKER-channel control. What a user types is their
+  // own input — the same thing the microphone would otherwise have carried — so
+  // it is translated in the speaker's direction and lands on the speaker's side
+  // of the conversation. Routing it to whichever leg happens to be live was
+  // considered and rejected: the participant leg runs the REVERSED direction, so
+  // the same box would translate the opposite way depending on mode, and in Both
+  // mode nothing would tell the user which leg their message went to.
+  //
+  // Hence: no speaker channel, no text box. In participant-only ("Others") mode
+  // it used to render, accept input, and drop every message silently.
+  //
+  // Keyed on the LIVE channel rather than the selected mode on purpose — in Both
+  // mode the speaker leg can fail while the participant leg survives (split
+  // degraded), and the mode alone would leave a dead box behind.
+  //
+  // One value for both the render gate and handleSendText, so a visible box and
+  // a working send cannot drift apart.
+  const canSendText = isSessionActive && supportsTextInput && speakerChannelActive;
 
   // Current provider's Speech Mode (turnDetectionMode), or 'Auto' for providers without one
   const currentTurnDetectionMode = useCurrentTurnDetectionMode();
@@ -455,16 +477,27 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           type: 'participant.warning',
           data: {
             message: t(
-              'audioPanel.participantSilentNoPermission',
-              'The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.'
+              'audioPanel.participantNoAudioYet',
+              'No audio has come through from the selected source yet. If it is playing and nothing is translated, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only (macOS), then start the session again.'
             ),
           },
         },
         'client', 'participant.warning'
       );
-      setPermissionWarning('audio-capture-denied');
+      // The notice above always lands. The modal is reserved for the case it
+      // can actually diagnose: no tap has ever delivered audio on this machine,
+      // so the first attempt just got silently denied. After that, silence is
+      // a quiet source and the modal would cry wolf on every quiet start (#492).
+      const tapAudioSeen = useAudioStore.getState().participantTapAudioSeen;
+      if (silentNoPermissionPresentation({ tapAudioSeen }) === 'modal') {
+        setPermissionWarning('audio-capture-denied');
+      }
     };
-    return () => { service.onParticipantWarning = null; };
+    service.onParticipantAudioSeen = () => useAudioStore.getState().markParticipantTapAudioSeen();
+    return () => {
+      service.onParticipantWarning = null;
+      service.onParticipantAudioSeen = null;
+    };
   }, [audioServiceReady, addRealtimeEvent, t]);
 
   // A capture permission the OS denied. Rendered as a modal with a button that
@@ -1112,6 +1145,18 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   // Participant client ref (for translating other participants)
   const participantClientRef = useRef<IClient | null>(null);
 
+  // The models the participant leg actually resolved, for telemetry.
+  //
+  // A split session runs TWO independently resolved model sets: the
+  // participant direction (`target→source`) is a peer of the speaker
+  // direction, not a reversal of it, and picks its own ASR and translation
+  // models from its own pool (see localParticipantConfig.ts). Reporting only
+  // the speaker's makes half of a split session invisible — and makes an
+  // error raised by the participant leg look like it came from a model the
+  // session was not using at all. Captured at the point the config is built
+  // rather than rebuilt here, because building it emits user-facing notices.
+  const participantModelsRef = useRef<LegModels | null>(null);
+
   // Has THIS session's participant leg lost its stream? Written by the leg's
   // own onClose (below) and read once, at connectConversation's
   // resolveSplitDegraded call. A ref rather than state because that read
@@ -1121,6 +1166,28 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   // active, which is the one window where nothing else in this file reacts to
   // a dead participant leg. See splitDegraded.ts's `participantStreamEnded`.
   const participantStreamEndedRef = useRef<boolean>(false);
+  // The speaker leg's twin, for the same window on the speaker side: a client
+  // whose connection ends between connect() resolving and
+  // setIsSessionActive(true) — OpenAILiveClient gives up there after a failed
+  // reconnect — reports onClose while the session is still inactive, where
+  // the handler's guard returns early. The fact is recorded here so the
+  // pre-activation check can refuse to mark a dead client active.
+  const speakerStreamEndedRef = useRef<boolean>(false);
+
+  // The id of the session currently being built or running, minted at the top
+  // of connectConversation — BEFORE any client exists.
+  //
+  // A ref rather than the store, because the store's `sessionId` is assigned by
+  // the analytics effect, which only runs after `isSessionActive` flips: by then
+  // the clients have been created, their handlers handed over, and recording has
+  // started. Anything those handlers report before that point has no id to read.
+  //
+  // Deliberately NOT cleared when a session ends. Teardown sets `isSessionActive`
+  // false, the effect clears the store's `sessionId`, and only then is
+  // `client.disconnect()` awaited — so a final completion flushed during
+  // disconnect would find nothing. Holding the id until the next session mints
+  // one attributes that last translation to the session it belongs to.
+  const sessionIdRef = useRef<string | null>(null);
 
   // Ref to disconnectConversation — used by client onClose handlers, which are
   // captured inside setupClientListeners (a useCallback that runs before
@@ -1135,6 +1202,10 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   // the start of disconnectConversation and cleared in finally regardless of
   // whether the cleanup succeeded or threw.
   const disconnectInProgressRef = useRef<boolean>(false);
+  // Resolves when the in-flight disconnectConversation has finished ALL of its
+  // teardown; null when none is in flight. connectConversation awaits it so a
+  // Start clicked during a Stop cannot overlap the teardown — see both sites.
+  const disconnectDoneRef = useRef<Promise<void> | null>(null);
 
   // Start re-entry guard, the disconnect guard's mirror: a second Start while
   // one is mid-flight would run two prepares (and two resource acquires)
@@ -1337,9 +1408,6 @@ const MainPanel: React.FC<MainPanelProps> = () => {
     return sum / audioData.length < threshold;
   }, []);
   
-  // Reference to track audio quality metrics
-  const audioQualityIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Simple throttling for UI updates to prevent freezing
   const lastUpdateTimeRef = useRef<number>(0);
   const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1384,6 +1452,13 @@ const MainPanel: React.FC<MainPanelProps> = () => {
 
     if (!client || !audioService) return;
 
+    // The session THIS client belongs to, captured at hand-off. The handler
+    // object below goes to `client` — a non-React object — and is frozen there;
+    // recreating this callback later produces a new function nobody calls. So
+    // reading a live value at emit time would report whichever session happens
+    // to be current, which for a late callback is the wrong one.
+    const ownerSessionId = sessionIdRef.current;
+
     const speakerTelemetry = buildChannelTelemetryHandlers('speaker', telemetryPortsFor());
 
     const eventHandlers: ClientEventHandlers = {
@@ -1418,7 +1493,23 @@ const MainPanel: React.FC<MainPanelProps> = () => {
             pendingTextRef.current = null;
             // Small delay to ensure response is fully processed
             setTimeout(() => {
-              speakerClientRef.current?.appendInputText(text);
+              // The session can end inside this window. `speakerClientRef` is
+              // not cleared on teardown, so without this the flush would hand
+              // text to a disconnected client 100ms after Stop. Read the store
+              // rather than a captured flag — this closure is built once per
+              // session and would hold a stale value.
+              if (!useSessionStore.getState().isSessionActive) return;
+              // The only appendInputText call site not already inside a
+              // try/catch — and it deliberately stays a throwing call (see the
+              // comment on OpenAIClient.appendInputText), so an unguarded one
+              // here would escape a timer callback with no handler at all.
+              try {
+                speakerClientRef.current?.appendInputText(text);
+              } catch (error) {
+                // Nothing else records this one: the throw means the client
+                // never reached reportSendFailure, so onError never fired.
+                reportError('MainPanel', `Queued text was not sent: ${describeCause(error)}`, { cause: error });
+              }
             }, 100);
           }
         }
@@ -1448,6 +1539,11 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       onReconnecting: speakerTelemetry.onReconnecting,
       onReconnected: speakerTelemetry.onReconnected,
       onClose: async (event: any) => {
+        // Recorded BEFORE the guard below decides what to do with it — the
+        // guard decides whether to tear down, not whether the fact happened
+        // (same shape as participantStreamEndedRef). Only this pass's client
+        // counts: a prior session's late close must not veto the next start.
+        if (speakerClientRef.current === client) speakerStreamEndedRef.current = true;
         // Bail out if the session is already inactive. Some clients (e.g. OpenAIClient)
         // synchronously fire onClose from inside disconnect() during a user-initiated
         // stop — by then disconnectConversation() has already cleared isSessionActive,
@@ -1530,7 +1626,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           if (item.createdAt) {
             const translationLatency = Date.now() - new Date(item.createdAt).getTime();
             trackEvent('translation_completed', {
-              session_id: sessionId || '',
+              session_id: ownerSessionId ?? '',
               source_language: getCurrentProviderSettings().sourceLanguage,
               target_language: getCurrentProviderSettings().targetLanguage,
               latency_ms: translationLatency,
@@ -1555,7 +1651,11 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   }, [
     isMonitorMuted,
     provider,
-    sessionId,
+    // `sessionId` is deliberately absent: nothing here reads it any more. It
+    // used to be listed, which made this look like it tracked the current
+    // session — but recreating the callback never re-registers the handler the
+    // client already holds, so the dependency changed nothing except how often
+    // this function was rebuilt.
     getCurrentProviderSettings,
     setTranslationCount,
     trackEvent,
@@ -1582,6 +1682,27 @@ const MainPanel: React.FC<MainPanelProps> = () => {
     }
     disconnectInProgressRef.current = true;
 
+    // Publish this teardown's completion, from before the first await, so a
+    // Start that lands while it is in flight can wait for the whole thing —
+    // not just the speaker leg. The participant leg, afterBothLegs and the
+    // trailing audioService.stopRecording() all read their ref (or the shared
+    // recorder) at RUN time; a Start that got in ahead of them would have its
+    // participant client disconnected, its lease released and its capture
+    // stopped by this Stop. Resolved in the finally, success or throw.
+    let markDisconnectDone: () => void = () => {};
+    disconnectDoneRef.current = new Promise<void>(resolve => { markDisconnectDone = resolve; });
+
+    // Capture the speaker client to tear down NOW, before any await. The
+    // `setIsSessionActive(false)` a few lines down runs synchronously and
+    // re-enables the Start button while this teardown is still in flight —
+    // nothing serializes a new Start behind an in-flight Stop — so by the time
+    // the speaker leg below runs, `speakerClientRef.current` may already hold
+    // the NEXT session's client. Reading the ref there would tear down the
+    // wrong one (disconnect/reset on a still-connecting client, then the null
+    // wiping its ref: a session that looks active and does nothing). The
+    // object this Stop owns is the one in the ref at this instant.
+    const speakerToTearDown = speakerClientRef.current;
+
     // Discard any in-flight Start: its prepare patches and its acquired
     // resources would target the session this teardown is ending.
     startAbortRef.current?.abort();
@@ -1603,11 +1724,6 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       setLockedMode(null);
       pendingTextRef.current = null;
 
-      // Clear audio quality tracking interval
-      if (audioQualityIntervalRef.current) {
-        clearInterval(audioQualityIntervalRef.current);
-        audioQualityIntervalRef.current = null;
-      }
 
       // setItems([]);
 
@@ -1663,7 +1779,9 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       // SonioxClient, not the inert secondary port of the shared path.
       await teardownSessionLegs({
         speaker: async () => {
-          const client = speakerClientRef.current;
+          // Not `speakerClientRef.current` — see the capture at the top of
+          // this function. By now the ref may belong to the next session.
+          const client = speakerToTearDown;
           if (!client) return;
           // disconnect() emits final completion deltas via the throttle path,
           // which schedules a trailing setItems(client.getConversationItems())
@@ -1695,6 +1813,40 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           }
           setItems(client.getConversationItems());
           client.reset();
+          // Clear the ref, like the participant leg two blocks down has always
+          // done. Without this the object outlives its session, and the next
+          // session that builds NO speaker client — participant-only "Others"
+          // mode skips the whole `if (speakerWillStart)` block — reaches this
+          // same leg on Stop holding the previous session's dead client. Three
+          // things then happen, none of them wanted:
+          //
+          //  - `disconnect()` runs a second time, on a client whose handlers
+          //    are the PREVIOUS session's closures, re-emitting `session.closed`
+          //    (a spurious speaker-tagged row in the log panel) and, on the
+          //    managed-Soniox path, calling `detachLeg` on the old session.
+          //  - `setItems(client.getConversationItems())` becomes `setItems([])`,
+          //    because `reset()` already emptied it. In Others mode `items` is
+          //    NOT empty — it carries the participant-channel warning and the
+          //    descriptor's prepare notices — so those rows are silently wiped
+          //    at Stop. That one is user-visible, with no error and no log.
+          //  - LocalNativeClient.disconnect() disposes its ASR/translate/TTS
+          //    handles a second time, before the live participant leg is torn
+          //    down.
+          //
+          // It also retires the "a non-null ref here belongs to a previous
+          // session" reasoning that three comments in this file and
+          // sessionStartGate.ts were written around.
+          //
+          // Compare-and-clear, not a bare assignment: `await client.disconnect()`
+          // above is a real macrotask gap on providers whose disconnect hits
+          // the network (PalabraAI deletes its session and leaves the LiveKit
+          // room), and a Start clicked inside that gap has already put the
+          // NEXT session's client in the ref. Clearing unconditionally here
+          // would wipe it — a live session with a null ref, every audio frame
+          // dropped, nothing on screen. Only clear what this Stop owns.
+          if (speakerClientRef.current === client) {
+            speakerClientRef.current = null;
+          }
         },
         participant: async () => {
           const participantClient = participantClientRef.current;
@@ -1743,6 +1895,10 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       }
     } finally {
       disconnectInProgressRef.current = false;
+      // Clear before resolving: a waiter that wakes and re-reads the ref must
+      // not find this same, already-finished teardown.
+      disconnectDoneRef.current = null;
+      markDisconnectDone();
     }
   }, [refetchAll, setIsReconnecting]);
 
@@ -1772,6 +1928,30 @@ const MainPanel: React.FC<MainPanelProps> = () => {
     try {
       setIsInitializing(true);
       setInitPhase(null);
+
+      // Serialize behind an in-flight Stop. disconnectConversation flips
+      // isSessionActive to false synchronously — which is what re-enables the
+      // Start button — and only then awaits (pauseRecording, a 100 ms settle,
+      // client.disconnect()). Nothing else makes this function wait for it:
+      // disconnectInProgressRef only blocks a second Stop, connectInProgressRef
+      // above only blocks a second Start, and neither reads the other. A Start
+      // clicked in that window (a double-tap on Stop is enough — the button
+      // changes in place) used to run concurrently with the teardown, which
+      // then tore down THIS session's participant client, released its lease
+      // in afterBothLegs, and stopped its capture in the trailing
+      // stopRecording(). The user sees "initializing" for the extra 100–300 ms.
+      //
+      // Position is load-bearing twice over. It is BEFORE this attempt's
+      // AbortController is minted below, so the Stop's abort() at its top
+      // cannot cancel this Start; and BEFORE the participantStreamEndedRef
+      // reset further down, which exists to undo a write the teardown makes
+      // DURING its run — reset first and the teardown would re-set it.
+      const pendingDisconnect = disconnectDoneRef.current;
+      if (pendingDisconnect) {
+        console.info('[Sokuji] [MainPanel] Start is waiting for the previous session\'s teardown to finish');
+        await pendingDisconnect;
+      }
+
       // Clear last session's indicator before anything can set this one's.
       // Not redundant with the disconnectConversation reset: the post-init
       // "both channels failed" guard below returns early WITHOUT routing
@@ -1786,6 +1966,13 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       // socket cannot arrive later and re-set it, since handleSttClose drops
       // stale closes before reaching onClose.
       participantStreamEndedRef.current = false;
+      speakerStreamEndedRef.current = false;
+
+      // Mint this session's id HERE, before a client exists, so the handlers
+      // handed to those clients can carry it. The store's `sessionId` is still
+      // set by the analytics effect below — it stays null until then, which is
+      // the sentinel that effect uses to tell a session start from a re-render.
+      sessionIdRef.current = uuidv4();
 
       // Providers with pre-start work declare prepareToStart; run it FIRST,
       // before the no-channel guard, any audio init, any client. For the
@@ -2378,6 +2565,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
 
             // Create and connect with participant session config
             const participantSessionConfig = createParticipantSessionConfig();
+            participantModelsRef.current = legModelsOf(participantSessionConfig as any);
             if (!participantSessionConfig) {
               // Non-fatal failure path #2. Under split this is a par_stt leg
               // that never connects: no started bit is ever set for it, so the
@@ -2386,6 +2574,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
               // start window, so it lapses on its own.
               console.info('[Sokuji] [MainPanel] Participant skipped — no suitable models');
               participantClientRef.current = null;
+              participantModelsRef.current = null;
               // Also previously console-only.
               splitParticipantFailure = 'no-participant-config';
             } else {
@@ -2484,10 +2673,12 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       //
       // Asks whether a channel WORKS, not whether a client object exists. The
       // refs cannot answer that: the participant catch is non-fatal by design
-      // and leaves `participantClientRef.current` set, and
-      // `speakerClientRef.current` is never assigned null anywhere in this file
-      // (not even on Stop), so the old ref-based condition also went permanently
-      // false after the first session that built a speaker client. See
+      // and leaves `participantClientRef.current` set. The speaker ref used to
+      // be worse still — it was never assigned null anywhere in this file, not
+      // even on Stop, so the old ref-based condition went permanently false
+      // after the first session that built a speaker client. Stop clears it
+      // now, but that only removes the stale-object hazard; a ref is still not
+      // evidence that a channel works, so this guard stays outcome-based. See
       // noChannelCameUp.
       if (noChannelCameUp({ speakerChannelStarted, participantChannelStarted })) {
         // A cancel that races client construction can surface here too: the
@@ -2512,9 +2703,11 @@ const MainPanel: React.FC<MainPanelProps> = () => {
         // the guard reads outcomes, so it fires for a leg that connected and
         // then failed to wire its recorder. There is never a speaker client to
         // take down — one that came up would have set speakerChannelStarted, and
-        // one that failed re-threw past this point — so a non-null
-        // speakerClientRef here belongs to a PREVIOUS session (this file never
-        // clears it) and must not be touched.
+        // one that failed re-threw past this point — so the speaker is left
+        // alone here. It used to matter more than it does: the ref was never
+        // cleared, so a non-null value here meant a PREVIOUS session's client
+        // that must not be touched. Stop clears it now, which leaves this leg
+        // correct for the simpler reason that this pass built nothing to undo.
         //
         // Ordered through teardownSessionLegs for its one invariant: every leg
         // is down before `session-end` is signalled. Releasing the lease while a
@@ -2602,8 +2795,22 @@ const MainPanel: React.FC<MainPanelProps> = () => {
       // in-flight connect, and if connect rejects, the outer catch below
       // surfaces its error bubble instead of a clean cancel — inherent to
       // that race and accepted (see the S7 final review, issue I1).
-      if (startAbort.signal.aborted) {
-        console.info('[Sokuji] [MainPanel] Cancel raced client construction; tearing down what this pass built instead of activating.');
+      //
+      // The same check also catches a speaker leg whose own connection ended
+      // in this window (speakerStreamEndedRef): its onClose returned early
+      // because the session was not active yet, so nothing else would. The
+      // speaker flag is read unconditionally because its close can land
+      // before speakerChannelStarted is assigned. A participant leg that ended
+      // here only counts when it was the session's sole leg: with a speaker
+      // up, resolveSplitDegraded turns that into a one-way session instead.
+      const soleParticipantEnded =
+        !speakerChannelStarted && participantChannelStarted && participantStreamEndedRef.current;
+      if (startAbort.signal.aborted || speakerStreamEndedRef.current || soleParticipantEnded) {
+        console.info(startAbort.signal.aborted
+          ? '[Sokuji] [MainPanel] Cancel raced client construction; tearing down what this pass built instead of activating.'
+          : speakerStreamEndedRef.current
+            ? '[Sokuji] [MainPanel] Speaker leg ended before activation; tearing down what this pass built instead of activating.'
+            : '[Sokuji] [MainPanel] Sole participant leg ended before activation; tearing down what this pass built instead of activating.');
         await teardownSessionLegs({
           speaker: async () => {
             if (!speakerChannelStarted) return;
@@ -2620,6 +2827,16 @@ const MainPanel: React.FC<MainPanelProps> = () => {
             }
             setItems(client.getConversationItems());
             client.reset();
+            // Same clear as disconnectConversation's leg. A cancelled start that
+            // got far enough to bring the speaker up must not leave its client
+            // behind either, or the next session inherits exactly the stale
+            // object this pass just tore down. Compare-and-clear for the same
+            // reason as there; here `client` is this pass's own and a second
+            // Start is blocked by connectInProgressRef, so the check is
+            // belt-and-braces rather than load-bearing.
+            if (speakerClientRef.current === client) {
+              speakerClientRef.current = null;
+            }
           },
           participant: async () => {
             const client = participantClientRef.current;
@@ -2769,21 +2986,6 @@ const MainPanel: React.FC<MainPanelProps> = () => {
         participantStreamEnded: participantStreamEndedRef.current,
       }));
 
-      // Start tracking audio quality metrics during session
-      audioQualityIntervalRef.current = setInterval(() => {
-        if (audioServiceRef.current) {
-          const recorder = audioServiceRef.current.getRecorder();
-          if (recorder && recorder.isRecording()) {
-            // Track audio quality metrics
-            trackEvent('audio_quality_metric', {
-              quality_score: 100, // Placeholder - in production this would be calculated
-              latency: 0, // Placeholder - would measure actual latency
-              echo_cancellation_enabled: true,
-              noise_suppression_enabled: true
-            });
-          }
-        }
-      }, 30000); // Every 30 seconds
     } catch (error: any) {
       // A cancel that races client construction (Start cancelled while a
       // speaker/participant connect() was in flight) makes
@@ -3081,8 +3283,14 @@ const MainPanel: React.FC<MainPanelProps> = () => {
    */
   const handleSendText = useCallback((text: string) => {
     const client = speakerClientRef.current;
-    if (!client || !isSessionActive) {
-      console.warn('[MainPanel] Cannot send text: no active session');
+    // Same value the row renders on. Unreachable from the UI in practice; a
+    // queued flush or a render racing teardown can still arrive here.
+    //
+    // The old message said "no active session", which was a lie in Others mode
+    // (#544): the session WAS running, it simply had no speaker channel, and
+    // the box stayed on screen swallowing every message.
+    if (!canSendText || !client) {
+      console.warn('[MainPanel] Cannot send text: no live speaker channel');
       return;
     }
 
@@ -3122,7 +3330,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
         recoverable: true
       });
     }
-  }, [isSessionActive, isAIResponding, sessionId, provider, trackEvent]);
+  }, [canSendText, isAIResponding, sessionId, provider, trackEvent]);
 
   /**
    * Submit text input in advanced mode
@@ -3772,7 +3980,11 @@ const MainPanel: React.FC<MainPanelProps> = () => {
     if (isSessionActive) {
       // Only run on session start transition
       if (sessionId === null) { 
-        const newSessionId = uuidv4();
+        // Adopt the id connectConversation already minted, so this event and
+        // the clients' handlers name the same session. A session that became
+        // active without going through it still gets one.
+        const newSessionId = sessionIdRef.current ?? uuidv4();
+        sessionIdRef.current = newSessionId;
         const startTime = Date.now();
         setSessionId(newSessionId);
         setSessionStartTime(startTime);
@@ -3780,7 +3992,9 @@ const MainPanel: React.FC<MainPanelProps> = () => {
   
         const currentSettings = getCurrentProviderSettings();
         const sessionConfig = getSessionConfig();
-        const localConfig = sessionConfig.provider === 'local_inference' ? sessionConfig : null;
+        // Only for a leg that actually came up — a stale capture can never be
+        // reported, because this is false whenever the leg did not start.
+        const participantModels = participantChannelActive ? participantModelsRef.current : null;
         // Symmetric channel composition — which clients actually started.
         // ['speaker'] = scenario 1, ['participant'] = scenario 2, both = scenario 3.
         const channels: string[] = [];
@@ -3792,11 +4006,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           session_id: newSessionId,
           provider: provider,
           model: sessionConfig.model,
-          ...(localConfig && {
-            asr_model: localConfig.asrModelId,
-            translation_model: localConfig.translationModelId || 'unknown',
-            tts_model: localConfig.ttsModelId || 'none',
-          }),
+          ...sessionModelTelemetry(sessionConfig, participantModels),
           noise_suppression_enabled: noiseSuppressionMode !== 'off',
           noise_suppression_mode: noiseSuppressionMode,
           real_voice_passthrough_enabled: isRealVoicePassthroughEnabled,
@@ -3817,6 +4027,7 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           translation_count: translationCount,
           provider: provider
         });
+        participantModelsRef.current = null;
         // Reset session state
         setSessionId(null);
         setSessionStartTime(null);
@@ -4119,8 +4330,15 @@ const MainPanel: React.FC<MainPanelProps> = () => {
               {conversationCompactMode ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
             </button>
             {/* Export */}
+            {/* combinedItems, not filteredItems: the export menu holds its own
+                scope, seeded from these two modes. Handing it a pre-filtered
+                list would narrow the file with no way for the user to widen it
+                back — and would drag the unrelated basic/advanced uiMode
+                filter into the export as well. */}
             <ExportButton
               combinedItems={combinedItems}
+              speakerMode={speakerDisplayMode}
+              participantMode={participantDisplayMode}
               provider={provider}
               currentProviderSettings={currentSettings}
               localInferenceSettings={localInferenceSettings}
@@ -4222,8 +4440,8 @@ const MainPanel: React.FC<MainPanelProps> = () => {
           )}
         </div>
 
-        {/* Text Input Section */}
-        {isSessionActive && supportsTextInput && (
+        {/* Text Input Section — speaker channel only, see canSendText */}
+        {canSendText && (
           <div className="text-input-section">
             <div className="text-input-container">
               <input

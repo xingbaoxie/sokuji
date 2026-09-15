@@ -37,6 +37,20 @@ describe('ModePicker', () => {
     expect(onSegmentClick).not.toHaveBeenCalled();
   });
 
+  it('renders one side icon per segment, Me and Other in their both form', () => {
+    render(<ModePicker mode="both" locked={false} missingDeviceForMode={null} onSegmentClick={() => {}} />);
+    const iconIn = (name: RegExp) => screen.getByRole('button', { name }).querySelector('svg')!;
+    expect(iconIn(/Me|我/).getAttribute('data-icon')).toBe('side-me');
+    expect(iconIn(/Other|对方/).getAttribute('data-icon')).toBe('side-other');
+    expect(iconIn(/Both|双向/).getAttribute('data-icon')).toBe('side-both');
+    for (const name of [/Me|我/, /Other|对方/]) {
+      for (const p of Array.from(iconIn(name).querySelectorAll('path'))) {
+        expect(p).toHaveAttribute('fill', 'currentColor');
+      }
+      expect(iconIn(name).getAttribute('width')).toBe('14');
+    }
+  });
+
   it('adds a warn class on the segment indicated by missingDeviceForMode', () => {
     render(<ModePicker mode="both" locked={false} missingDeviceForMode="speaker" onSegmentClick={() => {}} />);
     const speakerSeg = screen.getByRole('button', { name: /Me|我/ });

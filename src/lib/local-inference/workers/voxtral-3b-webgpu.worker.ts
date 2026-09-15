@@ -36,6 +36,7 @@ import type {
   AsrDisposeMessage,
   StreamingAsrWorkerOutMessage,
 } from '../types';
+import { bindCheckedWebGpuAdapter } from './shaderF16Gate';
 
 // ─── ORT / Transformers.js env setup ─────────────────────────────────────────
 
@@ -350,6 +351,7 @@ async function handleInit(msg: Voxtral3BAsrInitMessage): Promise<void> {
 
     // 4. Load model (WebGPU)
     post({ type: 'status', message: 'Loading Voxtral 3B model (WebGPU)...' });
+    await bindCheckedWebGpuAdapter(env.backends.onnx, msg.dtype, 'Voxtral 3B');
     model = await VoxtralForConditionalGeneration.from_pretrained(msg.hfModelId, {
       dtype: msg.dtype as any,
       device: 'webgpu',
@@ -426,6 +428,11 @@ async function handleFlush(): Promise<void> {
 }
 
 async function handleDispose(): Promise<void> {
+  // Only reachable when the host waits for `disposed`. In the app, WorkerSession.dispose()
+  // posts `dispose` and terminates this worker on the next line, so the drain below runs in the
+  // worker harness only; Stop is meant to be immediate, and PTT release finishes an utterance
+  // through flush, not dispose.
+
   // Flush remaining speech. Fire-and-forget; the `await currentDecodePromise`
   // below picks up the just-kicked decode before we dispose the model.
   if (frameProcessor?.speaking) {

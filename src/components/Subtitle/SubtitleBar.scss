@@ -100,9 +100,9 @@
   }
 
   // Unify reused MainPanel buttons (DisplayModeButton, ExportButton) with
-  // our own .subtitle-bar__btn. Their own SCSS (color: #555) is tuned for
-  // MainPanel's lighter toolbar; on the subtitle bar's near-black bg it's
-  // nearly invisible. Scoping the override here keeps MainPanel untouched.
+  // our own .subtitle-bar__btn. Their own SCSS (tk.$color-toolbar-icon) is
+  // tuned for MainPanel's lighter toolbar; on the subtitle bar's near-black bg
+  // it's too dim. Scoping the override here keeps MainPanel untouched.
   // Both classes also opt out of the bar's drag region so clicks land
   // on the button rather than starting a window-drag.
   .display-mode-btn,

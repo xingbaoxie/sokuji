@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini erzeugt für das Audio des Gegenübers Audioantworten, die verworfen werden, was zu zusätzlichem Token-Verbrauch führt.",
     "help": "Hilfe",
     "helpEmailTooltip": "Fehler melden oder Hilfe erhalten",
+    "diagnosticLogs": "Diagnoseprotokolle",
+    "diagnosticLogsTooltip": "Zeichnet auf, was die App tut, damit Sie es einem Fehlerbericht beifügen können. Standardmäßig aus. Solange es aktiv ist, erscheint in der Titelleiste die Schaltfläche „Protokolle“, und die Einstellung bleibt auch nach einem Neustart aktiv.",
     "helpDiscussions": "Diskussionen",
     "helpDiscussionsTooltip": "Funktionswünsche, Feedback und Community-Diskussionen",
     "auto": "Auto",
@@ -335,23 +337,21 @@
     "participantSource": "Audioquelle des Gegenübers",
     "participantSourceDesc": "Wählen Sie, welche Anwendung übersetzt werden soll. „System-Audio“ erfasst alles, was Sie hören, einschließlich Spiele und Musik.",
     "turnOffParticipant": "Audio des Gegenübers ausschalten",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Systemeinstellungen öffnen",
+    "screenRecordingDeniedText2Named": "Bitte gehen Sie zu Systemeinstellungen > Datenschutz & Sicherheit > Bildschirmaufnahme und aktivieren Sie „{{app}}“.",
+    "audioCaptureDeniedText2Named": "Öffnen Sie Systemeinstellungen > Datenschutz & Sicherheit > Nur Systemaudioaufnahme und aktivieren Sie „{{app}}“.",
     "screenRecordingHasAlternative": "Sie können diese Berechtigung ganz vermeiden: Wählen Sie stattdessen eine bestimmte Anwendung als Audioquelle des Gegenübers. Anwendungen erscheinen in dieser Liste nur, solange sie Audio wiedergeben.",
     "participantSourceSwitchFailed": "Die Audioquelle des Gegenübers konnte nicht gewechselt werden. Beenden und starten Sie die Sitzung, um sie zu ändern.",
     "participantFellBackToSystemAudio": "Die Erfassung der ausgewählten Anwendung wurde beendet, daher wird stattdessen das gesamte Systemaudio übersetzt. Wählen Sie die Anwendung erneut, um den Umfang wieder einzugrenzen.",
     "loopbackMicNotice": "Hinweis zu Loopback-Eingang",
     "loopbackMicWarningTitle": "Dieser Eingang erfasst erneut, was dieser Computer wiedergibt.",
     "loopbackMicWarningText1": "Loopback-Eingänge wie \"Stereo Mix\" oder ein \"Monitor of ...\"-Gerät nehmen die Audioausgabe des Systems selbst auf. In einer Sitzung mit Sokujis übersetzter Sprache würde Sokuji sich selbst hören und in einer Schleife übersetzen.",
-    "loopbackMicWarningText2": "Das Gerät bleibt ausgewählt, falls dieses Routing beabsichtigt ist; für den normalen Gebrauch wählen Sie bitte ein physisches Mikrofon."
+    "loopbackMicWarningText2": "Das Gerät bleibt ausgewählt, falls dieses Routing beabsichtigt ist; für den normalen Gebrauch wählen Sie bitte ein physisches Mikrofon.",
+    "participantNoAudioYet": "Von der ausgewählten Quelle ist noch kein Audio angekommen. Wenn sie abspielt und nichts übersetzt wird, erlauben Sie Sokuji unter Systemeinstellungen > Datenschutz & Sicherheit > Nur Systemaudioaufnahme (macOS) und starten Sie die Sitzung erneut.",
+    "audioCaptureUnprovenNotice": "Noch nichts erfasst",
+    "audioCaptureUnprovenTitle": "Von der ausgewählten Quelle ist noch kein Audio angekommen",
+    "audioCaptureUnprovenText1": "Wenn die Quelle abspielt und nichts übersetzt wird, liefert macOS wahrscheinlich Stille: Das Erfassen einer App erfordert die Berechtigung „Nur Systemaudioaufnahme“, und ohne sie gibt es keinen Fehler, nur Stille.",
+    "audioCaptureUnprovenText3Named": "„{{app}}“ erscheint in dieser Liste erst, nachdem einmal eine Erfassung versucht wurde, und das ist gerade geschehen. Starten Sie die Sitzung nach dem Aktivieren erneut. War die Quelle einfach nur still, muss nichts geändert werden."
   },
   "auth": {
     "signIn": "Anmelden",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Betrieben von GPT-Modellen"
+      "name": "OpenAI Realtime",
+      "description": "Universelles GPT-Realtime-Sprachmodell, frei konfigurierbar"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Googles AI-Technologie"
     },
     "openaiCompatible": {
-      "name": "OpenAI-kompatible API",
-      "description": "Benutzerdefinierter OpenAI-kompatibler Endpunkt",
+      "name": "OpenAI-kompatibel (Legacy Realtime)",
+      "description": "Drittanbieter-Endpunkt mit OpenAIs älterem Beta-Realtime-Protokoll. Nicht für OpenAI selbst.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAIs spezielles Echtzeit-Übersetzungsmodell"
+      "description": "Dediziertes Übersetzungsmodell mit automatischer Erkennung der Ausgangssprache"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1-Dolmetscher, Abrechnung pro Sitzungsminute inklusive Stille"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Beides",
       "source": "Original",
       "translation": "Übersetzung",
-      "tooltip": "{{scope}} — zum Ändern klicken\nAngezeigt: {{mode}}\n• Original: nur Originalsprache\n• Übersetzung: nur Übersetzung\n• Beides: beide Zeilen",
-      "ariaLabel": "{{scope}}: {{mode}} — zum Ändern klicken"
+      "ariaLabel": "{{scope}}: {{mode}} — zum Ändern klicken",
+      "none": "Aus",
+      "title": "{{scope}} — zum Ändern klicken\nAngezeigt: {{mode}}",
+      "legendSource": "Original: nur Originalsprache",
+      "legendTranslation": "Übersetzung: nur Übersetzung",
+      "legendBoth": "Beides: beide Zeilen",
+      "legendNone": "Aus: diese Seite ausblenden"
     },
     "playItemAudio": "Audio dieses Elements abspielen",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Ich",
       "speakerOther": "Gegenüber",
       "translationSuffix": "(Übers.)",
+      "scopeLabel": "Einschließen",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Nichts ausgewählt",
       "headerTitle": "Sokuji-Unterhaltungsexport",
       "headerGenerated": "Erstellt",
       "headerProvider": "Anbieter",
       "headerModels": "Modelle",
       "headerSource": "Meine Sprache",
       "headerTarget": "Sprache des Gegenübers",
-      "headerNote": "Hinweis: Die Einstellungen spiegeln den aktuellen Stand beim Export wider, nicht Änderungen während der Sitzung."
+      "headerNote": "Hinweis: Die Einstellungen spiegeln den aktuellen Stand beim Export wider, nicht Änderungen während der Sitzung.",
+      "headerNarrowed": "Hinweis: Dieser Export wurde beim Exportieren eingeschränkt – einige Zeilen fehlen."
     },
     "waveformOutputTooltip": "Audio, das an das virtuelle Mikrofon gesendet wird (Übersetzung + Durchleitung)",
     "waveformMicTooltip": "Ihr Mikrofon — Ihre Stimme, die zur Übersetzung erfasst wird",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox ist derzeit ausgelastet. Bitte versuchen Sie es in Kürze erneut.",
     "sonioxBudgetExhausted": "Ihr Sitzungsguthaben ist aufgebraucht. Laden Sie Ihr Guthaben auf, um weiter zu übersetzen.",
     "sonioxTtsFailed": "Die gesprochene Übersetzung wurde beendet. Transkription und Textübersetzung laufen weiter.",
+    "sonioxTtsSegmentLost": "Ein Teil der gesprochenen Übersetzung konnte nicht wiedergegeben werden. Transkription und Textübersetzung sind nicht betroffen.",
     "sonioxSegmentEnded": "Dieser Abschnitt ist beendet — tippen Sie auf „Sitzung starten“, um fortzufahren.",
     "sonioxConnectionLost": "Die Verbindung wurde unterbrochen — tippen Sie gleich auf „Sitzung starten“, um fortzufahren.",
+    "openaiLiveConnectionLost": "Die Verbindung wurde unterbrochen — tippen Sie gleich auf „Sitzung starten“, um fortzufahren.",
     "sonioxVoiceClipMissing": "Auf diesem Gerät liegt keine Sprachaufnahme vor, daher verwendet diese Sitzung eine voreingestellte Stimme. Nehmen Sie eine in den Einstellungen auf, um hier mit Ihrer eigenen Stimme zu sprechen.",
     "sonioxVoicePoolBusy": "Alle Plätze für eigene Stimmen sind gerade belegt, daher verwendet diese Sitzung eine voreingestellte Stimme. Ihre eigene Stimme wird beim nächsten Mal wieder verwendet.",
     "sonioxVoiceBuildFailed": "Ihre eigene Stimme konnte nicht erstellt werden, daher verwendet diese Sitzung eine voreingestellte Stimme. Versuchen Sie, in den Einstellungen eine klarere Aufnahme zu machen.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Benötigt ~{{need}} GPU-Speicher",
     "wontFit": "Passt nicht auf diesen Rechner",
     "variantNoGpuFits": "Keine GPU-Variante passt — läuft auf der CPU.",
+    "variantRunsOnCpu": "Läuft auf diesem Gerät auf der CPU.",
     "hwFramework": "Engine",
     "hwDevice": "Gerät",
     "hwApi": "Beschleunigung",
@@ -933,7 +949,77 @@
     "unstable": "instabil",
     "voice": "Stimme",
     "voiceBuilderClosed": "Supertone hat seinen Voice-Builder-Dienst am 31. August 2026 eingestellt. Bereits heruntergeladene Stimmdateien können weiterhin importiert werden.",
-    "refreshList": "Stimmenliste aktualisieren"
+    "refreshList": "Stimmenliste aktualisieren",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Ihre Lautsprecher speisen Sokujis übersetzte Sprache zurück ins Mikrofon.",

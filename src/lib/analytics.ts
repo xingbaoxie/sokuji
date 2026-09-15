@@ -1,10 +1,16 @@
 import { usePostHog } from '../../shared/index';
 import { isDevelopment, getPlatform } from '../config/analytics';
+import type { DeviceProfile } from '../utils/deviceProfile';
+import { reportWarning } from './diagnostics/report';
+import { describeCause } from './diagnostics/describeCause';
 
 // Analytics event types - Comprehensive product metrics for Sokuji
 export interface AnalyticsEvents {
   // Application lifecycle
-  'app_startup': {}; // version and platform are now in Super Properties
+  // Version and platform are Super Properties; the device profile is not --
+  // it costs an async GPU probe, so it rides this once-per-launch event, and
+  // $set mirrors it onto the person so one lookup answers what a reporter runs.
+  'app_startup': Partial<DeviceProfile> & { $set?: Partial<DeviceProfile> };
   'app_shutdown': { session_duration: number };
   
   // Tour events (spec §2.3).
@@ -28,6 +34,10 @@ export interface AnalyticsEvents {
     asr_model?: string;
     translation_model?: string;
     tts_model?: string;
+    /** The participant leg resolves its own models — see localParticipantConfig.ts.
+     *  Absent unless a split session's participant channel actually started. */
+    participant_asr_model?: string;
+    participant_translation_model?: string;
     noise_suppression_enabled?: boolean;
     noise_suppression_mode?: string;
     echo_cancellation_enabled?: boolean;
@@ -61,12 +71,6 @@ export interface AnalyticsEvents {
     device_name?: string;
     change_type: 'selected' | 'connected' | 'disconnected';
     during_session: boolean;
-  };
-  'audio_quality_metric': {
-    quality_score: number;
-    latency: number;
-    echo_cancellation_enabled: boolean;
-    noise_suppression_enabled: boolean;
   };
   'audio_passthrough_toggled': {
     enabled: boolean;
@@ -347,6 +351,25 @@ export async function syncDistinctIdToBackground(posthogInstance?: any): Promise
   }
 }
 
+/**
+ * Person traits for an identified user, with the address attached under both
+ * names PostHog uses.
+ *
+ * Both copies are added AFTER sanitisation on purpose: 'email' is in
+ * SENSITIVE_FIELDS, so a plain trait of that name would be stripped before it
+ * could leave. `$email` is what PostHog's user lookup reads; the unprefixed
+ * `email` is what the person list displays and filters on. With only `$email`
+ * set, a person falls back to whatever `name` holds -- which is how a reporter
+ * ended up unfindable by the address their bug report came from.
+ */
+export function buildIdentifyTraits(
+  sanitizedTraits: Record<string, any>,
+  email?: string,
+): Record<string, any> {
+  if (!email) return sanitizedTraits;
+  return { ...sanitizedTraits, email, $email: email };
+}
+
 // Custom hook for analytics
 export function useAnalytics() {
   const posthog = usePostHog();
@@ -381,12 +404,7 @@ export function useAnalytics() {
     try {
       if (posthog) {
         const sanitizedTraits = traits ? sanitizeData(traits) : {};
-        // $email is a special PostHog property for user identification
-        // It's intentionally not sanitized as it's meant for user lookup in PostHog
-        if (email) {
-          sanitizedTraits.$email = email;
-        }
-        posthog.identify(userId, sanitizedTraits);
+        posthog.identify(userId, buildIdentifyTraits(sanitizedTraits, email));
 
         // Sync distinct_id to background script after identifying user
         setTimeout(() => {
@@ -395,6 +413,37 @@ export function useAnalytics() {
       }
     } catch (error) {
       console.error('[Sokuji] [Analytics] User identification error:', error);
+    }
+  };
+
+  /**
+   * Drop the current identity and start a fresh anonymous one.
+   *
+   * The counterpart to identifyUser, and what sign-out was missing: the
+   * distinct_id bound at sign-in otherwise stays bound, so on a shared machine
+   * the next person's events are attributed to the previous user. That is worse
+   * than missing data — nothing on the event says which of them produced it, so
+   * it cannot be separated afterwards.
+   *
+   * The background sync matters as much as the reset does in the extension: the
+   * background script holds a copy of the distinct_id for the uninstall survey
+   * URL, so a stale one attributes an uninstall to whoever signed out earlier.
+   */
+  const resetUser = () => {
+    try {
+      if (posthog) {
+        posthog.reset();
+
+        // The same hand-off identifyUser uses: the background script is a
+        // separate context and reads the id after local state has settled.
+        setTimeout(() => {
+          syncDistinctIdToBackground(posthog);
+        }, 100);
+      }
+    } catch (error) {
+      // A warning, not an error: the sign-out itself succeeded. What failed is
+      // only that this browser goes on reporting under the old identity.
+      reportWarning('Analytics', `Failed to reset the analytics identity: ${describeCause(error)}`, { cause: error });
     }
   };
 
@@ -447,6 +496,7 @@ export function useAnalytics() {
   return {
     trackEvent,
     identifyUser,
+    resetUser,
     setUserProperties,
     syncDistinctIdToBackground: syncDistinctId,
     getDistinctId,

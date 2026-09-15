@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini генерує для аудіо співрозмовника аудіовідповіді, які відкидаються, що призводить до додаткової витрати токенів.",
     "help": "Допомога",
     "helpEmailTooltip": "Повідомити про помилку або отримати допомогу",
+    "diagnosticLogs": "Діагностичні журнали",
+    "diagnosticLogsTooltip": "Записує роботу застосунку, щоб ви могли додати журнал до повідомлення про помилку. Типово вимкнено. Поки параметр увімкнено, у заголовку вікна є кнопка «Логи», і він лишається увімкненим після перезапуску.",
     "helpDiscussions": "Обговорення",
     "helpDiscussionsTooltip": "Запити функцій, відгуки та обговорення спільноти",
     "auto": "Авто",
@@ -335,23 +337,21 @@
     "participantSource": "Джерело аудіо співрозмовника",
     "participantSourceDesc": "Виберіть, який застосунок перекладати. «Системний звук» захоплює все, що ви чуєте, включно з іграми та музикою.",
     "turnOffParticipant": "Вимкнути аудіо співрозмовника",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Відкрити Системні параметри",
+    "screenRecordingDeniedText2Named": "Перейдіть до Системних параметрів > Конфіденційність і безпека > Запис екрана та увімкніть «{{app}}».",
+    "audioCaptureDeniedText2Named": "Відкрийте Системні параметри > Конфіденційність і безпека > Лише запис системного звуку та увімкніть «{{app}}».",
     "screenRecordingHasAlternative": "Цього дозволу можна повністю уникнути: оберіть натомість конкретну програму як джерело аудіо співрозмовника. Програми з'являються в цьому списку лише поки відтворюють звук.",
     "participantSourceSwitchFailed": "Не вдалося перемкнути джерело аудіо співрозмовника. Зупиніть і запустіть сеанс, щоб змінити його.",
     "participantFellBackToSystemAudio": "Захоплення вибраного застосунку зупинилося, тому тепер перекладається весь системний звук. Виберіть застосунок знову, щоб звузити охоплення.",
     "loopbackMicNotice": "Попередження про loopback-вхід",
     "loopbackMicWarningTitle": "Цей вхід повторно захоплює те, що відтворює цей комп'ютер.",
     "loopbackMicWarningText1": "Loopback-входи, як-от \"Stereo Mix\" чи пристрій \"Monitor of ...\", записують власний звуковий вихід системи. У сесії з перекладеним мовленням Sokuji програма чула б і перекладала саму себе по колу.",
-    "loopbackMicWarningText2": "Пристрій залишається вибраним на випадок навмисної маршрутизації, але для звичайного використання виберіть фізичний мікрофон."
+    "loopbackMicWarningText2": "Пристрій залишається вибраним на випадок навмисної маршрутизації, але для звичайного використання виберіть фізичний мікрофон.",
+    "participantNoAudioYet": "З вибраного джерела звук ще не надходив. Якщо воно відтворює, а переклад не з'являється, дозвольте Sokuji в розділі Системні параметри > Конфіденційність і безпека > Лише запис системного звуку (macOS), а потім запустіть сеанс знову.",
+    "audioCaptureUnprovenNotice": "Поки нічого не захоплено",
+    "audioCaptureUnprovenTitle": "З вибраного джерела звук ще не надходив",
+    "audioCaptureUnprovenText1": "Якщо джерело відтворює, а переклад не з'являється, macOS, найімовірніше, передає тишу: для захоплення застосунку потрібен дозвіл «Лише запис системного звуку», а без нього не буде помилки, лише тиша.",
+    "audioCaptureUnprovenText3Named": "«{{app}}» з'являється в цьому списку лише після першої спроби захоплення, яка щойно відбулася. Після ввімкнення запустіть сеанс знову. Якщо джерело просто мовчало, нічого змінювати не потрібно."
   },
   "auth": {
     "signIn": "Увійти",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "На базі моделей GPT"
+      "name": "OpenAI Realtime",
+      "description": "Універсальна мовленнєва модель GPT Realtime, повністю налаштовувана"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Технологія AI від Google"
     },
     "openaiCompatible": {
-      "name": "API сумісний з OpenAI",
-      "description": "Користувацька кінцева точка сумісна з OpenAI",
+      "name": "Сумісний з OpenAI (застарілий Realtime)",
+      "description": "Стороння кінцева точка зі старим бета-протоколом Realtime від OpenAI. Не для самої OpenAI.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "Спеціалізована модель синхронного перекладу OpenAI"
+      "description": "Спеціалізована модель перекладу з автовизначенням вихідної мови"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "Перекладач GPT-Live-1, оплата за хвилину сесії, включно з тишею"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Обидва",
       "source": "Оригінал",
       "translation": "Переклад",
-      "tooltip": "{{scope}} — натисніть, щоб змінити\nПоказано: {{mode}}\n• Оригінал: лише оригінальне мовлення\n• Переклад: лише переклад\n• Обидва: обидва рядки",
-      "ariaLabel": "{{scope}}: {{mode}} — натисніть, щоб змінити"
+      "ariaLabel": "{{scope}}: {{mode}} — натисніть, щоб змінити",
+      "none": "Вимкнено",
+      "title": "{{scope}} — натисніть, щоб змінити\nПоказано: {{mode}}",
+      "legendSource": "Оригінал: лише оригінальне мовлення",
+      "legendTranslation": "Переклад: лише переклад",
+      "legendBoth": "Обидва: обидва рядки",
+      "legendNone": "Вимкнено: сховати цю сторону"
     },
     "playItemAudio": "Відтворити аудіо цього елемента",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Я",
       "speakerOther": "Співрозмовник",
       "translationSuffix": "(пер.)",
+      "scopeLabel": "Включити",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Нічого не вибрано",
       "headerTitle": "Експорт розмови Sokuji",
       "headerGenerated": "Згенеровано",
       "headerProvider": "Провайдер",
       "headerModels": "Моделі",
       "headerSource": "Моя мова",
       "headerTarget": "Мова співрозмовника",
-      "headerNote": "Примітка: налаштування відображають поточний стан на момент експорту, а не зміни під час сесії."
+      "headerNote": "Примітка: налаштування відображають поточний стан на момент експорту, а не зміни під час сесії.",
+      "headerNarrowed": "Примітка: цей експорт було звужено під час експорту — деякі рядки не включено."
     },
     "waveformOutputTooltip": "Аудіо, що передається у віртуальний мікрофон (переклад + пряма передача оригіналу)",
     "waveformMicTooltip": "Ваш мікрофон — ваш голос записується для перекладу",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Наразі Soniox працює на повну потужність. Спробуйте ще раз незабаром.",
     "sonioxBudgetExhausted": "Баланс вашого сеансу вичерпано. Поповніть баланс, щоб продовжити переклад.",
     "sonioxTtsFailed": "Голосовий переклад зупинено. Транскрибування та текстовий переклад продовжують працювати.",
+    "sonioxTtsSegmentLost": "Частину озвученого перекладу не вдалося відтворити. Транскрипція та текстовий переклад не зачеплені.",
     "sonioxSegmentEnded": "Цей сегмент завершено — торкніться «Почати сесію», щоб продовжити.",
     "sonioxConnectionLost": "З'єднання перервано — за мить торкніться «Почати сесію», щоб продовжити.",
+    "openaiLiveConnectionLost": "З'єднання перервано — за мить торкніться «Почати сесію», щоб продовжити.",
     "sonioxVoiceClipMissing": "На цьому пристрої немає запису голосу, тому цей сеанс використовує стандартний голос. Запишіть його в Налаштуваннях, щоб говорити тут своїм голосом.",
     "sonioxVoicePoolBusy": "Наразі всі місця для власних голосів зайняті, тому цей сеанс використовує стандартний голос. Ваш власний голос буде використано знову наступного разу.",
     "sonioxVoiceBuildFailed": "Ваш власний голос не вдалося створити, тому цей сеанс використовує стандартний голос. Спробуйте записати чіткіший фрагмент у Налаштуваннях.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Потребує ~{{need}} пам'яті GPU",
     "wontFit": "Не вміститься на цьому комп'ютері",
     "variantNoGpuFits": "Жоден варіант не вміщується в GPU — працюватиме на CPU.",
+    "variantRunsOnCpu": "Працює на CPU на цьому пристрої.",
     "hwFramework": "Рушій",
     "hwDevice": "Пристрій",
     "hwApi": "Прискорення",
@@ -933,7 +949,77 @@
     "unstable": "нестабільно",
     "voice": "Голос",
     "voiceBuilderClosed": "Supertone закрила сервіс Voice Builder 31 серпня 2026 року. Уже завантажені файли голосів і надалі можна імпортувати.",
-    "refreshList": "Оновити список голосів"
+    "refreshList": "Оновити список голосів",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Динаміки повертають перекладене мовлення Sokuji назад у мікрофон.",

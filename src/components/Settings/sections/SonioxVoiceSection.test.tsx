@@ -1,6 +1,8 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { resolve } from 'node:path';
+import { compile } from 'sass';
 import type { VoiceLibrarySource } from './voiceLibrarySource';
 import { SONIOX_TTS_MODEL, SONIOX_DEFAULT_VOICE } from '../../../lib/soniox/ttsCatalog';
 
@@ -68,6 +70,31 @@ function stubAudioContext(sampleRate: number, numSamples: number) {
   return mockCtx;
 }
 
+// The real constructor, captured before any test replaces it, so beforeEach can
+// put it back — only the metadata-probe tests stub it, and a leaked stub would
+// silently change how later tests reach the probe.
+const REAL_AUDIO = (globalThis as any).Audio;
+
+// Stands in for the <audio> element `probeDurationSeconds` uses to read a
+// container's duration without decoding it. Setting `src` resolves the probe
+// on a later tick, the way a real media element does: 'loadedmetadata' with
+// the given duration, or 'error' for a file the browser can't parse.
+function stubMetadataProbe(duration: number | 'error') {
+  const listeners: Record<string, Array<() => void>> = {};
+  const el: any = {
+    preload: '',
+    duration: duration === 'error' ? NaN : duration,
+    addEventListener: (k: string, fn: () => void) => { (listeners[k] ??= []).push(fn); },
+    removeAttribute: vi.fn(),
+    set src(_v: string) {
+      queueMicrotask(() => (listeners[duration === 'error' ? 'error' : 'loadedmetadata'] ?? []).forEach((fn) => fn()));
+    },
+    get src() { return ''; },
+  };
+  (window as any).Audio = function Audio() { return el; };
+  return el;
+}
+
 // jsdom's File/Blob polyfill doesn't implement `arrayBuffer()` (unlike real
 // browsers), so onImport's `file.arrayBuffer()` call throws under jsdom's
 // real File. Build a minimal File-shaped object instead — only `size`,
@@ -109,6 +136,7 @@ describe('SonioxVoiceSection', () => {
     createMock.mockReset();
     deleteMock.mockReset().mockResolvedValue(undefined);
     waitMock.mockReset();
+    (window as any).Audio = REAL_AUDIO;
     // jsdom has no URL.createObjectURL — the confirm modal's <audio> preview
     // needs it whenever a pending clip opens the modal.
     (URL as any).createObjectURL = vi.fn(() => 'blob:mock');
@@ -141,7 +169,7 @@ describe('SonioxVoiceSection', () => {
   it('renders the built-ins immediately and cloned voices after fetch', async () => {
     listMock.mockResolvedValue([cloned()]);
     const { container } = mount();
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     // Not a count either: any threshold is still a roster-size contract, and
     // which voices exist is Soniox's to change (see ttsCatalog). The property
     // is that built-ins are already rendered before the fetch settles, so the
@@ -155,7 +183,7 @@ describe('SonioxVoiceSection', () => {
     listMock.mockResolvedValue([cloned()]);
     const { container, onUpdate } = mount();
     await waitFor(() => expect(listMock).toHaveBeenCalled());
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => expect([...select.querySelectorAll('option')].some((o) => o.value === 'uuid-1')).toBe(true));
     fireEvent.change(select, { target: { value: 'uuid-1' } });
     expect(onUpdate).toHaveBeenCalledWith({ voice: 'uuid-1' });
@@ -165,7 +193,7 @@ describe('SonioxVoiceSection', () => {
     listMock.mockResolvedValue([]);
     const { container } = mount({ settings: { voice: 'gone-uuid', apiKey: 'k', targetLanguage: 'ja', ttsSpeed: 1.0 } });
     await waitFor(() => expect(listMock).toHaveBeenCalled());
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => {
       const opt = [...select.querySelectorAll('option')].find((o) => o.value === 'gone-uuid');
       expect(opt).toBeTruthy();
@@ -181,7 +209,7 @@ describe('SonioxVoiceSection', () => {
     listMock.mockResolvedValue([]);
     const { container } = mount({ settings: { voice: 'Maya', apiKey: 'k', targetLanguage: 'ja', ttsSpeed: 1.0 } });
     await waitFor(() => expect(listMock).toHaveBeenCalled());
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => {
       expect([...select.querySelectorAll('option')].some((o) => o.value === 'Maya')).toBe(true);
     });
@@ -199,7 +227,7 @@ describe('SonioxVoiceSection', () => {
   it('marks failed clones and offers no selection benefit (label carries the failed hint)', async () => {
     listMock.mockResolvedValue([cloned({ id: 'bad', name: 'Broken', models: [{ model: SONIOX_TTS_MODEL, status: 'failed' }] })]);
     const { container } = mount();
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => {
       const opt = [...select.querySelectorAll('option')].find((o) => o.value === 'bad');
       expect(opt?.textContent).toMatch(/failed/i);
@@ -219,7 +247,7 @@ describe('SonioxVoiceSection', () => {
     listMock.mockResolvedValue([cloned()]);
     const { container } = mount();
     await waitFor(() => {
-      const select = container.querySelector('select')!;
+      const select = container.querySelector('select[aria-label="Voice"]')!;
       expect([...select.querySelectorAll('option')].some((o) => o.value === 'uuid-1')).toBe(true);
     });
     openManageDetails();
@@ -238,17 +266,133 @@ describe('SonioxVoiceSection', () => {
     fireEvent.click(refreshButton);
     await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2));
     await waitFor(() => {
-      const select = container.querySelector('select')!;
+      const select = container.querySelector('select[aria-label="Voice"]')!;
       expect([...select.querySelectorAll('option')].some((o) => o.value === 'uuid-1')).toBe(true);
     });
   });
 
-  it('onImport rejects a file over 10MB before decoding, creating, or opening the modal', async () => {
+  // A class name is not a style. `.option-button` exists in Settings.scss, but
+  // only nested under `.turn-detection-options`, whose members it stretches with
+  // `flex: 1` and whose shared border the CONTAINER draws. Borrowing that class
+  // for the standalone retry button in `.setting-description` matched no rule at
+  // all, and shipped a browser-default button — invisible to TypeScript, to
+  // every render test, and to review, because the class does exist somewhere.
+  //
+  // So this asserts the pairing that actually broke, against what the browser
+  // would really receive: Settings.scss is COMPILED, and the emitted CSS must
+  // contain a selector reaching the button through the ancestors the rendered
+  // DOM actually places it under. Compiling (rather than parsing the source
+  // text) makes the check immune to how the stylesheet is formatted or nested,
+  // and it is the only evidence that answers "does the rule reach this element"
+  // — a `toContain('.' + cls)` over the source would have passed on the bug.
+  it('styles the list-error retry button where it actually lives', async () => {
+    listMock.mockRejectedValue(new Error('offline'));
+    mount();
+    const btn = await screen.findByRole('button', { name: /retry/i });
+    const cls = btn.className.trim();
+    expect(cls).toBeTruthy();
+    expect(cls).not.toBe('option-button');
+
+    // The chain is read off the real DOM, not assumed, and in ORDER: the
+    // button must sit in a `.setting-description` which itself sits in a
+    // `.settings-section`. Two independent `closest()` calls from the button
+    // would only prove both ancestors exist somewhere above it — a reversed
+    // nesting would pass them while the descendant selector below could
+    // never match. Chaining the second lookup from the first pins the order.
+    const description = btn.closest('.setting-description');
+    expect(description).not.toBeNull();
+    expect(description!.closest('.settings-section')).not.toBeNull();
+
+    const { css } = compile(resolve(__dirname, '../Settings.scss'));
+    expect(css).toMatch(new RegExp(String.raw`\.settings-section \.setting-description \.${cls}(?![\w-])`));
+  });
+
+  it('a transport failure on the readiness poll leaves only the list-error banner, with no raw fetch message', async () => {
+    // Mount and the post-create refresh both succeed; only the refresh that
+    // finishCreate runs AFTER the poll dies fails. That pins the list banner
+    // to the poll-triggered refresh specifically — with an earlier refresh
+    // failing too, the banner would already be up before the poll ran and
+    // the test would prove less than it claims. (refresh() swallows its own
+    // rejection, so an earlier failure would not have stopped the flow — it
+    // would only have muddied what the assertion is about.)
+    listMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockRejectedValue(new SonioxVoicesError('network', 'Failed to fetch', 0));
+    createMock.mockResolvedValue({ id: 'new-id', name: 'Me', models: [] });
+    waitMock.mockRejectedValue(new SonioxVoicesError('network', 'Failed to fetch', 0));
+    stubAudioContext(16000, 16000 * 5);
+    const { container } = mount({ managed: true });
+    // Managed: the manage panel renders only once the first list has settled.
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    openManageDetails();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [fakeFile('clip.wav')] } });
+    // Managed hides the name field (the backend names voices), so the modal's
+    // arrival is marked by its confirm button, not the name input.
+    const confirm = await screen.findByRole('button', { name: confirmButtonName });
+    checkConsent();
+    fireEvent.click(confirm);
+
+    // The one surface: the list banner, translated, with its retry.
+    await screen.findByText(/could not load your voice/i);
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+    // And not the other: no capture-error alert at all, and the raw fetch text
+    // never reaches the DOM.
+    await waitFor(() => expect(waitMock).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/failed to fetch/i)).toBeNull();
+  });
+
+  // The guard on the guard: a NON-transport poll outcome is not a duplicate of
+  // anything — `voice_failed` carries its own advice ("delete this voice and
+  // try a clearer clip") that the list banner does not — so it must keep its
+  // alert. Suppressing every poll failure would hide this one.
+  it('a voice_failed outcome on the readiness poll still surfaces in the capture-error alert', async () => {
+    listMock.mockResolvedValue([]);
+    createMock.mockResolvedValue({ id: 'new-id', name: 'Me', models: [] });
+    waitMock.mockRejectedValue(new SonioxVoicesError('voice_failed', 'terminal', 503));
+    stubAudioContext(16000, 16000 * 5);
+    const { container } = mount({ managed: true });
+    // Managed: the manage panel renders only once the first list has settled.
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    openManageDetails();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [fakeFile('clip.wav')] } });
+    // Managed hides the name field (the backend names voices), so the modal's
+    // arrival is marked by its confirm button, not the name input.
+    const confirm = await screen.findByRole('button', { name: confirmButtonName });
+    checkConsent();
+    fireEvent.click(confirm);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/processing failed/i));
+  });
+
+  // Reported from production 2026-09-05: a "Failed to fetch" in the
+  // capture-error alert stayed on screen after the list had reloaded fine.
+  // Nothing ever cleared it — the only `setCaptureError(null)` calls sat at
+  // the START of the next record/import/preview, so an outage message
+  // outlived the outage until the user happened to start a new capture. A
+  // successful list load is positive evidence that whatever last went wrong
+  // has been superseded, so it clears the banner.
+  it('a successful list refresh clears a stale capture-error alert', async () => {
+    listMock.mockResolvedValue([cloned()]);
+    deleteMock.mockRejectedValue(new Error('boom'));
+    mount();
+    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    openManageDetails();
+    fireEvent.click(await screen.findByRole('button', { name: /^delete$/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/boom/));
+
+    fireEvent.click(screen.getByTitle(/refresh voice list/i));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
+  it('onImport rejects a file over 35MB before decoding, creating, or opening the modal', async () => {
     listMock.mockResolvedValue([]);
     const { container } = mount();
     openManageDetails();
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-    const bigFile = fakeFile('big.wav', 11 * 1024 * 1024);
+    const bigFile = fakeFile('big.wav', 36 * 1000 * 1000);
     fireEvent.change(fileInput, { target: { files: [bigFile] } });
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/too large/i));
     expect(createMock).not.toHaveBeenCalled();
@@ -268,9 +412,9 @@ describe('SonioxVoiceSection', () => {
     expect(screen.queryByPlaceholderText(nameInputPlaceholder)).toBeNull();
   });
 
-  it('onImport rejects a decoded clip longer than 20s with the localized message, without opening the modal', async () => {
+  it('onImport rejects a decoded clip longer than 2 minutes with the localized message, without opening the modal', async () => {
     listMock.mockResolvedValue([]);
-    stubAudioContext(16000, 16000 * 25); // 25s — above the 20s maximum
+    stubAudioContext(16000, 16000 * 130); // 130s — above the 120s maximum
     const { container } = mount();
     openManageDetails();
     const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -279,6 +423,50 @@ describe('SonioxVoiceSection', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/too long/i));
     expect(createMock).not.toHaveBeenCalled();
     expect(screen.queryByPlaceholderText(nameInputPlaceholder)).toBeNull();
+  });
+
+  it('rejects an over-long import from container metadata, without ever decoding it', async () => {
+    listMock.mockResolvedValue([]);
+    // Short enough to sail through validation IF the decode were ever reached,
+    // so the assertion below can only pass via the metadata probe.
+    const ctx = stubAudioContext(44100, 44100 * 5);
+    stubMetadataProbe(8500); // ~2.4 h: what 34 MB of 32 kbps MP3 actually holds
+    const { container } = mount();
+    openManageDetails();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const longFile = new File([new Uint8Array(64)], 'podcast.mp3', { type: 'audio/mpeg' });
+    fireEvent.change(fileInput, { target: { files: [longFile] } });
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/too long/i));
+    expect(ctx.decodeAudioData).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText(nameInputPlaceholder)).toBeNull();
+  });
+
+  it('falls back to the decode when the container reports no usable duration', async () => {
+    listMock.mockResolvedValue([]);
+    const ctx = stubAudioContext(16000, 16000 * 5);
+    stubMetadataProbe('error');
+    const { container } = mount();
+    openManageDetails();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    // A REAL File, because the probe only runs on a Blob — but jsdom's Blob has
+    // no arrayBuffer(), which the decode path needs, so lend it one.
+    const file = new File([new Uint8Array(64)], 'clip.wav', { type: 'audio/wav' });
+    (file as any).arrayBuffer = async () => new ArrayBuffer(64);
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByPlaceholderText(nameInputPlaceholder)).toBeTruthy());
+    expect(ctx.decodeAudioData).toHaveBeenCalled();
+  });
+
+  it('onImport accepts a 100s clip — past the old 20s bound, inside the 2-minute one', async () => {
+    listMock.mockResolvedValue([]);
+    stubAudioContext(16000, 16000 * 100);
+    const { container } = mount();
+    openManageDetails();
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [fakeFile('clip.wav')] } });
+    await waitFor(() => expect(screen.getByPlaceholderText(nameInputPlaceholder)).toBeTruthy());
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('selecting multiple files stages only the first (single pending slot; no silent last-wins)', async () => {
@@ -341,7 +529,7 @@ describe('SonioxVoiceSection', () => {
     // The refreshed (still-processing) list is already reflected in the
     // dropdown right after close — proving refresh() landed before the close,
     // not after.
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => {
       const opt = [...select.querySelectorAll('option')].find((o) => o.value === 'new-id');
       expect(opt?.textContent).toMatch(/processing/i);
@@ -461,7 +649,7 @@ describe('SonioxVoiceSection', () => {
       cloned({ id: 'bad', name: 'Broken', models: [{ model: SONIOX_TTS_MODEL, status: 'failed' }] }),
     ]);
     const { container } = mount();
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => expect([...select.querySelectorAll('option')].some((o) => o.value === 'bad')).toBe(true));
     const byValue = (v: string) => [...select.querySelectorAll('option')].find((o) => o.value === v)!;
     expect(byValue('uuid-1').disabled).toBe(false);
@@ -474,7 +662,7 @@ describe('SonioxVoiceSection', () => {
     const onUpdate = vi.fn();
     const props = { settings: { voice: SONIOX_DEFAULT_VOICE, apiKey: 'k' }, onUpdate, source: fakeSource(), managed: false, isSessionActive: false };
     const { container, rerender } = render(<SonioxVoiceSection {...props} />);
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     await waitFor(() => expect([...select.querySelectorAll('option')].some((o) => o.value === 'uuid-1')).toBe(true));
     // A changed API key means a (possibly) different project — in production
     // this is a fresh SonioxVoicesClient instance behind a fresh memoized
@@ -553,7 +741,7 @@ describe('SonioxVoiceSection', () => {
   // voiceLibrarySource.ts's task brief), not an unnoticed regression.
   it('managed mode with no source shows a stale UUID as a disabled raw-id placeholder (pre-Task-4 state)', async () => {
     const { container } = mount({ managed: true, source: null, settings: { voice: 'stale-uuid', apiKey: '' } });
-    const select = container.querySelector('select')!;
+    const select = container.querySelector('select[aria-label="Voice"]')!;
     const opt = [...select.querySelectorAll('option')].find((o) => o.value === 'stale-uuid');
     expect(opt).toBeTruthy();
     expect(opt!.disabled).toBe(true);

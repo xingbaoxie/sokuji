@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini 會為對方音訊產生並捨棄音訊回應，因此會增加權杖用量。",
     "help": "說明",
     "helpEmailTooltip": "回報問題或取得協助",
+    "diagnosticLogs": "診斷日誌",
+    "diagnosticLogsTooltip": "記錄應用程式的執行情況，方便附在問題回報中。預設關閉；開啟後標題列會出現「日誌」按鈕，重新啟動後仍保持開啟。",
     "helpDiscussions": "討論區",
     "helpDiscussionsTooltip": "功能建議、意見回饋與社群討論",
     "auto": "自動",
@@ -335,23 +337,21 @@
     "participantSource": "對方音訊來源",
     "participantSourceDesc": "選擇要翻譯的應用程式。「系統音訊」會擷取您聽到的一切，包括遊戲和音樂。",
     "turnOffParticipant": "關閉對方音訊",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "打開系統設定",
+    "screenRecordingDeniedText2Named": "請前往「系統設定」>「隱私權與安全性」>「螢幕錄製」並啟用「{{app}}」。",
+    "audioCaptureDeniedText2Named": "請前往「系統設定」>「隱私權與安全性」>「僅系統錄音」並啟用「{{app}}」。",
     "screenRecordingHasAlternative": "您也可以完全避開這項權限：改為指定某個應用程式作為對方音訊來源。應用程式只有在正在播放音訊時才會出現在該清單中。",
     "participantSourceSwitchFailed": "無法切換對方音訊來源。請結束工作階段後重新開始以變更。",
     "participantFellBackToSystemAudio": "所選應用程式的擷取已停止，現在改為翻譯整個系統的聲音。請重新選擇該應用程式以縮小範圍。",
     "loopbackMicNotice": "環回輸入提示",
     "loopbackMicWarningTitle": "此輸入裝置會重新擷取本機正在播放的聲音。",
     "loopbackMicWarningText1": "「立體聲混音」或「Monitor of ...」這類環回輸入錄製的是系統自身的音訊輸出。在包含 Sokuji 翻譯語音的工作階段中，Sokuji 會聽到並循環翻譯自己。",
-    "loopbackMicWarningText2": "若此路由是刻意設定，裝置會保持選取；一般使用請改選實體麥克風。"
+    "loopbackMicWarningText2": "若此路由是刻意設定，裝置會保持選取；一般使用請改選實體麥克風。",
+    "participantNoAudioYet": "所選來源尚未傳來任何音訊。如果它正在播放卻沒有譯文，請在「系統設定」>「隱私權與安全性」>「僅系統錄音」中允許 Sokuji（macOS），然後重新開始。",
+    "audioCaptureUnprovenNotice": "尚未擷取到音訊",
+    "audioCaptureUnprovenTitle": "所選來源尚未傳來任何音訊",
+    "audioCaptureUnprovenText1": "如果來源正在播放卻沒有譯文，很可能是 macOS 只給出了靜音：擷取某個應用程式的音訊需要「僅系統錄音」權限，沒有該權限時不會報錯，只會是靜音。",
+    "audioCaptureUnprovenText3Named": "「{{app}}」只有在嘗試過一次擷取之後才會出現在該清單中，剛才已經嘗試過了。啟用後請重新開始。如果來源本來就是靜音的，則無需任何更改。"
   },
   "auth": {
     "signIn": "登入",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "由 GPT 模型驅動"
+      "name": "OpenAI Realtime",
+      "description": "通用 GPT Realtime 語音模型，可自由設定"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google 的 AI 技術"
     },
     "openaiCompatible": {
-      "name": "OpenAI 相容 API",
-      "description": "自訂 OpenAI 相容端點",
+      "name": "OpenAI 相容（舊版 Realtime）",
+      "description": "使用 OpenAI 舊版 beta Realtime 協定的第三方端點。不適用於 OpenAI 官方。",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI 專用的即時翻譯模型"
+      "description": "專用翻譯模型，自動辨識來源語言"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 口譯，依工作階段時長計費（含靜音）"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "兩者",
       "source": "原文",
       "translation": "譯文",
-      "tooltip": "{{scope}} — 點擊切換\n目前：{{mode}}\n• 原文：僅原始語音\n• 譯文：僅翻譯\n• 兩者：兩行都顯示",
-      "ariaLabel": "{{scope}}：{{mode}} — 點擊切換"
+      "ariaLabel": "{{scope}}：{{mode}} — 點擊切換",
+      "none": "關閉",
+      "title": "{{scope}} — 點擊切換\n目前：{{mode}}",
+      "legendSource": "原文：僅原始語音",
+      "legendTranslation": "譯文：僅翻譯",
+      "legendBoth": "兩者：兩行都顯示",
+      "legendNone": "關閉：隱藏這一側"
     },
     "playItemAudio": "播放此項目的音訊",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "我",
       "speakerOther": "對方",
       "translationSuffix": "(譯)",
+      "scopeLabel": "包含",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "未選擇任何內容",
       "headerTitle": "Sokuji 對話匯出",
       "headerGenerated": "生成時間",
       "headerProvider": "服務商",
       "headerModels": "模型",
       "headerSource": "我的語言",
       "headerTarget": "對方語言",
-      "headerNote": "注意：設定反映匯出時的當前狀態，不含會話中途的更改。"
+      "headerNote": "注意：設定反映匯出時的當前狀態，不含會話中途的更改。",
+      "headerNarrowed": "注意：本次匯出在匯出時已縮小範圍，部分內容未包含。"
     },
     "waveformOutputTooltip": "傳送到虛擬麥克風的音訊（翻譯 + 原聲直通）",
     "waveformMicTooltip": "您的麥克風 —— 正在擷取您的聲音用於翻譯",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox 目前容量已滿。請稍後再試一次。",
     "sonioxBudgetExhausted": "您的工作階段餘額已用盡。請儲值以繼續翻譯。",
     "sonioxTtsFailed": "語音翻譯已停止。轉錄與文字翻譯仍在繼續。",
+    "sonioxTtsSegmentLost": "有一段語音翻譯未能播放。轉錄和文字翻譯不受影響。",
     "sonioxSegmentEnded": "此段落已結束——點一下「開始」以繼續。",
     "sonioxConnectionLost": "連線已中斷——請稍候點一下「開始」以繼續。",
+    "openaiLiveConnectionLost": "連線已中斷——請稍候點一下「開始」以繼續。",
     "sonioxVoiceClipMissing": "此裝置沒有語音錄音，因此本次工作階段使用預設語音。請在設定中錄製一段，以便在此使用您自己的聲音。",
     "sonioxVoicePoolBusy": "目前所有自訂語音名額都在使用中，因此本次工作階段使用預設語音。您自己的語音將於下次再次使用。",
     "sonioxVoiceBuildFailed": "無法建立您的自訂語音，因此本次工作階段使用預設語音。請嘗試在設定中錄製更清晰的片段。",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "需要約 {{need}} 顯示記憶體",
     "wontFit": "本機無法執行",
     "variantNoGpuFits": "沒有適合 GPU 的版本 — 將在 CPU 上執行。",
+    "variantRunsOnCpu": "在此裝置上執行於 CPU。",
     "hwFramework": "推理引擎",
     "hwDevice": "裝置",
     "hwApi": "加速 API",
@@ -933,7 +949,77 @@
     "unstable": "不穩定",
     "voice": "語音",
     "voiceBuilderClosed": "Supertone 的 Voice Builder 服務已於 2026 年 8 月 31 日結束。已下載的語音檔案仍可匯入。",
-    "refreshList": "重新整理語音清單"
+    "refreshList": "重新整理語音清單",
+    "filter": {
+      "genderLabel": "性別",
+      "ageLabel": "年齡",
+      "accentLabel": "口音",
+      "useCaseLabel": "用途",
+      "styleLabel": "風格",
+      "anyGender": "不限性別",
+      "anyAge": "不限年齡",
+      "anyAccent": "不限口音",
+      "count": "{total} 個中的 {shown} 個",
+      "empty": "沒有符合條件的聲音。",
+      "clear": "清除篩選",
+      "gender": {
+        "male": "男聲",
+        "female": "女聲",
+        "neutral": "中性"
+      },
+      "age": {
+        "young": "年輕",
+        "middle_aged": "中年",
+        "old": "年長"
+      },
+      "accent": {
+        "african": "非洲",
+        "american": "美式",
+        "arabic": "阿拉伯",
+        "australian": "澳洲",
+        "brazilian": "巴西",
+        "british": "英式",
+        "chinese": "中文",
+        "french": "法語",
+        "german": "德語",
+        "indian": "印度",
+        "italian": "義大利",
+        "japanese": "日語",
+        "korean": "韓語",
+        "latin_american": "拉美",
+        "portuguese": "葡萄牙",
+        "slavic": "斯拉夫",
+        "southeast_asian": "東南亞",
+        "spanish": "西班牙"
+      },
+      "useCase": {
+        "conversational": "對話",
+        "educational": "講解",
+        "entertainment": "娛樂",
+        "narration": "旁白",
+        "social_media": "社群媒體"
+      },
+      "style": {
+        "breathy": "氣聲",
+        "bright": "明亮",
+        "calm": "沉穩",
+        "confident": "自信",
+        "deep": "低沉",
+        "dramatic": "戲劇化",
+        "energetic": "活力",
+        "expressive": "富有表現力",
+        "formal": "正式",
+        "friendly": "親切",
+        "neutral": "中性",
+        "playful": "俏皮",
+        "raspy": "沙啞",
+        "smooth": "流暢",
+        "soft": "柔和",
+        "warm": "溫暖"
+      },
+      "anyUseCase": "不限用途",
+      "anyStyle": "不限風格"
+    }
   },
   "echoNotice": {
     "ttsEcho": "您的喇叭正把 Sokuji 的翻譯語音送回麥克風。",

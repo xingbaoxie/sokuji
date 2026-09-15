@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Users } from 'lucide-react';
+import { SideMeIcon, SideOtherIcon } from '../Icons/SideIcons';
 import type { DisplayMode } from '../../stores/settingsStore';
 import './DisplayModeButton.scss';
 
@@ -12,10 +12,14 @@ interface DisplayModeButtonProps {
   onChange: (next: DisplayMode) => void;
 }
 
+// One accidental click from the default lands on translation-only — still the
+// thing the user came for — never on source-only, which reads as "translation
+// stopped working". none is three clicks away and one click from recovery.
 const CYCLE: Record<DisplayMode, DisplayMode> = {
-  both: 'source',
-  source: 'translation',
-  translation: 'both',
+  both: 'translation',
+  translation: 'source',
+  source: 'none',
+  none: 'both',
 };
 
 const DisplayModeButton: React.FC<DisplayModeButtonProps> = ({ scope, value, onChange }) => {
@@ -28,14 +32,20 @@ const DisplayModeButton: React.FC<DisplayModeButtonProps> = ({ scope, value, onC
   const modeLabel = useMemo(() => {
     if (value === 'both') return t('mainPanel.displayMode.both', 'Both');
     if (value === 'source') return t('mainPanel.displayMode.source', 'Src');
+    if (value === 'none') return t('mainPanel.displayMode.none', 'Off');
     return t('mainPanel.displayMode.translation', 'Trans');
   }, [value, t]);
 
-  const title = t(
-    'mainPanel.displayMode.tooltip',
-    '{{scope}} — click to change\nNow showing: {{mode}}\n• Src: only the original speech\n• Trans: only the translation\n• Both: both lines',
-    { scope: scopeLabel, mode: modeLabel },
-  );
+  // The legend is assembled from per-mode keys rather than one enumerated
+  // string, so a locale that has translated three modes does not keep showing
+  // a three-line legend after the fourth mode lands.
+  const title = [
+    t('mainPanel.displayMode.title', '{{scope}} — click to change\nNow showing: {{mode}}', { scope: scopeLabel, mode: modeLabel }),
+    '• ' + t('mainPanel.displayMode.legendSource', 'Src: only the original speech'),
+    '• ' + t('mainPanel.displayMode.legendTranslation', 'Trans: only the translation'),
+    '• ' + t('mainPanel.displayMode.legendBoth', 'Both: both lines'),
+    '• ' + t('mainPanel.displayMode.legendNone', 'Off: hide this side'),
+  ].join('\n');
   const ariaLabel = t(
     'mainPanel.displayMode.ariaLabel',
     '{{scope}}: {{mode}} — click to change',
@@ -46,17 +56,19 @@ const DisplayModeButton: React.FC<DisplayModeButtonProps> = ({ scope, value, onC
     onChange(CYCLE[value]);
   }, [onChange, value]);
 
-  const Icon = scope === 'speaker' ? User : Users;
+  const Icon = scope === 'speaker' ? SideMeIcon : SideOtherIcon;
 
   return (
     <button
       type="button"
       className="display-mode-btn"
+      data-scope={scope}
+      data-mode={value}
       onClick={handleClick}
       title={title}
       aria-label={ariaLabel}
     >
-      <Icon size={14} />
+      <Icon size={14} mode={value} />
       <span className="display-mode-label">{modeLabel}</span>
     </button>
   );

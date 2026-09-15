@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Users, ArrowLeftRight, type LucideIcon } from 'lucide-react';
+import { SideMeIcon, SideOtherIcon, SideBothIcon } from '../Icons/SideIcons';
 import './ModePicker.scss';
 
 export type FooterMode = 'speaker' | 'participant' | 'both';
@@ -14,13 +14,13 @@ interface ModePickerProps {
 
 const SEGMENTS: Array<'speaker' | 'participant' | 'both'> = ['speaker', 'participant', 'both'];
 
-// Reuse the User / Users icons from DisplayModeButton for visual consistency
-// with the subtitle display toggles. ArrowLeftRight for 'both' conveys
-// bidirectional translation.
-const SEGMENT_ICONS: Record<'speaker' | 'participant' | 'both', LucideIcon> = {
-  speaker: User,
-  participant: Users,
-  both: ArrowLeftRight,
+// The same three side glyphs the conversation toolbar's DisplayModeButton
+// uses, so the footer and the toolbar name Me / Other with one drawing. Here
+// they render in their default both form — the picker has no line state.
+const SEGMENT_ICONS: Record<'speaker' | 'participant' | 'both', React.ComponentType<{ size?: number }>> = {
+  speaker: SideMeIcon,
+  participant: SideOtherIcon,
+  both: SideBothIcon,
 };
 
 const ModePicker: React.FC<ModePickerProps> = ({ mode, locked, missingDeviceForMode, onSegmentClick }) => {

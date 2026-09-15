@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini generates audio responses for Other's audio that are discarded, resulting in additional token usage.",
     "help": "Help",
     "helpEmailTooltip": "Report bugs or get help",
+    "diagnosticLogs": "Diagnostic logs",
+    "diagnosticLogsTooltip": "Record what the app does, so you can attach it to a bug report. Off by default. While on, a “Logs” button appears in the title bar, and the setting stays on after a restart.",
     "helpDiscussions": "Discussions",
     "helpDiscussionsTooltip": "Feature requests, feedback, and community discussions",
     "auto": "Auto",
@@ -339,16 +341,14 @@
     "participantSource": "Other's Audio Source",
     "participantSourceDesc": "Choose which application to translate. System Audio captures everything you hear, including games and music.",
     "turnOffParticipant": "Turn off Other's audio",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "participantNoAudioYet": "No audio has come through from the selected source yet. If it is playing and nothing is translated, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only (macOS), then start the session again.",
+    "audioCaptureUnprovenNotice": "Nothing captured yet",
+    "audioCaptureUnprovenTitle": "No audio has come through from the selected source yet",
+    "audioCaptureUnprovenText1": "If the source is playing and nothing is translated, macOS is probably delivering silence: capturing an application needs the \"System Audio Recording Only\" permission, and without it there is no error, only silence.",
     "openSystemSettings": "Open System Settings",
     "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
     "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Start the session again after enabling it. If the source was simply silent, nothing needs to change.",
     "screenRecordingHasAlternative": "You can avoid this permission entirely: pick a specific application as Other's audio source instead. Applications only appear in that list while they are playing audio.",
     "participantSourceSwitchFailed": "Could not switch Other's audio source. Stop and start the session to change it.",
     "participantFellBackToSystemAudio": "Capture of the selected application stopped, so all system audio is being translated instead. Pick the application again to narrow it back."
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Powered by GPT models"
+      "name": "OpenAI Realtime",
+      "description": "General-purpose GPT Realtime speech model, fully configurable"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google's AI technology"
     },
     "openaiCompatible": {
-      "name": "OpenAI Compatible API",
-      "description": "Custom OpenAI-compatible endpoint",
+      "name": "OpenAI Compatible (Legacy Realtime)",
+      "description": "Third-party endpoint speaking OpenAI's older beta Realtime protocol. Not for OpenAI itself.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI's dedicated real-time translation model"
+      "description": "Dedicated translation model that auto-detects the source language"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 interpreter, billed per session minute including silence"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,7 +571,12 @@
       "both": "Both",
       "source": "Src",
       "translation": "Trans",
-      "tooltip": "{{scope}} — click to change\nNow showing: {{mode}}\n• Src: only the original speech\n• Trans: only the translation\n• Both: both lines",
+      "none": "Off",
+      "title": "{{scope}} — click to change\nNow showing: {{mode}}",
+      "legendSource": "Src: only the original speech",
+      "legendTranslation": "Trans: only the translation",
+      "legendBoth": "Both: both lines",
+      "legendNone": "Off: hide this side",
       "ariaLabel": "{{scope}}: {{mode}} — click to change"
     },
     "playItemAudio": "Play this item's audio",
@@ -583,13 +592,17 @@
       "speakerYou": "Me",
       "speakerOther": "Other",
       "translationSuffix": "(trans)",
+      "scopeLabel": "Include",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Nothing selected",
       "headerTitle": "Sokuji conversation export",
       "headerGenerated": "Generated",
       "headerProvider": "Provider",
       "headerModels": "Models",
       "headerSource": "My Language",
       "headerTarget": "Other's Language",
-      "headerNote": "Note: settings reflect current state at export, not mid-session changes."
+      "headerNote": "Note: settings reflect current state at export, not mid-session changes.",
+      "headerNarrowed": "Note: this export was narrowed at export time — some lines were left out."
     },
     "waveformOutputTooltip": "Audio sent to the virtual microphone (translation + passthrough)",
     "waveformMicTooltip": "Your microphone — your voice being captured for translation",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox is at capacity right now. Please try again shortly.",
     "sonioxBudgetExhausted": "Your session balance is used up. Top up your balance to keep translating.",
     "sonioxTtsFailed": "Spoken translation has stopped. Transcription and text translation are still running.",
+    "sonioxTtsSegmentLost": "Part of the spoken translation could not be played. Transcription and text translation are unaffected.",
     "sonioxSegmentEnded": "This segment has ended — tap Start Session to continue.",
     "sonioxConnectionLost": "The connection was interrupted — tap Start Session in a moment to continue.",
+    "openaiLiveConnectionLost": "The connection was interrupted — tap Start Session in a moment to continue.",
     "sonioxVoiceClipMissing": "This device has no voice recording, so this session uses a built-in voice. Record one in Settings to speak in your own voice here.",
     "sonioxVoicePoolBusy": "All custom voice slots are in use right now, so this session uses a built-in voice. Your own voice will be used again next time.",
     "sonioxVoiceBuildFailed": "Your custom voice could not be built, so this session uses a built-in voice. Try recording a clearer clip in Settings.",
@@ -956,6 +971,7 @@
     "variantWontFitNoMem": "Needs ~{{need}} of GPU memory",
     "wontFit": "Won't fit on this machine",
     "variantNoGpuFits": "No GPU variant fits — runs on CPU.",
+    "variantRunsOnCpu": "Runs on CPU on this machine",
     "hwFramework": "Engine",
     "hwDevice": "Device",
     "hwApi": "Acceleration",
@@ -1099,6 +1115,76 @@
     "close": "Close"
   },
   "voiceLibrary": {
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      }
+    },
     "clipSilent": "No voice detected — check your microphone and try again.",
     "clipTooLong": "Recording is too long — keep it under {seconds} seconds.",
     "clipTooShort": "Recording is too short — speak for at least {seconds} seconds.",

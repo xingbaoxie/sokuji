@@ -109,6 +109,22 @@ contextBridge.exposeInMainWorld(
         ipcRenderer.removeAllListeners(channel);
       }
     },
+    // Host facts the renderer needs for diagnostics, read straight off the
+    // preload's own `process` — no IPC channel, no round trip, available
+    // before the first frame. Measured on Electron 40.8.5 with these exact
+    // webPreferences (sandbox is on by default here): `require('os')` throws
+    // "module not found: os", but `process.getSystemVersion()` is in the
+    // sandboxed polyfill. It returns the OS version on Windows ("10.0.<build>")
+    // and macOS, and the kernel release on Linux.
+    //
+    // This is the only route to the Windows version in the desktop app:
+    // navigator.userAgentData is undefined in Electron (also measured), and
+    // navigator.userAgent is overridden with our own string in main.js.
+    osInfo: {
+      platform: process.platform,
+      arch: process.arch,
+      systemVersion: process.getSystemVersion(),
+    },
     invoke: (channel, data) => {
       if (INVOKE_CHANNELS.includes(channel)) {
         return ipcRenderer.invoke(channel, data);

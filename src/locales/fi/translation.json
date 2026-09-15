@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini tuottaa toisen äänelle äänivastauksia, jotka hylätään, mikä lisää token-kulutusta.",
     "help": "Ohje",
     "helpEmailTooltip": "Ilmoita virheistä tai pyydä apua",
+    "diagnosticLogs": "Diagnostiikkalokit",
+    "diagnosticLogsTooltip": "Tallentaa sovelluksen toiminnan, jotta voit liittää sen virheraporttiin. Oletuksena pois päältä. Kun asetus on päällä, otsikkorivillä näkyy ”Lokit”-painike, ja asetus pysyy päällä uudelleenkäynnistyksen jälkeen.",
     "helpDiscussions": "Keskustelut",
     "helpDiscussionsTooltip": "Ominaisuuspyynnöt, palaute ja yhteisökeskustelut",
     "auto": "Auto",
@@ -335,23 +337,21 @@
     "participantSource": "Toisen äänilähde",
     "participantSourceDesc": "Valitse, mikä sovellus käännetään. \"Järjestelmän ääni\" kaappaa kaiken kuulemasi, myös pelit ja musiikin.",
     "turnOffParticipant": "Sammuta toisen ääni",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Avaa Järjestelmäasetukset",
+    "screenRecordingDeniedText2Named": "Siirry kohtaan Järjestelmäasetukset > Tietosuoja ja turvallisuus > Näytön tallennus ja ota \"{{app}}\" käyttöön.",
+    "audioCaptureDeniedText2Named": "Avaa Järjestelmäasetukset > Tietosuoja ja turvallisuus > Vain järjestelmän äänen tallennus ja ota \"{{app}}\" käyttöön.",
     "screenRecordingHasAlternative": "Voit välttää tämän käyttöoikeuden kokonaan: valitse sen sijaan tietty sovellus toisen äänilähteeksi. Sovellukset näkyvät luettelossa vain, kun ne toistavat ääntä.",
     "participantSourceSwitchFailed": "Toisen äänilähdettä ei voitu vaihtaa. Pysäytä ja käynnistä istunto vaihtaaksesi sen.",
     "participantFellBackToSystemAudio": "Valitun sovelluksen kaappaus pysähtyi, joten nyt käännetään kaikki järjestelmän ääni. Rajaa takaisin valitsemalla sovellus uudelleen.",
     "loopbackMicNotice": "Loopback-tulon huomautus",
     "loopbackMicWarningTitle": "Tämä tulo tallentaa uudelleen sen, mitä tietokone toistaa.",
     "loopbackMicWarningText1": "Loopback-tulot kuten \"Stereo Mix\" tai \"Monitor of ...\" -laitteet äänittävät järjestelmän omaa äänilähtöä. Istunnossa, joka sisältää Sokujin käännetyn puheen, Sokuji kuulisi ja kääntäisi itseään silmukassa.",
-    "loopbackMicWarningText2": "Laite pysyy valittuna, jos tämä reititys on tarkoituksellinen, mutta tavalliseen käyttöön valitse fyysinen mikrofoni."
+    "loopbackMicWarningText2": "Laite pysyy valittuna, jos tämä reititys on tarkoituksellinen, mutta tavalliseen käyttöön valitse fyysinen mikrofoni.",
+    "participantNoAudioYet": "Valitusta lähteestä ei ole vielä tullut ääntä. Jos se toistaa eikä mitään käännetä, salli Sokuji kohdassa Järjestelmäasetukset > Tietosuoja ja turvallisuus > Vain järjestelmän äänen tallennus (macOS) ja aloita istunto uudelleen.",
+    "audioCaptureUnprovenNotice": "Mitään ei ole vielä kaapattu",
+    "audioCaptureUnprovenTitle": "Valitusta lähteestä ei ole vielä tullut ääntä",
+    "audioCaptureUnprovenText1": "Jos lähde toistaa eikä mitään käännetä, macOS toimittaa todennäköisesti hiljaisuutta: sovelluksen kaappaaminen vaatii käyttöoikeuden \"Vain järjestelmän äänen tallennus\", ja ilman sitä ei tule virhettä, vain hiljaisuutta.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" näkyy luettelossa vasta yhden kaappausyrityksen jälkeen, joka juuri tehtiin. Aloita istunto uudelleen, kun olet ottanut sen käyttöön. Jos lähde oli vain hiljainen, mitään ei tarvitse muuttaa."
   },
   "auth": {
     "signIn": "Kirjaudu sisään",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "GPT-mallien voimalla"
+      "name": "OpenAI Realtime",
+      "description": "Yleiskäyttöinen GPT Realtime -puhemalli, täysin muokattavissa"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Googlen tekoälyteknologia"
     },
     "openaiCompatible": {
-      "name": "OpenAI-yhteensopiva API",
-      "description": "Mukautettu OpenAI-yhteensopiva päätepiste",
+      "name": "OpenAI-yhteensopiva (vanha Realtime)",
+      "description": "Kolmannen osapuolen päätepiste, joka käyttää OpenAI:n vanhaa beta-Realtime-protokollaa. Ei OpenAI:lle itselleen.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI:n erityinen reaaliaikainen käännösmalli"
+      "description": "Erillinen käännösmalli, joka tunnistaa lähdekielen automaattisesti"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1-tulkki, laskutus istuntominuuteittain hiljaisuus mukaan lukien"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Molemmat",
       "source": "Lähde",
       "translation": "Käännös",
-      "tooltip": "{{scope}} — vaihda napsauttamalla\nNäytetään: {{mode}}\n• Lähde: vain alkuperäinen puhe\n• Käännös: vain käännös\n• Molemmat: molemmat rivit",
-      "ariaLabel": "{{scope}}: {{mode}} — vaihda napsauttamalla"
+      "ariaLabel": "{{scope}}: {{mode}} — vaihda napsauttamalla",
+      "none": "Pois",
+      "title": "{{scope}} — vaihda napsauttamalla\nNäytetään: {{mode}}",
+      "legendSource": "Lähde: vain alkuperäinen puhe",
+      "legendTranslation": "Käännös: vain käännös",
+      "legendBoth": "Molemmat: molemmat rivit",
+      "legendNone": "Pois: piilota tämä puoli"
     },
     "playItemAudio": "Toista tämän kohteen ääni",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Minä",
       "speakerOther": "Toinen",
       "translationSuffix": "(kään.)",
+      "scopeLabel": "Sisällytä",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Ei valintoja",
       "headerTitle": "Sokuji-keskustelun vienti",
       "headerGenerated": "Luotu",
       "headerProvider": "Palveluntarjoaja",
       "headerModels": "Mallit",
       "headerSource": "Minun kieleni",
       "headerTarget": "Toisen kieli",
-      "headerNote": "Huom: asetukset heijastavat tilaa viennin hetkellä, eivät istunnon aikaisia muutoksia."
+      "headerNote": "Huom: asetukset heijastavat tilaa viennin hetkellä, eivät istunnon aikaisia muutoksia.",
+      "headerNarrowed": "Huomio: tätä vientiä rajattiin vietäessä – osa riveistä jätettiin pois."
     },
     "waveformOutputTooltip": "Virtuaalimikrofoniin lähetetty ääni (käännös + alkuperäisen äänen läpivienti)",
     "waveformMicTooltip": "Mikrofonisi — äänesi, joka kaapataan käännöstä varten",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox on juuri nyt täydessä kapasiteetissa. Yritä pian uudelleen.",
     "sonioxBudgetExhausted": "Istuntosi saldo on käytetty loppuun. Lataa saldoasi jatkaaksesi kääntämistä.",
     "sonioxTtsFailed": "Puhuttu käännös on pysähtynyt. Litterointi ja tekstikäännös toimivat edelleen.",
+    "sonioxTtsSegmentLost": "Osaa puhutusta käännöksestä ei voitu toistaa. Litterointi ja tekstikäännös toimivat edelleen.",
     "sonioxSegmentEnded": "Tämä jakso on päättynyt — jatka napauttamalla ”Aloita istunto”.",
     "sonioxConnectionLost": "Yhteys katkesi — jatka hetken kuluttua napauttamalla ”Aloita istunto”.",
+    "openaiLiveConnectionLost": "Yhteys katkesi — jatka hetken kuluttua napauttamalla ”Aloita istunto”.",
     "sonioxVoiceClipMissing": "Tällä laitteella ei ole äänitallennetta, joten tämä istunto käyttää esiasetettua ääntä. Äänitä sellainen asetuksista, jotta voit puhua täällä omalla äänelläsi.",
     "sonioxVoicePoolBusy": "Kaikki mukautettujen äänten paikat ovat juuri nyt käytössä, joten tämä istunto käyttää esiasetettua ääntä. Omaa ääntäsi käytetään taas ensi kerralla.",
     "sonioxVoiceBuildFailed": "Mukautettua ääntäsi ei voitu luoda, joten tämä istunto käyttää esiasetettua ääntä. Kokeile äänittää selkeämpi näyte asetuksista.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Vaatii ~{{need}} GPU-muistia",
     "wontFit": "Ei mahdu tähän koneeseen",
     "variantNoGpuFits": "Mikään GPU-versio ei mahdu — suoritetaan CPU:lla.",
+    "variantRunsOnCpu": "Suoritetaan CPU:lla tällä koneella.",
     "hwFramework": "Moottori",
     "hwDevice": "Laite",
     "hwApi": "Kiihdytys",
@@ -933,7 +949,77 @@
     "unstable": "epävakaa",
     "voice": "Ääni",
     "voiceBuilderClosed": "Supertone sulki Voice Builder -palvelunsa 31. elokuuta 2026. Jo ladatut äänitiedostot voi edelleen tuoda.",
-    "refreshList": "Päivitä äänilista"
+    "refreshList": "Päivitä äänilista",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Kaiuttimesi syöttävät Sokujin käännetyn puheen takaisin mikrofoniin.",

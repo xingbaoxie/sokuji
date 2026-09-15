@@ -1,3 +1,7 @@
+import glob
+import os
+import pathlib
+
 import pytest
 
 from sokuji_sidecar import catalog
@@ -194,9 +198,9 @@ TTS_CARD_IDS = ("moss-tts-nano", "supertonic-3", "qwen3-tts-0.6b", "qwen3-tts-1.
                 # 2026-09-03 batch
                 "voxcpm1-0.5b", "voxcpm2", "irodori-tts-v4-small", "index-tts2.5")
 
-# The 2026-09-03 batch arrives CPU-ONLY: no entry in _TTS_TIER_OVERRIDES, so
-# _tts_gguf_row falls through to _TTS_TIERS == ("cpu",). Tier assertions below
-# split on this set rather than asserting one tier shape for every card.
+# The 2026-09-03 batch arrived CPU-ONLY and earned every tier the same evening
+# (commit 2f2b28bc, after the per-family fleet run; catalog._TTS_TIER_OVERRIDES).
+# The set is kept so the tier test below asserts that promotion explicitly, card by card.
 NEW_2026_09_03_TTS_CARD_IDS = ("voxcpm1-0.5b", "voxcpm2", "irodori-tts-v4-small", "index-tts2.5")
 
 
@@ -452,6 +456,23 @@ def test_resolve_tts_card_unknown_id_returns_none():
     assert catalog.resolve_tts_card("totally-unknown-xyz") is None
 
 
+def test_only_translategemma_uses_the_gemma_prompt_family():
+    """Pins the renderer's hardcoded copy of this family.
+
+    TranslateGemma's chat template assembles the whole instruction itself and
+    raises on a system role, so GemmaStrategy discards `system_prompt` and the
+    settings UI must not offer a custom-prompt box for it (#526). The renderer
+    cannot read `prompt_family` -- it is not on the wire -- so it pins the ids in
+    TEMPLATE_OWNS_PROMPT (src/lib/local-inference/native/nativeCatalog.ts).
+
+    If this fails because a new gemma-family card was added, update that set in
+    the same change, or the new card will silently offer a prompt box that gets
+    thrown away.
+    """
+    gemma = {m.id for m in catalog.TRANSLATE_MODELS if m.prompt_family == "gemma"}
+    assert gemma == {"translategemma-4b"}
+
+
 def test_llm_translate_rows_shape():
     m = catalog.translate_model("translategemma-4b")
     assert m is not None
@@ -535,8 +556,9 @@ def test_split_artifact():
 
 def test_all_translate_backends_installed_names():
     # Genuinely needs the sokuji-native wheel: accel._installed() only ever
-    # reports native_translate when the real probe finds it importable (slice
-    # 5 CI job runs the suite wheel-less, see test_runtime_gate.py).
+    # reports native_translate when the real probe finds it importable. The
+    # importorskip guards a dev checkout without the wheel; CI's sidecar-tests
+    # installs it from requirements.txt, so this runs there.
     pytest.importorskip("sokuji_native")
     from sokuji_sidecar import accel
     installed = accel._installed()
@@ -711,3 +733,169 @@ def test_shipped_deployments_are_all_platform():
     for m in catalog.asr_models() + catalog.translate_models() + catalog.tts_models():
         for d in m.deployments:
             assert d.platforms == ("linux", "windows", "macos"), (m.id, d.tier)
+
+
+_CACHE = os.path.expanduser("~/.cache/sokuji-native-tests")
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+def test_every_card_has_a_graph_family():
+    for m in catalog.asr_models() + catalog.translate_models() + catalog.tts_models():
+        assert m.graph_family, m.id
+
+
+def test_translate_prompt_family_unchanged_by_graph_family():
+    fams = {m.id: m.prompt_family for m in catalog.translate_models()}
+    assert fams["qwen3.5-4b"] == "qwen" and fams["eurollm-1.7b"] == "qwen" and fams["hy-mt2-7b"] == "hunyuan"
+    graph = {m.id: m.graph_family for m in catalog.translate_models()}
+    assert graph["eurollm-1.7b"] == "llama" and graph["qwen3-0.6b"] == "qwen3" and graph["translategemma-4b"] == "gemma3"
+    assert graph["qwen3.5-4b"] != "qwen"                      # a llama.cpp architecture, never the prompt family
+
+
+def test_tts_graph_family_is_the_audiocpp_family():
+    for m in catalog.tts_models():
+        assert m.graph_family == m.family
+
+
+def test_every_tts_family_has_an_op_recording():
+    """Spec A §3.3: the tts gate has teeth only where a recording exists; every shipped TTS
+    card must have one (native/src/ops/tts-<family>.ops)."""
+    for m in catalog.tts_models():
+        assert (_REPO_ROOT / "native" / "src" / "ops" / f"tts-{m.graph_family}.ops").is_file(), m.id
+
+
+@pytest.mark.skipif(not os.path.exists(f"{_CACHE}/Qwen3-0.6B-Q8_0.gguf"), reason="cached model absent")
+def test_translate_graph_family_matches_gguf_header():
+    from sokuji_sidecar import gguf_header
+    assert gguf_header.read_header(f"{_CACHE}/Qwen3-0.6B-Q8_0.gguf").architecture == catalog.translate_model("qwen3-0.6b").graph_family
+
+
+@pytest.mark.parametrize("gguf,card_id", [
+    ("whisper-tiny-Q8_0.gguf", "whisper-tiny"),
+    ("moonshine-streaming-tiny-Q8_0.gguf", "moonshine-streaming-tiny"),
+    # Two of the three archs whose Arch::name differs from their src/arch/ directory
+    # (cohere, granite, granite_nar -> cohere_asr, granite_speech, granite_speech_nar);
+    # the rows carried the directory names until 2026-09-05. granite_speech's GGUF is
+    # not in the test cache, so its rows rest on the header rule alone.
+    ("cohere-transcribe-03-2026-Q4_K_M.gguf", "cohere-transcribe-03-2026"),
+    ("granite-speech-4.1-2b-nar-Q4_K_M.gguf", "granite-speech-4.1-2b-nar"),
+])
+def test_asr_graph_family_matches_native_arch(gguf, card_id):
+    """sk_asr_caps.arch for the cached file equals the card's graph_family — the string the
+    recording is keyed by. The header half needs only the cached file (pure Python: the
+    GGUF's general.architecture IS Arch::name, transcribe.cpp strcmp's one against the
+    other at load); the load half additionally needs the wheel."""
+    from sokuji_sidecar import gguf_header
+    path = f"{_CACHE}/{gguf}"
+    if not os.path.exists(path):
+        pytest.skip("cached model absent")
+    assert gguf_header.read_header(path).architecture == catalog.asr_model(card_id).graph_family
+    sokuji_native = pytest.importorskip("sokuji_native")
+    from sokuji_sidecar import native
+    sokuji_native.init()
+    cpu = next(d for d in sokuji_native.devices() if d.kind == "cpu")
+    m = sokuji_native.asr_load(path, cpu)
+    try:
+        assert m.capabilities.arch == catalog.asr_model(card_id).graph_family
+    finally:
+        m.unload()
+
+
+def test_rung_fallback_sets_cover_cached_ggufs():
+    """Premise 7: a rung is a dtype SET. Every cached GGUF's header set — once the integer
+    index tables are filtered out, which is what accel.weight_dtypes hands the query — must be
+    within its rung's fallback set, or the pre-download answer would refuse a file it later
+    accepts. The filter is the point: the raw header sets DO carry i32/i64, and widening the
+    fallback sets to admit them instead is what made every Vulkan device refuse every TTS
+    family (a MUL_MAT/GET_ROWS with an integer src0 is a question no real graph poses)."""
+    from sokuji_sidecar import gguf_header
+    if not os.path.isdir(_CACHE):
+        pytest.skip("no cached models")
+    checked = 0
+    for path in glob.glob(f"{_CACHE}/**/*.gguf", recursive=True):
+        name = os.path.basename(path).lower().replace("-", "_")
+        rung = next((r for r in ("q4_k_m", "q5_k_m", "q6_k", "q8_0", "bf16", "f16") if r in name), None)
+        if rung is None:
+            continue
+        weights = gguf_header.read_header(path).tensor_types & catalog.WEIGHT_CAPABLE_DTYPES
+        assert weights, path
+        assert weights <= catalog.RUNG_FALLBACK_DTYPES[rung], (path, sorted(weights - catalog.RUNG_FALLBACK_DTYPES[rung]))
+        checked += 1
+    assert checked > 0
+
+
+def test_weight_capable_dtypes_excludes_every_integer_type():
+    """The predicate itself: floats and quantized types only. Derived from
+    gguf_header.GGML_TYPE_NAMES, so a new quant spelling there joins it automatically while
+    the integer index-table types and f64 stay out."""
+    from sokuji_sidecar import gguf_header
+    assert catalog.WEIGHT_CAPABLE_DTYPES.isdisjoint({"i8", "i16", "i32", "i64", "f64"})
+    assert {"f32", "f16", "bf16", "q4_K", "q8_0", "q6_K", "mxfp4", "iq4_nl", "tq1_0"} <= catalog.WEIGHT_CAPABLE_DTYPES
+    known = set(gguf_header.GGML_TYPE_NAMES.values())
+    assert catalog.WEIGHT_CAPABLE_DTYPES == known - {"i8", "i16", "i32", "i64", "f64"}
+    for rung, dts in catalog.RUNG_FALLBACK_DTYPES.items():
+        assert dts <= catalog.WEIGHT_CAPABLE_DTYPES, (rung, sorted(dts - catalog.WEIGHT_CAPABLE_DTYPES))
+
+
+def test_widest_fallback_matches_gen_ops_data():
+    """native/cmake/gen_ops_data.py's WIDEST_FALLBACK constant must equal
+    len(RUNG_FALLBACK_DTYPES["q4_k_m"]) — it is baked into the generated static_asserts at
+    build time and the two must stay in sync by hand (comment in gen_ops_data.py says so)."""
+    import re
+    text = (_REPO_ROOT / "native" / "cmake" / "gen_ops_data.py").read_text()
+    m = re.search(r"WIDEST_FALLBACK\s*=\s*(\d+)", text)
+    assert m, "WIDEST_FALLBACK constant not found in gen_ops_data.py"
+    assert int(m.group(1)) == len(catalog.RUNG_FALLBACK_DTYPES["q4_k_m"])
+
+
+# ---- Onboarding guards (2026-09-05): the two silent drops the native-onboarding doc warns
+# about are now loud. See CLAUDE.md "Adding a native model or TTS family".
+
+def test_tc_row_rejects_a_quant_key_outside_the_ladder():
+    """A mistyped rung token ("BF16", "Q4_0", "q8_0") used to be dropped from the ladder
+    without a word and surfaced only as a 404 at download time. _tc_row now raises at
+    import, which every sidecar test module hits."""
+    row = catalog._tc_row("x", "X", ("en",), "handy-computer/x-gguf", "x", 99,
+                          {"Q8_0": 10, "Q4_K_M": 5}, "Q8_0")
+    assert row.size_bytes == 10
+    assert {d.compute_type for d in row.deployments} == {"q8_0", "q4_k_m"}
+    with pytest.raises(ValueError, match="BF16"):
+        catalog._tc_row("x", "X", ("en",), "handy-computer/x-gguf", "x", 99,
+                        {"BF16": 10, "Q8_0": 10}, "Q8_0")
+    with pytest.raises(ValueError, match="q8_0"):
+        catalog._tc_row("x", "X", ("en",), "handy-computer/x-gguf", "x", 99,
+                        {"q8_0": 10}, "q8_0")
+    with pytest.raises(ValueError, match=r"include default 'Q4_K_M'; unknown=\[\]"):
+        catalog._tc_row("x", "X", ("en",), "handy-computer/x-gguf", "x", 99,
+                        {"Q8_0": 10}, "Q4_K_M")
+
+
+def test_every_shipped_rung_has_a_fallback_dtype_set():
+    """accel.weight_dtypes() falls back to {"f32"} for a compute_type with no entry in
+    RUNG_FALLBACK_DTYPES — a silently optimistic pre-download coverage query. Every rung a
+    shipped card can resolve to must therefore have an entry."""
+    cards = list(catalog.asr_models()) + list(catalog.translate_models()) + list(catalog.tts_models())
+    rungs = {d.compute_type for m in cards for d in m.deployments}
+    missing = sorted(rungs - set(catalog.RUNG_FALLBACK_DTYPES))
+    assert not missing, f"rungs without a RUNG_FALLBACK_DTYPES entry: {missing}"
+
+
+def test_divergent_arch_names_are_pinned_to_arch_name():
+    """The three transcribe.cpp architectures whose Arch::name differs from their src/arch/
+    directory. Pure and cache-free so CI's sidecar-tests runs it: it guards the five rows
+    against regressing to the directory names ("cohere", "granite", "granite_nar"). The
+    strings themselves are proven against transcribe.cpp by
+    test_asr_graph_family_matches_native_arch, which needs the cached GGUFs."""
+    expected = {
+        "cohere-transcribe-03-2026": "cohere_asr",
+        "granite-speech-4.1-2b": "granite_speech",
+        "granite-speech-4.1-2b-plus": "granite_speech",
+        "granite-4.0-1b-speech": "granite_speech",
+        "granite-speech-4.1-2b-nar": "granite_speech_nar",
+    }
+    got = {mid: catalog.asr_model(mid).graph_family for mid in expected}
+    assert got == expected
+    # And no row anywhere still carries one of the directory spellings.
+    directory_names = {"cohere", "granite", "granite_nar"}
+    offenders = sorted(m.id for m in catalog.asr_models() if m.graph_family in directory_names)
+    assert not offenders, offenders

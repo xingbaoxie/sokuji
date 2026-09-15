@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini ఇతరుల ఆడియో కోసం ఆడియో ప్రతిస్పందనలను రూపొందిస్తుంది, కానీ అవి విస్మరించబడతాయి, దీనివల్ల అదనపు టోకెన్ వినియోగం జరుగుతుంది.",
     "help": "సహాయం",
     "helpEmailTooltip": "బగ్‌లను నివేదించండి లేదా సహాయం పొందండి",
+    "diagnosticLogs": "డయాగ్నస్టిక్ లాగ్‌లు",
+    "diagnosticLogsTooltip": "బగ్ నివేదికకు జత చేయడానికి, యాప్ ఏమి చేస్తోందో నమోదు చేస్తుంది. డిఫాల్ట్‌గా ఆఫ్‌లో ఉంటుంది. ఆన్‌లో ఉన్నప్పుడు టైటిల్ బార్‌లో “లాగ్స్” బటన్ కనిపిస్తుంది, రీస్టార్ట్ తర్వాత కూడా ఆన్‌లోనే ఉంటుంది.",
     "helpDiscussions": "చర్చలు",
     "helpDiscussionsTooltip": "ఫీచర్ అభ్యర్థనలు, ఫీడ్‌బ్యాక్ మరియు కమ్యూనిటీ చర్చలు",
     "auto": "ఆటో",
@@ -335,23 +337,21 @@
     "participantSource": "ఇతరుల ఆడియో మూలం",
     "participantSourceDesc": "ఏ అప్లికేషన్‌ను అనువదించాలో ఎంచుకోండి. \"సిస్టమ్ ఆడియో\" గేమ్‌లు మరియు సంగీతంతో సహా మీరు వినే ప్రతిదాన్ని క్యాప్చర్ చేస్తుంది.",
     "turnOffParticipant": "ఇతరుల ఆడియోను ఆఫ్ చేయండి",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "సిస్టమ్ సెట్టింగ్‌లను తెరవండి",
+    "screenRecordingDeniedText2Named": "దయచేసి System Settings > Privacy & Security > Screen Recording కు వెళ్లి \"{{app}}\" ని ప్రారంభించండి.",
+    "audioCaptureDeniedText2Named": "System Settings > Privacy & Security > System Audio Recording Only ను తెరిచి \"{{app}}\" ను ప్రారంభించండి.",
     "screenRecordingHasAlternative": "మీరు ఈ అనుమతిని పూర్తిగా నివారించవచ్చు: బదులుగా ఒక నిర్దిష్ట అప్లికేషన్‌ను ఇతరుల ఆడియో మూలంగా ఎంచుకోండి. అప్లికేషన్‌లు ఆడియో ప్లే చేస్తున్నప్పుడు మాత్రమే ఆ జాబితాలో కనిపిస్తాయి.",
     "participantSourceSwitchFailed": "ఇతరుల ఆడియో మూలాన్ని మార్చలేకపోయాము. దాన్ని మార్చడానికి సెషన్‌ను ఆపి మళ్లీ ప్రారంభించండి.",
     "participantFellBackToSystemAudio": "ఎంచుకున్న అప్లికేషన్ క్యాప్చర్ ఆగిపోయింది, కాబట్టి ఇప్పుడు మొత్తం సిస్టమ్ ఆడియో అనువదించబడుతోంది. పరిధిని మళ్లీ తగ్గించడానికి అప్లికేషన్‌ను మళ్లీ ఎంచుకోండి.",
     "loopbackMicNotice": "లూప్‌బ్యాక్ ఇన్‌పుట్ గమనిక",
     "loopbackMicWarningTitle": "ఈ ఇన్‌పుట్ ఈ కంప్యూటర్ ప్లే చేస్తున్నదాన్ని మళ్లీ క్యాప్చర్ చేస్తుంది.",
     "loopbackMicWarningText1": "\"Stereo Mix\" లేదా \"Monitor of ...\" వంటి లూప్‌బ్యాక్ ఇన్‌పుట్‌లు సిస్టమ్ సొంత ఆడియో అవుట్‌పుట్‌నే రికార్డ్ చేస్తాయి. Sokuji అనువాద స్వరం ఉన్న సెషన్‌లో, Sokuji తననే విని లూప్‌లో అనువదిస్తుంది.",
-    "loopbackMicWarningText2": "ఈ రూటింగ్ ఉద్దేశపూర్వకమైతే పరికరం ఎంపికలో ఉంటుంది; సాధారణ వినియోగానికి నిజమైన మైక్రోఫోన్‌ను ఎంచుకోండి."
+    "loopbackMicWarningText2": "ఈ రూటింగ్ ఉద్దేశపూర్వకమైతే పరికరం ఎంపికలో ఉంటుంది; సాధారణ వినియోగానికి నిజమైన మైక్రోఫోన్‌ను ఎంచుకోండి.",
+    "participantNoAudioYet": "ఎంచుకున్న మూలం నుండి ఇంకా ఆడియో రాలేదు. అది ప్లే అవుతున్నా ఏమీ అనువదించబడకపోతే, System Settings > Privacy & Security > System Audio Recording Only లో Sokuji ని అనుమతించి (macOS), ఆపై సెషన్‌ను మళ్లీ ప్రారంభించండి.",
+    "audioCaptureUnprovenNotice": "ఇంకా ఏమీ క్యాప్చర్ కాలేదు",
+    "audioCaptureUnprovenTitle": "ఎంచుకున్న మూలం నుండి ఇంకా ఆడియో రాలేదు",
+    "audioCaptureUnprovenText1": "మూలం ప్లే అవుతున్నా ఏమీ అనువదించబడకపోతే, macOS బహుశా నిశ్శబ్దాన్నే అందిస్తోంది: ఒక యాప్‌ను క్యాప్చర్ చేయడానికి \"System Audio Recording Only\" అనుమతి అవసరం, అది లేకపోతే లోపం రాదు, నిశ్శబ్దం మాత్రమే ఉంటుంది.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" ఒకసారి క్యాప్చర్ చేయడానికి ప్రయత్నించిన తర్వాతే ఆ జాబితాలో కనిపిస్తుంది; అది ఇప్పుడే జరిగింది. ప్రారంభించిన తర్వాత సెషన్‌ను మళ్లీ ప్రారంభించండి. మూలం కేవలం నిశ్శబ్దంగా ఉంటే, ఏమీ మార్చాల్సిన అవసరం లేదు."
   },
   "auth": {
     "signIn": "సైన్ ఇన్",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "GPT మాడల్స్ ద్వారా సంచాలితం"
+      "name": "OpenAI Realtime",
+      "description": "సాధారణ-ప్రయోజన GPT Realtime వాక్ మోడల్, పూర్తిగా కాన్ఫిగర్ చేయదగినది"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google AI టెక్నాలజీ"
     },
     "openaiCompatible": {
-      "name": "OpenAI అనుకూల API",
-      "description": "అనుకూల OpenAI-అనుకూల ఎండ్‌పాయింట్",
+      "name": "OpenAI అనుకూలం (లెగసీ Realtime)",
+      "description": "OpenAI యొక్క పాత beta Realtime ప్రోటోకాల్‌ను ఉపయోగించే థర్డ్-పార్టీ ఎండ్‌పాయింట్. OpenAI కోసం కాదు.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI యొక్క ప్రత్యేక రియల్ టైమ్ అనువాద మోడల్"
+      "description": "మూల భాషను స్వయంచాలకంగా గుర్తించే ప్రత్యేక అనువాద మోడల్"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 అనువాదకుడు, నిశ్శబ్దంతో సహా సెషన్ నిమిషానికి బిల్లింగ్"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "రెండూ",
       "source": "మూలం",
       "translation": "అనువాదం",
-      "tooltip": "{{scope}} — మార్చడానికి క్లిక్ చేయండి\nఇప్పుడు: {{mode}}\n• మూలం: అసలు ప్రసంగం మాత్రమే\n• అనువాదం: అనువాదం మాత్రమే\n• రెండూ: రెండు వరుసలు",
-      "ariaLabel": "{{scope}}: {{mode}} — మార్చడానికి క్లిక్ చేయండి"
+      "ariaLabel": "{{scope}}: {{mode}} — మార్చడానికి క్లిక్ చేయండి",
+      "none": "ఆఫ్",
+      "title": "{{scope}} — మార్చడానికి క్లిక్ చేయండి\nఇప్పుడు: {{mode}}",
+      "legendSource": "మూలం: అసలు ప్రసంగం మాత్రమే",
+      "legendTranslation": "అనువాదం: అనువాదం మాత్రమే",
+      "legendBoth": "రెండూ: రెండు వరుసలు",
+      "legendNone": "ఆఫ్: ఈ వైపును దాచు"
     },
     "playItemAudio": "ఈ అంశం యొక్క ఆడియోను ప్లే చేయండి",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "నేను",
       "speakerOther": "ఇతరులు",
       "translationSuffix": "(అను.)",
+      "scopeLabel": "చేర్చు",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "ఏదీ ఎంపిక చేయలేదు",
       "headerTitle": "Sokuji సంభాషణ ఎగుమతి",
       "headerGenerated": "రూపొందించబడింది",
       "headerProvider": "సేవా దారుడు",
       "headerModels": "మోడళ్లు",
       "headerSource": "నా భాష",
       "headerTarget": "ఇతరుల భాష",
-      "headerNote": "గమనిక: సెట్టింగులు ఎగుమతి సమయంలో ప్రస్తుత స్థితిని ప్రతిబింబిస్తాయి, సెషన్ మధ్యలో జరిగిన మార్పులు కాదు."
+      "headerNote": "గమనిక: సెట్టింగులు ఎగుమతి సమయంలో ప్రస్తుత స్థితిని ప్రతిబింబిస్తాయి, సెషన్ మధ్యలో జరిగిన మార్పులు కాదు.",
+      "headerNarrowed": "గమనిక: ఎగుమతి సమయంలో ఈ ఎగుమతి పరిధి పరిమితం చేయబడింది — కొన్ని పంక్తులు వదిలివేయబడ్డాయి."
     },
     "waveformOutputTooltip": "వర్చువల్ మైక్రోఫోన్‌కు పంపబడే ఆడియో (అనువాదం + అసలు ఆడియో పాస్‌త్రూ)",
     "waveformMicTooltip": "మీ మైక్రోఫోన్ — అనువాదం కోసం రికార్డ్ అవుతున్న మీ వాయిస్",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox ప్రస్తుతం పూర్తి సామర్థ్యంతో పనిచేస్తోంది. దయచేసి త్వరలో మళ్ళీ ప్రయత్నించండి.",
     "sonioxBudgetExhausted": "మీ సెషన్ బ్యాలెన్స్ అయిపోయింది. అనువాదాన్ని కొనసాగించడానికి మీ బ్యాలెన్స్‌ను టాప్ అప్ చేయండి.",
     "sonioxTtsFailed": "వాయిస్ అనువాదం ఆగిపోయింది. లిప్యంతరీకరణ మరియు టెక్స్ట్ అనువాదం ఇప్పటికీ పని చేస్తున్నాయి.",
+    "sonioxTtsSegmentLost": "మాట్లాడిన అనువాదంలో ఒక భాగాన్ని ప్లే చేయలేకపోయాం. ట్రాన్స్‌క్రిప్షన్ మరియు టెక్స్ట్ అనువాదంపై ప్రభావం లేదు.",
     "sonioxSegmentEnded": "ఈ విభాగం ముగిసింది — కొనసాగించడానికి “సెషన్ ప్రారంభించు” నొక్కండి.",
     "sonioxConnectionLost": "కనెక్షన్ తెగిపోయింది — కొద్దిసేపటి తర్వాత కొనసాగించడానికి “సెషన్ ప్రారంభించు” నొక్కండి.",
+    "openaiLiveConnectionLost": "కనెక్షన్ తెగిపోయింది — కొద్దిసేపటి తర్వాత కొనసాగించడానికి “సెషన్ ప్రారంభించు” నొక్కండి.",
     "sonioxVoiceClipMissing": "ఈ పరికరంలో వాయిస్ రికార్డింగ్ లేదు, కాబట్టి ఈ సెషన్ ఒక ప్రీసెట్ వాయిస్‌ను ఉపయోగిస్తుంది. ఇక్కడ మీ స్వంత వాయిస్‌లో మాట్లాడటానికి సెట్టింగ్స్‌లో ఒకదాన్ని రికార్డ్ చేయండి.",
     "sonioxVoicePoolBusy": "ప్రస్తుతం అన్ని అనుకూల వాయిస్ స్లాట్‌లు వినియోగంలో ఉన్నాయి, కాబట్టి ఈ సెషన్ ఒక ప్రీసెట్ వాయిస్‌ను ఉపయోగిస్తుంది. తదుపరిసారి మీ స్వంత వాయిస్ మళ్ళీ ఉపయోగించబడుతుంది.",
     "sonioxVoiceBuildFailed": "మీ అనుకూల వాయిస్‌ను రూపొందించలేకపోయాము, కాబట్టి ఈ సెషన్ ఒక ప్రీసెట్ వాయిస్‌ను ఉపయోగిస్తుంది. సెట్టింగ్స్‌లో మరింత స్పష్టమైన క్లిప్‌ను రికార్డ్ చేయడానికి ప్రయత్నించండి.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "~{{need}} GPU మెమొరీ అవసరం",
     "wontFit": "ఈ మెషిన్‌లో సరిపోదు",
     "variantNoGpuFits": "ఏ GPU వేరియంట్ సరిపోదు — CPU పై నడుస్తుంది.",
+    "variantRunsOnCpu": "ఈ యంత్రంలో CPU పై నడుస్తుంది.",
     "hwFramework": "ఇంజిన్",
     "hwDevice": "పరికరం",
     "hwApi": "యాక్సిలరేషన్",
@@ -933,7 +949,77 @@
     "unstable": "అస్థిరం",
     "voice": "వాయిస్",
     "voiceBuilderClosed": "Supertone తన Voice Builder సేవను 31 ఆగస్టు 2026న నిలిపివేసింది. ఇప్పటికే డౌన్‌లోడ్ చేసిన వాయిస్ ఫైళ్లను ఇప్పటికీ దిగుమతి చేసుకోవచ్చు.",
-    "refreshList": "వాయిస్ జాబితాను రిఫ్రెష్ చేయండి"
+    "refreshList": "వాయిస్ జాబితాను రిఫ్రెష్ చేయండి",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "మీ స్పీకర్లు Sokuji అనువాద స్వరాన్ని మైక్రోఫోన్‌లోకి తిరిగి పంపుతున్నాయి.",

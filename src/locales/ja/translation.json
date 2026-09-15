@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini は相手の音声に対して音声応答を生成しますが破棄されるため、追加のトークン消費が発生します。",
     "help": "ヘルプ",
     "helpEmailTooltip": "バグの報告やヘルプの取得",
+    "diagnosticLogs": "診断ログ",
+    "diagnosticLogsTooltip": "アプリの動作を記録し、不具合報告に添付できるようにします。既定ではオフです。オンにするとタイトルバーに「ログ」ボタンが表示され、再起動後もオンのままです。",
     "helpDiscussions": "ディスカッション",
     "helpDiscussionsTooltip": "機能リクエスト、フィードバック、コミュニティでの議論",
     "auto": "自動",
@@ -335,23 +337,21 @@
     "participantSource": "相手の音声ソース",
     "participantSourceDesc": "翻訳するアプリを選択します。「システム音声」を選ぶと、ゲームや音楽を含め、聞こえているものすべてを取り込みます。",
     "turnOffParticipant": "相手の音声をオフにする",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "システム設定を開く",
+    "screenRecordingDeniedText2Named": "システム設定 > プライバシーとセキュリティ > 画面録画 で「{{app}}」を有効にしてください。",
+    "audioCaptureDeniedText2Named": "システム設定 > プライバシーとセキュリティ > システムオーディオ録音のみ を開き、「{{app}}」を有効にしてください。",
     "screenRecordingHasAlternative": "この権限を完全に回避することもできます：代わりに特定のアプリケーションを相手の音声ソースとして選んでください。アプリケーションは音声を再生している間のみ、そのリストに表示されます。",
     "participantSourceSwitchFailed": "相手の音声ソースを切り替えられませんでした。変更するにはセッションを停止して開始し直してください。",
     "participantFellBackToSystemAudio": "選択したアプリケーションのキャプチャが停止したため、代わりにシステム音声全体が翻訳されています。範囲を絞り直すには、アプリケーションをもう一度選択してください。",
     "loopbackMicNotice": "ループバック入力の注意",
     "loopbackMicWarningTitle": "この入力はこのコンピューターの再生音を再取り込みします。",
     "loopbackMicWarningText1": "「ステレオミキサー」や「Monitor of ...」のようなループバック入力は、システム自身の音声出力を録音します。Sokuji の翻訳音声を含むセッションでは、Sokuji が自分自身を聞き取り、ループ状に翻訳してしまいます。",
-    "loopbackMicWarningText2": "意図的なルーティングの場合に備えてデバイスは選択されたままにしますが、通常の利用では物理マイクを選んでください。"
+    "loopbackMicWarningText2": "意図的なルーティングの場合に備えてデバイスは選択されたままにしますが、通常の利用では物理マイクを選んでください。",
+    "participantNoAudioYet": "選択したソースからまだ音声が届いていません。再生中なのに翻訳されない場合は、システム設定 > プライバシーとセキュリティ > システムオーディオ録音のみ で Sokuji を許可し（macOS）、セッションをもう一度開始してください。",
+    "audioCaptureUnprovenNotice": "まだ音声を取得できていません",
+    "audioCaptureUnprovenTitle": "選択したソースからまだ音声が届いていません",
+    "audioCaptureUnprovenText1": "ソースが再生中なのに翻訳されない場合、macOS が無音を返している可能性があります。アプリの音声を取得するには「システムオーディオ録音のみ」の権限が必要で、権限がないとエラーは出ず、無音になるだけです。",
+    "audioCaptureUnprovenText3Named": "「{{app}}」は一度取得を試みた後にのみそのリストに表示されます（今その試行を行いました）。有効にしたら、セッションをもう一度開始してください。ソースが単に無音だっただけなら、何も変更する必要はありません。"
   },
   "auth": {
     "signIn": "サインイン",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "GPTモデル搭載"
+      "name": "OpenAI Realtime",
+      "description": "汎用 GPT Realtime 音声モデル、自由に設定可能"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "GoogleのAI技術"
     },
     "openaiCompatible": {
-      "name": "OpenAI 互換 API",
-      "description": "カスタム OpenAI 互換エンドポイント",
+      "name": "OpenAI 互換（旧 Realtime）",
+      "description": "OpenAI の旧 beta Realtime プロトコルを使うサードパーティ製エンドポイント。OpenAI 本体には非対応。",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI 専用のリアルタイム翻訳モデル"
+      "description": "翻訳専用モデル、ソース言語を自動検出"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 による通訳、セッション時間で分単位課金（無音含む）"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "両方",
       "source": "原文",
       "translation": "訳文",
-      "tooltip": "{{scope}} — クリックで切替\n現在の表示: {{mode}}\n• 原文: 元の発話のみ\n• 訳文: 翻訳のみ\n• 両方: 両方の行",
-      "ariaLabel": "{{scope}}: {{mode}} — クリックで切替"
+      "ariaLabel": "{{scope}}: {{mode}} — クリックで切替",
+      "none": "オフ",
+      "title": "{{scope}} — クリックで切替\n現在の表示: {{mode}}",
+      "legendSource": "原文: 元の発話のみ",
+      "legendTranslation": "訳文: 翻訳のみ",
+      "legendBoth": "両方: 両方の行",
+      "legendNone": "オフ: この側を非表示"
     },
     "playItemAudio": "この項目の音声を再生",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "自分",
       "speakerOther": "相手",
       "translationSuffix": "(訳)",
+      "scopeLabel": "含める",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "何も選択されていません",
       "headerTitle": "Sokuji 会話エクスポート",
       "headerGenerated": "生成日時",
       "headerProvider": "プロバイダー",
       "headerModels": "モデル",
       "headerSource": "自分の言語",
       "headerTarget": "相手の言語",
-      "headerNote": "注意: 設定はエクスポート時点の状態を反映しており、セッション中の変更は含まれません。"
+      "headerNote": "注意: 設定はエクスポート時点の状態を反映しており、セッション中の変更は含まれません。",
+      "headerNarrowed": "注: このエクスポートは書き出し時に絞り込まれています。一部の行は含まれていません。"
     },
     "waveformOutputTooltip": "仮想マイクへ送られる音声（翻訳 + パススルー）",
     "waveformMicTooltip": "あなたのマイク — 翻訳のためにキャプチャされるあなたの声",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Sonioxは現在利用が集中しています。しばらくしてからもう一度お試しください。",
     "sonioxBudgetExhausted": "セッションの残高がなくなりました。翻訳を続けるには残高をチャージしてください。",
     "sonioxTtsFailed": "音声翻訳が停止しました。文字起こしとテキスト翻訳は続いています。",
+    "sonioxTtsSegmentLost": "音声翻訳の一部を再生できませんでした。文字起こしとテキスト翻訳には影響ありません。",
     "sonioxSegmentEnded": "このセグメントは終了しました——続けるには「セッション開始」をタップしてください。",
     "sonioxConnectionLost": "接続が中断されました——少ししてから「セッション開始」をタップして続けてください。",
+    "openaiLiveConnectionLost": "接続が中断されました——少ししてから「セッション開始」をタップして続けてください。",
     "sonioxVoiceClipMissing": "この端末には音声の録音がないため、このセッションではプリセット音声を使用します。ここでご自身の声で話すには、設定で録音してください。",
     "sonioxVoicePoolBusy": "現在、カスタム音声の枠がすべて使用中のため、このセッションではプリセット音声を使用します。次回はご自身の音声が再び使用されます。",
     "sonioxVoiceBuildFailed": "カスタム音声を作成できなかったため、このセッションではプリセット音声を使用します。設定でより聞き取りやすいクリップを録音してみてください。",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "約 {{need}} のGPUメモリが必要",
     "wontFit": "このマシンでは実行できません",
     "variantNoGpuFits": "GPU に収まるバリアントがありません — CPU で実行します。",
+    "variantRunsOnCpu": "このマシンでは CPU で実行します。",
     "hwFramework": "エンジン",
     "hwDevice": "デバイス",
     "hwApi": "アクセラレーション",
@@ -933,7 +949,77 @@
     "unstable": "不安定",
     "voice": "音声",
     "voiceBuilderClosed": "Supertone の Voice Builder サービスは 2026年8月31日に終了しました。すでにダウンロード済みの音声ファイルは引き続きインポートできます。",
-    "refreshList": "音声リストを更新"
+    "refreshList": "音声リストを更新",
+    "filter": {
+      "genderLabel": "性別",
+      "ageLabel": "年齢",
+      "accentLabel": "アクセント",
+      "useCaseLabel": "用途",
+      "styleLabel": "スタイル",
+      "anyGender": "性別を問わない",
+      "anyAge": "年齢を問わない",
+      "anyAccent": "アクセントを問わない",
+      "count": "{total}件中{shown}件",
+      "empty": "条件に一致する声がありません。",
+      "clear": "条件をクリア",
+      "gender": {
+        "male": "男性",
+        "female": "女性",
+        "neutral": "中性"
+      },
+      "age": {
+        "young": "若い",
+        "middle_aged": "中年",
+        "old": "年配"
+      },
+      "accent": {
+        "african": "アフリカ系",
+        "american": "アメリカ",
+        "arabic": "アラビア語圏",
+        "australian": "オーストラリア",
+        "brazilian": "ブラジル",
+        "british": "イギリス",
+        "chinese": "中国語圏",
+        "french": "フランス",
+        "german": "ドイツ",
+        "indian": "インド",
+        "italian": "イタリア",
+        "japanese": "日本語",
+        "korean": "韓国語",
+        "latin_american": "中南米",
+        "portuguese": "ポルトガル",
+        "slavic": "スラブ系",
+        "southeast_asian": "東南アジア",
+        "spanish": "スペイン"
+      },
+      "useCase": {
+        "conversational": "会話",
+        "educational": "解説",
+        "entertainment": "エンタメ",
+        "narration": "ナレーション",
+        "social_media": "SNS"
+      },
+      "style": {
+        "breathy": "息づかい",
+        "bright": "明るい",
+        "calm": "落ち着いた",
+        "confident": "自信",
+        "deep": "低音",
+        "dramatic": "ドラマチック",
+        "energetic": "元気",
+        "expressive": "表情豊か",
+        "formal": "フォーマル",
+        "friendly": "親しみやすい",
+        "neutral": "ニュートラル",
+        "playful": "遊び心",
+        "raspy": "かすれ声",
+        "smooth": "なめらか",
+        "soft": "やわらかい",
+        "warm": "温かい"
+      },
+      "anyUseCase": "用途を問わない",
+      "anyStyle": "スタイルを問わない"
+    }
   },
   "echoNotice": {
     "ttsEcho": "スピーカーから出た Sokuji の翻訳音声がマイクに回り込んでいます。",

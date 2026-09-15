@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini অন্যের অডিওর জন্য অডিও প্রতিক্রিয়া তৈরি করে যা বাতিল করা হয়, ফলে অতিরিক্ত টোকেন খরচ হয়।",
     "help": "সাহায্য",
     "helpEmailTooltip": "বাগ রিপোর্ট করুন বা সাহায্য নিন",
+    "diagnosticLogs": "ডায়াগনস্টিক লগ",
+    "diagnosticLogsTooltip": "অ্যাপ কী করছে তা রেকর্ড করে, যাতে আপনি এটি বাগ রিপোর্টে সংযুক্ত করতে পারেন। ডিফল্টভাবে বন্ধ। চালু থাকলে শিরোনাম বারে “লগ” বোতাম দেখা যায়, এবং রিস্টার্টের পরেও এটি চালু থাকে।",
     "helpDiscussions": "আলোচনা",
     "helpDiscussionsTooltip": "ফিচার অনুরোধ, প্রতিক্রিয়া এবং কমিউনিটি আলোচনা",
     "auto": "স্বয়ংক্রিয়",
@@ -335,23 +337,21 @@
     "participantSource": "অন্যের অডিও উৎস",
     "participantSourceDesc": "কোন অ্যাপ্লিকেশন অনুবাদ করতে হবে তা বেছে নিন। \"সিস্টেম অডিও\" গেম ও গান সহ আপনি যা কিছু শোনেন সব ধারণ করে।",
     "turnOffParticipant": "অন্যের অডিও বন্ধ করুন",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "সিস্টেম সেটিংস খুলুন",
+    "screenRecordingDeniedText2Named": "অনুগ্রহ করে System Settings > Privacy & Security > Screen Recording এ যান এবং \"{{app}}\" সক্রিয় করুন।",
+    "audioCaptureDeniedText2Named": "System Settings > Privacy & Security > System Audio Recording Only খুলুন এবং \"{{app}}\" সক্রিয় করুন।",
     "screenRecordingHasAlternative": "আপনি এই অনুমতি সম্পূর্ণ এড়াতে পারেন: এর পরিবর্তে একটি নির্দিষ্ট অ্যাপ্লিকেশন অন্যের অডিও উৎস হিসেবে বেছে নিন। অ্যাপ্লিকেশনগুলি কেবল অডিও চালানোর সময়ই সেই তালিকায় দেখা যায়।",
     "participantSourceSwitchFailed": "অন্যের অডিও উৎস পরিবর্তন করা যায়নি। এটি পরিবর্তন করতে সেশন বন্ধ করে আবার শুরু করুন।",
     "participantFellBackToSystemAudio": "নির্বাচিত অ্যাপ্লিকেশনের ক্যাপচার বন্ধ হয়ে গেছে, তাই এখন পুরো সিস্টেম অডিও অনুবাদ হচ্ছে। পরিসর সীমিত করতে অ্যাপ্লিকেশনটি আবার বেছে নিন।",
     "loopbackMicNotice": "লুপব্যাক ইনপুট সতর্কতা",
     "loopbackMicWarningTitle": "এই ইনপুটটি এই কম্পিউটার যা বাজাচ্ছে তা পুনরায় ধারণ করে।",
     "loopbackMicWarningText1": "\"Stereo Mix\" বা \"Monitor of ...\" ধরনের লুপব্যাক ইনপুট সিস্টেমের নিজস্ব অডিও আউটপুট রেকর্ড করে। Sokuji-র অনূদিত কথাসহ সেশনে Sokuji নিজেকেই শুনে লুপে অনুবাদ করবে।",
-    "loopbackMicWarningText2": "এই রাউটিং ইচ্ছাকৃত হলে ডিভাইসটি নির্বাচিত থাকবে, তবে সাধারণ ব্যবহারের জন্য একটি বাস্তব মাইক্রোফোন বেছে নিন।"
+    "loopbackMicWarningText2": "এই রাউটিং ইচ্ছাকৃত হলে ডিভাইসটি নির্বাচিত থাকবে, তবে সাধারণ ব্যবহারের জন্য একটি বাস্তব মাইক্রোফোন বেছে নিন।",
+    "participantNoAudioYet": "নির্বাচিত উৎস থেকে এখনও কোনো অডিও আসেনি। এটি চলছে অথচ কিছুই অনুবাদ হচ্ছে না হলে, System Settings > Privacy & Security > System Audio Recording Only-তে Sokuji-কে অনুমতি দিন (macOS), তারপর সেশনটি আবার শুরু করুন।",
+    "audioCaptureUnprovenNotice": "এখনও কিছু ক্যাপচার হয়নি",
+    "audioCaptureUnprovenTitle": "নির্বাচিত উৎস থেকে এখনও কোনো অডিও আসেনি",
+    "audioCaptureUnprovenText1": "উৎসটি চলছে অথচ কিছুই অনুবাদ হচ্ছে না হলে, macOS সম্ভবত নীরবতা পাঠাচ্ছে: কোনো অ্যাপ ক্যাপচার করতে \"System Audio Recording Only\" অনুমতি লাগে, আর সেটি না থাকলে কোনো ত্রুটি দেখায় না, শুধু নীরবতা থাকে।",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" একবার ক্যাপচারের চেষ্টা করার পরেই ওই তালিকায় দেখা যায়, যা এইমাত্র হয়েছে। সক্রিয় করার পর সেশনটি আবার শুরু করুন। উৎসটি যদি কেবল নীরব থাকে, তাহলে কিছু বদলানোর দরকার নেই।"
   },
   "auth": {
     "signIn": "সাইন ইন",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "GPT মডেল দ্বারা চালিত"
+      "name": "OpenAI Realtime",
+      "description": "সাধারণ-উদ্দেশ্য GPT Realtime বাক মডেল, সম্পূর্ণ কনফিগারযোগ্য"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google এর AI প্রযুক্তি"
     },
     "openaiCompatible": {
-      "name": "OpenAI সামঞ্জস্যপূর্ণ API",
-      "description": "কাস্টম OpenAI-সামঞ্জস্যপূর্ণ এন্ডপয়েন্ট",
+      "name": "OpenAI সামঞ্জস্যপূর্ণ (লিগ্যাসি Realtime)",
+      "description": "OpenAI-এর পুরনো beta Realtime প্রোটোকল ব্যবহারকারী তৃতীয় পক্ষের এন্ডপয়েন্ট। OpenAI-এর নিজস্ব API-এর জন্য নয়।",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI এর ডেডিকেটেড রিয়েল-টাইম অনুবাদ মডেল"
+      "description": "নিবেদিত অনুবাদ মডেল, উৎস ভাষা স্বয়ংক্রিয়ভাবে শনাক্ত করে"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 দোভাষী, নীরবতা সহ সেশনের প্রতি মিনিটে বিল"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "উভয়",
       "source": "মূল",
       "translation": "অনুবাদ",
-      "tooltip": "{{scope}} — পরিবর্তন করতে ক্লিক করুন\nএখন দেখাচ্ছে: {{mode}}\n• মূল: শুধু মূল বক্তব্য\n• অনুবাদ: শুধু অনুবাদ\n• উভয়: উভয় লাইন",
-      "ariaLabel": "{{scope}}: {{mode}} — পরিবর্তন করতে ক্লিক করুন"
+      "ariaLabel": "{{scope}}: {{mode}} — পরিবর্তন করতে ক্লিক করুন",
+      "none": "বন্ধ",
+      "title": "{{scope}} — পরিবর্তন করতে ক্লিক করুন\nএখন দেখাচ্ছে: {{mode}}",
+      "legendSource": "মূল: শুধু মূল বক্তব্য",
+      "legendTranslation": "অনুবাদ: শুধু অনুবাদ",
+      "legendBoth": "উভয়: উভয় লাইন",
+      "legendNone": "বন্ধ: এই দিকটি লুকান"
     },
     "playItemAudio": "এই আইটেমের অডিও চালান",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "আমি",
       "speakerOther": "অন্য",
       "translationSuffix": "(অনু.)",
+      "scopeLabel": "অন্তর্ভুক্ত করুন",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "কিছুই নির্বাচিত হয়নি",
       "headerTitle": "Sokuji কথোপকথন রপ্তানি",
       "headerGenerated": "তৈরি হয়েছে",
       "headerProvider": "প্রদানকারী",
       "headerModels": "মডেল",
       "headerSource": "আমার ভাষা",
       "headerTarget": "অন্যের ভাষা",
-      "headerNote": "দ্রষ্টব্য: সেটিংস রপ্তানির সময়ের বর্তমান অবস্থা প্রতিফলিত করে, মাঝ-সেশনের পরিবর্তন নয়।"
+      "headerNote": "দ্রষ্টব্য: সেটিংস রপ্তানির সময়ের বর্তমান অবস্থা প্রতিফলিত করে, মাঝ-সেশনের পরিবর্তন নয়।",
+      "headerNarrowed": "দ্রষ্টব্য: রপ্তানির সময় এই রপ্তানির পরিসর সীমিত করা হয়েছে — কিছু লাইন বাদ দেওয়া হয়েছে।"
     },
     "waveformOutputTooltip": "ভার্চুয়াল মাইক্রোফোনে পাঠানো অডিও (অনুবাদ + পাসথ্রু)",
     "waveformMicTooltip": "আপনার মাইক্রোফোন — অনুবাদের জন্য ধারণ করা আপনার কণ্ঠস্বর",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox বর্তমানে পূর্ণ ক্ষমতায় রয়েছে। অনুগ্রহ করে শীঘ্রই আবার চেষ্টা করুন।",
     "sonioxBudgetExhausted": "আপনার সেশন ব্যালেন্স শেষ হয়ে গেছে। অনুবাদ চালিয়ে যেতে আপনার ব্যালেন্স টপ আপ করুন।",
     "sonioxTtsFailed": "কথ্য অনুবাদ বন্ধ হয়ে গেছে। প্রতিলিপি এবং লিখিত অনুবাদ এখনও চলছে।",
+    "sonioxTtsSegmentLost": "কথ্য অনুবাদের একটি অংশ চালানো যায়নি। ট্রান্সক্রিপশন ও টেক্সট অনুবাদে কোনো প্রভাব পড়েনি।",
     "sonioxSegmentEnded": "এই সেগমেন্টটি শেষ হয়েছে — চালিয়ে যেতে “সেশন শুরু করুন” ট্যাপ করুন।",
     "sonioxConnectionLost": "সংযোগ বিচ্ছিন্ন হয়েছে — কিছুক্ষণ পর চালিয়ে যেতে “সেশন শুরু করুন” ট্যাপ করুন।",
+    "openaiLiveConnectionLost": "সংযোগ বিচ্ছিন্ন হয়েছে — কিছুক্ষণ পর চালিয়ে যেতে “সেশন শুরু করুন” ট্যাপ করুন।",
     "sonioxVoiceClipMissing": "এই ডিভাইসে কোনো কণ্ঠস্বর রেকর্ডিং নেই, তাই এই সেশনে একটি প্রিসেট কণ্ঠস্বর ব্যবহৃত হচ্ছে। এখানে নিজের কণ্ঠে কথা বলতে সেটিংসে একটি রেকর্ড করুন।",
     "sonioxVoicePoolBusy": "এই মুহূর্তে সব কাস্টম কণ্ঠস্বর স্লট ব্যবহৃত হচ্ছে, তাই এই সেশনে একটি প্রিসেট কণ্ঠস্বর ব্যবহৃত হচ্ছে। পরের বার আপনার নিজের কণ্ঠস্বর আবার ব্যবহৃত হবে।",
     "sonioxVoiceBuildFailed": "আপনার কাস্টম কণ্ঠস্বর তৈরি করা যায়নি, তাই এই সেশনে একটি প্রিসেট কণ্ঠস্বর ব্যবহৃত হচ্ছে। সেটিংসে আরও স্পষ্ট একটি ক্লিপ রেকর্ড করার চেষ্টা করুন।",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "~{{need}} GPU মেমরি প্রয়োজন",
     "wontFit": "এই মেশিনে জায়গা হবে না",
     "variantNoGpuFits": "কোনো GPU ভ্যারিয়েন্ট মানানসই নয় — CPU-তে চলবে।",
+    "variantRunsOnCpu": "এই ডিভাইসে CPU-তে চলবে।",
     "hwFramework": "ইঞ্জিন",
     "hwDevice": "ডিভাইস",
     "hwApi": "অ্যাক্সিলারেশন",
@@ -933,7 +949,77 @@
     "unstable": "অস্থিতিশীল",
     "voice": "কণ্ঠস্বর",
     "voiceBuilderClosed": "Supertone ৩১ আগস্ট ২০২৬ তারিখে তাদের Voice Builder সেবা বন্ধ করেছে। আগে ডাউনলোড করা ভয়েস ফাইল এখনও ইমপোর্ট করা যাবে।",
-    "refreshList": "কণ্ঠস্বর তালিকা রিফ্রেশ করুন"
+    "refreshList": "কণ্ঠস্বর তালিকা রিফ্রেশ করুন",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "আপনার স্পিকার Sokuji-র অনূদিত কথা মাইক্রোফোনে ফিরিয়ে দিচ্ছে।",

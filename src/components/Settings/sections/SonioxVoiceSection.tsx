@@ -9,7 +9,7 @@
  *
  * Create flow: record/upload are always available once a source exists (the
  * shared voice-library look, no gating checkbox) → client-side validation
- * (upload only: ≤10 MB, decoded duration 3-20s, mirroring NativeVoiceSection's
+ * (upload only: ≤35 MB, decoded duration 3-120s, mirroring NativeVoiceSection's
  * `validateVoiceClip` pattern) → the validated/recorded clip is staged as
  * `pending` rather than uploaded immediately, which opens
  * `SonioxCloneConfirmModal` for playback + naming + the consent statement
@@ -41,8 +41,9 @@ import {
 import { synthesizeOnce } from '../../../services/clients/SonioxTtsRest';
 import { asSonioxRegion } from '../../../lib/soniox/regions';
 import { previewSampleFor } from './sonioxPreviewSample';
-import { SonioxProviderConfig, clampNumber } from '../../../services/providers/SonioxProviderConfig';
+import { clampNumber } from '../../../services/providers/SonioxProviderConfig';
 import { SONIOX_TTS_MODEL, SONIOX_DEFAULT_VOICE } from '../../../lib/soniox/ttsCatalog';
+import { SONIOX_VOICE_ROSTER } from '../../../lib/soniox/sonioxVoiceRoster';
 import {
   validateVoiceClip,
   downmixToMono,
@@ -85,14 +86,85 @@ export interface SonioxVoiceSectionProps {
   isSessionActive: boolean;
 }
 
-const BUILTIN_VOICES = new SonioxProviderConfig().getConfig().voices;
+// Read from the roster rather than the descriptor's `voices`, which projects
+// away the metadata (gender, age, accent, use-case and style tags) the facet
+// filter needs. The two are the same voices in the same order — ttsCatalog
+// derives one from the other — so selection behaviour is unchanged.
+const BUILTIN_VOICES = SONIOX_VOICE_ROSTER;
 const TTS_MODEL = SONIOX_TTS_MODEL;
 const DEFAULT_VOICE = SONIOX_DEFAULT_VOICE;
-// Reference-clip bounds Soniox enforces server-side; validated client-side on
-// upload too (mirrors NativeVoiceSection / validateVoiceClip's defaults).
+// Reference-clip bounds Soniox documents for `/v1/voices`, validated
+// client-side because the two are enforced at DIFFERENT points server-side:
+// size is rejected at upload, but duration is accepted at upload and only
+// fails later, per model, as `voice_audio_too_long` — a terminal `failed`
+// status that has already spent one of the organization's 20 voice slots and
+// a billable create. So the duration bound below is the only thing standing
+// between a too-long clip and a slot the user has to notice and clean up.
+// (These are Soniox's own numbers — deliberately NOT validateVoiceClip's
+// local-model defaults, which NativeVoiceSection keeps at 3-20s.)
 const MIN_CLIP_SECONDS = 3;
-const MAX_CLIP_SECONDS = 20;
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_CLIP_SECONDS = 120;
+// Soniox says "stay within 35 MB"; read as decimal, the smaller of the two
+// plausible readings, so we never wave through what the server would reject.
+// The bound that actually matters day to day is MAX_CLIP_SECONDS: a full
+// 2-minute capture at a 48 kHz AudioContext encodes to ~11.5 MB of PCM16 WAV,
+// so recordings clear this with room to spare and only imports can hit it.
+const MAX_UPLOAD_BYTES = 35 * 1000 * 1000;
+
+/** How long to wait for a container's metadata before giving up and letting the
+ *  decode decide. Metadata is the first few KB of the file, so this is generous. */
+const DURATION_PROBE_TIMEOUT_MS = 5_000;
+
+/** Duration from container metadata, WITHOUT decoding the audio.
+ *
+ *  `decodeAudioData` materializes the entire file as Float32 PCM: a 34 MB
+ *  32 kbps MP3 holds ~2.4 hours, which expands past 3 GB and can take the
+ *  renderer down before we ever get to reject it for length. Under the old
+ *  10 MiB size gate a file that long was refused on size alone; at 35 MB it is
+ *  not, so duration has to be knowable BEFORE the decode.
+ *
+ *  Returns null whenever the browser won't say — a non-Blob, no metadata event,
+ *  a duration of Infinity/NaN (streamed containers), or an unparseable file. The
+ *  caller then falls through to the decode, which is exactly the old behavior:
+ *  this probe can reject early, never accept early, so a browser that declines
+ *  to answer costs correctness nothing. */
+async function probeDurationSeconds(file: File): Promise<number | null> {
+  // createObjectURL is specified over Blob; test doubles and exotic File-likes
+  // are not, and calling it on one throws rather than returning null.
+  if (typeof URL.createObjectURL !== 'function' || !(file instanceof Blob)) return null;
+  let url: string;
+  try {
+    url = URL.createObjectURL(file);
+  } catch {
+    return null;
+  }
+  try {
+    return await new Promise<number | null>((resolve) => {
+      const el = new Audio();
+      el.preload = 'metadata';
+      let settled = false;
+      const finish = (v: number | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        // Stop the element from holding the (about to be revoked) URL.
+        el.removeAttribute('src');
+        resolve(v);
+      };
+      const timer = setTimeout(() => finish(null), DURATION_PROBE_TIMEOUT_MS);
+      el.addEventListener('loadedmetadata', () => {
+        const d = el.duration;
+        finish(Number.isFinite(d) && d > 0 ? d : null);
+      });
+      el.addEventListener('error', () => finish(null));
+      el.src = url;
+    });
+  } catch {
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 function isReady(v: SonioxVoice): boolean {
   return v.models?.some((m) => m.model === TTS_MODEL && m.status === 'ready') ?? false;
@@ -151,6 +223,13 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
       if (generation !== loadGeneration.current || sourceRef.current !== requestSource) return;
       setClones(voices);
       setListState('idle');
+      // A fresh, successful load supersedes whatever the capture banner was
+      // still reporting. Without this the banner had no way OFF the screen
+      // short of the user starting another record/import/preview — the only
+      // places that reset it — so an outage's "Failed to fetch" outlived the
+      // outage (seen in production, 2026-09-05). Sits after the guard above
+      // on purpose: a superseded refresh must not clear anything either.
+      setCaptureError(null);
     } catch {
       if (generation !== loadGeneration.current || sourceRef.current !== requestSource) return;
       setListState('error');
@@ -192,6 +271,11 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
       if (e.errorType === 'authentication_required') {
         return new Error(t('settings.sonioxVoiceSignInRequired', 'Sign in to build a custom voice.'));
       }
+      // Transport, not a voices-API verdict: the raw `fetch` text ("Failed to
+      // fetch") is what would otherwise reach the banner, untranslated.
+      if (e.errorType === 'network' || e.errorType === 'timeout') {
+        return new Error(t('auth.networkError', 'Network error. Please check your connection'));
+      }
       if (e.errorType === 'clip_clear_failed') {
         // Half a delete: the voice is gone, the recording it was built from
         // is not. Saying "delete failed" would be the wrong half, and saying
@@ -211,6 +295,23 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
     }
     return e instanceof Error ? e : new Error(String(e));
   };
+
+  // A failure of the CONNECTION rather than a verdict about the voice: the
+  // wire, a timeout, the backend unable to reach Soniox (`upstream_unavailable`),
+  // or a 5xx that came with no slug at all (`http_error` is what throwApiError
+  // assigns when the body names nothing — the bare-500 shape). These are the
+  // failures the list banner already reports, with its Retry, because the same
+  // fetch fails the same way.
+  //
+  // Judged by errorType, never by status alone: Soniox returns `voice_failed`
+  // — a TERMINAL verdict with its own advice — as a 503, so `status >= 500`
+  // would swallow exactly the message the user most needs to see.
+  const isTransportFailure = (e: unknown): boolean =>
+    e instanceof SonioxVoicesError &&
+    (e.errorType === 'network' ||
+      e.errorType === 'timeout' ||
+      e.errorType === 'upstream_unavailable' ||
+      (e.errorType === 'http_error' && e.status >= 500));
 
   // Separate from mapCreateError: those branches are all voices-CRUD specific
   // (name conflicts, voice quota, terminal processing failure), none of which
@@ -350,7 +451,14 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
       try {
         await finishCreate(created, createSource, selectionAtCreate);
       } catch (e) {
-        setCaptureError(mapCreateError(e).message);
+        // finishCreate's `finally` has already re-fetched the list. If the
+        // poll died of a transport failure, that refresh failed the same way
+        // and the list banner (with its Retry) is already up — painting this
+        // banner too showed the same outage twice, once as raw "Failed to
+        // fetch" (seen in production, 2026-09-05). A non-transport outcome —
+        // voice_failed, above all — is not a duplicate of anything and keeps
+        // its own advice here.
+        if (!isTransportFailure(e)) setCaptureError(mapCreateError(e).message);
       }
     } catch (e) {
       setModalError(mapCreateError(e).message);
@@ -382,7 +490,7 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
   };
 
   // Client-side upload validation (spec: "client-side decode validates
-  // 3-20s / ≤10MB via the validateVoiceClip pattern"): reject an oversize
+  // 3-120s / ≤35MB via the validateVoiceClip pattern"): reject an oversize
   // file outright (cheap, no decode needed), then decode the file to measure
   // its REAL duration — a file's extension/MIME claims nothing about actual
   // length — and run it through the same validateVoiceClip bounds
@@ -398,10 +506,21 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
         throw new Error(
           t('voiceLibrary.importError', 'Import failed: {error}').replace(
             '{error}',
-            `File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB, max ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB)`
+            // Both figures in the SAME unit as the published limit (decimal
+            // MB), so "36.0 MB, max 35 MB" reads as one comparison. Dividing
+            // the cap by 1024^2 while quoting it as "MB" would print 33.4 —
+            // a number that appears nowhere in Soniox's docs.
+            `File is too large (${(file.size / 1_000_000).toFixed(1)} MB, max ${MAX_UPLOAD_BYTES / 1_000_000} MB)`
           )
         );
       }
+      // Cheap length gate before the expensive one. Only `too_long` is worth
+      // catching here: an over-long file is precisely the one whose decode can
+      // exhaust the renderer, while a too-short or silent file is small by
+      // construction and is caught below on the decoded samples, where the
+      // measurement is exact.
+      const probed = await probeDurationSeconds(file);
+      if (probed !== null && probed > MAX_CLIP_SECONDS) throw new Error(mapClipError('too_long'));
       const arrayBuffer = await file.arrayBuffer();
       const ctx = new AudioContext();
       let buffer: AudioBuffer;
@@ -517,10 +636,22 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
 
   const entries = useMemo<VoiceEntry[]>(() => {
     const builtin: VoiceEntry[] = BUILTIN_VOICES.map((v) => ({
-      id: v.value,
-      label: v.name,
+      id: v.id,
+      label: v.id,
       group: 'builtin',
       removable: false,
+      // What the facet bar filters on, and where the one-line character
+      // description under each name comes from.
+      meta: {
+        facets: {
+          gender: v.gender,
+          age: v.age,
+          accent: v.accent,
+          useCase: v.useCase,
+          style: v.style,
+          description: v.description,
+        },
+      },
     }));
     const custom: VoiceEntry[] = clones.map((v) => ({
       id: v.id,
@@ -588,7 +719,7 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
             {managed
               ? t('settings.sonioxManagedVoiceListError', 'Could not load your voice — check your connection and try again.')
               : t('settings.sonioxVoiceListError', 'Could not load cloned voices — check the API key.')}{' '}
-            <button className="option-button" onClick={() => void refresh()}>
+            <button className="inline-action-button" onClick={() => void refresh()}>
               {t('common.retry', 'Retry')}
             </button>
           </div>
@@ -626,6 +757,9 @@ const SonioxVoiceSection: React.FC<SonioxVoiceSectionProps> = ({
         capability={{
           importModes: canCreate ? ['record', 'upload'] : [],
           curation: false,
+          // 200 built-in voices as of 2026-09-10: too many to scan in a flat
+          // dropdown, and each one carries the tags to narrow it down.
+          facetFilter: true,
           presentation: 'dropdown',
           accept: 'audio/*',
           maxClipSeconds: MAX_CLIP_SECONDS,

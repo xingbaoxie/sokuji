@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini, karşı tarafın sesi için atılan ses yanıtları üretir ve bu da ek token kullanımına yol açar.",
     "help": "Yardım",
     "helpEmailTooltip": "Hataları bildirin veya yardım alın",
+    "diagnosticLogs": "Tanılama günlükleri",
+    "diagnosticLogsTooltip": "Uygulamanın ne yaptığını kaydeder, böylece bir hata raporuna ekleyebilirsiniz. Varsayılan olarak kapalıdır. Açıkken başlık çubuğunda “Günlükler” düğmesi görünür ve ayar yeniden başlatmadan sonra da açık kalır.",
     "helpDiscussions": "Tartışmalar",
     "helpDiscussionsTooltip": "Özellik istekleri, geri bildirim ve topluluk tartışmaları",
     "auto": "Otomatik",
@@ -335,23 +337,21 @@
     "participantSource": "Karşı tarafın ses kaynağı",
     "participantSourceDesc": "Hangi uygulamanın çevrileceğini seçin. \"Sistem sesi\", oyunlar ve müzik dahil duyduğunuz her şeyi yakalar.",
     "turnOffParticipant": "Karşı tarafın sesini kapat",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Sistem Ayarları'nı Aç",
+    "screenRecordingDeniedText2Named": "Lütfen Sistem Ayarları > Gizlilik ve Güvenlik > Ekran Kaydı bölümüne gidip \"{{app}}\" uygulamasını etkinleştirin.",
+    "audioCaptureDeniedText2Named": "Sistem Ayarları > Gizlilik ve Güvenlik > Yalnızca Sistem Sesi Kaydı bölümünü açın ve \"{{app}}\" uygulamasını etkinleştirin.",
     "screenRecordingHasAlternative": "Bu izinden tamamen kaçınabilirsiniz: bunun yerine karşı tarafın ses kaynağı olarak belirli bir uygulama seçin. Uygulamalar yalnızca ses çalarken bu listede görünür.",
     "participantSourceSwitchFailed": "Karşı tarafın ses kaynağı değiştirilemedi. Değiştirmek için oturumu durdurup yeniden başlatın.",
     "participantFellBackToSystemAudio": "Seçili uygulamanın yakalaması durdu, bu yüzden artık tüm sistem sesi çevriliyor. Kapsamı yeniden daraltmak için uygulamayı tekrar seçin.",
     "loopbackMicNotice": "Loopback Girişi Bildirimi",
     "loopbackMicWarningTitle": "Bu giriş, bilgisayarın çaldığı sesi yeniden yakalar.",
     "loopbackMicWarningText1": "\"Stereo Mix\" veya \"Monitor of ...\" gibi loopback girişleri sistemin kendi ses çıkışını kaydeder. Sokuji'nin çevrilmiş sesini içeren bir oturumda Sokuji kendini duyar ve döngü hâlinde çevirir.",
-    "loopbackMicWarningText2": "Bu yönlendirme kasıtlıysa aygıt seçili kalır, ancak normal kullanım için lütfen fiziksel bir mikrofon seçin."
+    "loopbackMicWarningText2": "Bu yönlendirme kasıtlıysa aygıt seçili kalır, ancak normal kullanım için lütfen fiziksel bir mikrofon seçin.",
+    "participantNoAudioYet": "Seçilen kaynaktan henüz ses gelmedi. Kaynak oynatılıyor ve hiçbir şey çevrilmiyorsa Sistem Ayarları > Gizlilik ve Güvenlik > Yalnızca Sistem Sesi Kaydı (macOS) altında Sokuji'ye izin verin, ardından oturumu yeniden başlatın.",
+    "audioCaptureUnprovenNotice": "Henüz hiçbir şey yakalanmadı",
+    "audioCaptureUnprovenTitle": "Seçilen kaynaktan henüz ses gelmedi",
+    "audioCaptureUnprovenText1": "Kaynak oynatılıyor ve hiçbir şey çevrilmiyorsa macOS büyük olasılıkla sessizlik iletiyordur: bir uygulamayı yakalamak \"Yalnızca Sistem Sesi Kaydı\" iznini gerektirir ve bu izin olmadan hata oluşmaz, yalnızca sessizlik olur.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" bu listede yalnızca bir kez yakalama denendikten sonra görünür; bu deneme az önce yapıldı. Etkinleştirdikten sonra oturumu yeniden başlatın. Kaynak yalnızca sessizse hiçbir şeyi değiştirmeniz gerekmez."
   },
   "auth": {
     "signIn": "Giriş Yap",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "GPT modelleri ile çalışır"
+      "name": "OpenAI Realtime",
+      "description": "Genel amaçlı GPT Realtime konuşma modeli, tamamen yapılandırılabilir"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Google'un AI teknolojisi"
     },
     "openaiCompatible": {
-      "name": "OpenAI Uyumlu API",
-      "description": "Özel OpenAI uyumlu uç nokta",
+      "name": "OpenAI uyumlu (eski Realtime)",
+      "description": "OpenAI'nin eski beta Realtime protokolünü kullanan üçüncü taraf uç noktası. OpenAI'nin kendisi için değil.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAI'nin özel gerçek zamanlı çeviri modeli"
+      "description": "Kaynak dili otomatik algılayan özel çeviri modeli"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 tercüman, sessizlik dahil oturum dakikası başına ücretlendirilir"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Her ikisi",
       "source": "Orijinal",
       "translation": "Çeviri",
-      "tooltip": "{{scope}} — değiştirmek için tıklayın\nGösterilen: {{mode}}\n• Orijinal: yalnızca orijinal konuşma\n• Çeviri: yalnızca çeviri\n• Her ikisi: iki satır da",
-      "ariaLabel": "{{scope}}: {{mode}} — değiştirmek için tıklayın"
+      "ariaLabel": "{{scope}}: {{mode}} — değiştirmek için tıklayın",
+      "none": "Kapalı",
+      "title": "{{scope}} — değiştirmek için tıklayın\nGösterilen: {{mode}}",
+      "legendSource": "Orijinal: yalnızca orijinal konuşma",
+      "legendTranslation": "Çeviri: yalnızca çeviri",
+      "legendBoth": "Her ikisi: iki satır da",
+      "legendNone": "Kapalı: bu tarafı gizle"
     },
     "playItemAudio": "Bu öğenin sesini oynat",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Ben",
       "speakerOther": "Karşı taraf",
       "translationSuffix": "(çev.)",
+      "scopeLabel": "Dahil et",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Hiçbir şey seçilmedi",
       "headerTitle": "Sokuji sohbet dışa aktarma",
       "headerGenerated": "Oluşturuldu",
       "headerProvider": "Sağlayıcı",
       "headerModels": "Modeller",
       "headerSource": "Benim dilim",
       "headerTarget": "Karşı tarafın dili",
-      "headerNote": "Not: ayarlar dışa aktarma anındaki mevcut durumu yansıtır, oturum sırasındaki değişiklikleri değil."
+      "headerNote": "Not: ayarlar dışa aktarma anındaki mevcut durumu yansıtır, oturum sırasındaki değişiklikleri değil.",
+      "headerNarrowed": "Not: bu dışa aktarmanın kapsamı aktarma sırasında daraltıldı — bazı satırlar dahil edilmedi."
     },
     "waveformOutputTooltip": "Sanal mikrofona gönderilen ses (çeviri + orijinal ses geçişi)",
     "waveformMicTooltip": "Mikrofonunuz — sesiniz çeviri için kaydediliyor",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox şu anda tam kapasitede çalışıyor. Lütfen kısa süre sonra tekrar deneyin.",
     "sonioxBudgetExhausted": "Oturum bakiyeniz tükendi. Çeviriye devam etmek için bakiyenizi yükleyin.",
     "sonioxTtsFailed": "Sesli çeviri durdu. Deşifre ve metin çevirisi çalışmaya devam ediyor.",
+    "sonioxTtsSegmentLost": "Sesli çevirinin bir kısmı oynatılamadı. Deşifre ve metin çevirisi etkilenmedi.",
     "sonioxSegmentEnded": "Bu bölüm sona erdi — devam etmek için “Oturumu başlat”a dokunun.",
     "sonioxConnectionLost": "Bağlantı kesildi — devam etmek için birazdan “Oturumu başlat”a dokunun.",
+    "openaiLiveConnectionLost": "Bağlantı kesildi — devam etmek için birazdan “Oturumu başlat”a dokunun.",
     "sonioxVoiceClipMissing": "Bu cihazda ses kaydı yok, bu yüzden bu oturum hazır bir ses kullanıyor. Burada kendi sesinizle konuşmak için Ayarlar'dan bir kayıt yapın.",
     "sonioxVoicePoolBusy": "Şu anda tüm özel ses yuvaları kullanımda olduğundan bu oturum hazır bir ses kullanıyor. Kendi sesiniz bir sonraki sefer tekrar kullanılacak.",
     "sonioxVoiceBuildFailed": "Özel sesiniz oluşturulamadı, bu yüzden bu oturum hazır bir ses kullanıyor. Ayarlar'dan daha net bir kayıt yapmayı deneyin.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "~{{need}} GPU belleği gerekir",
     "wontFit": "Bu makineye sığmaz",
     "variantNoGpuFits": "GPU’ya sığan bir sürüm yok — CPU üzerinde çalışır.",
+    "variantRunsOnCpu": "Bu makinede CPU üzerinde çalışır.",
     "hwFramework": "Motor",
     "hwDevice": "Cihaz",
     "hwApi": "Hızlandırma",
@@ -933,7 +949,77 @@
     "unstable": "kararsız",
     "voice": "Ses",
     "voiceBuilderClosed": "Supertone, Voice Builder hizmetini 31 Ağustos 2026'da kapattı. Daha önce indirdiğiniz ses dosyaları yine de içe aktarılabilir.",
-    "refreshList": "Ses listesini yenile"
+    "refreshList": "Ses listesini yenile",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Hoparlörleriniz Sokuji'nin çevrilmiş sesini mikrofona geri besliyor.",

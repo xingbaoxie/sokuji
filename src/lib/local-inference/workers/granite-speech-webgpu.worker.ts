@@ -30,6 +30,7 @@ import type {
   AsrDisposeMessage,
   AsrWorkerOutMessage,
 } from '../types';
+import { acquireWebGpuAdapter, bindCheckedWebGpuAdapter } from './shaderF16Gate';
 
 // ─── ORT / Transformers.js env setup ─────────────────────────────────────────
 
@@ -172,6 +173,7 @@ let model: any = null;
 let currentTask: 'transcribe' | 'translate' = 'transcribe';
 let currentTargetLanguage: string | undefined;
 let processingVad = false;
+let pendingGraniteDecode: Promise<void> | null = null;
 
 function buildPrompt(): string {
   if (currentTask === 'translate' && currentTargetLanguage) {
@@ -181,21 +183,54 @@ function buildPrompt(): string {
   return '<|audio|>Transcribe the speech to text';
 }
 
+/**
+ * Whether this worker can run on the GPU — and, in the same step, WHICH adapter
+ * it will run on. `acquireWebGpuAdapter` remembers it on the runtime env, so the
+ * f16 gate checks the adapter the model actually loads on instead of requesting
+ * a second one that could answer differently (#513).
+ */
 async function hasWebGPU(): Promise<boolean> {
-  try {
-    const gpu = (self as any).navigator?.gpu;
-    if (!gpu) return false;
-    const adapter = await gpu.requestAdapter();
-    return !!adapter;
-  } catch {
-    return false;
-  }
+  return !!(await acquireWebGpuAdapter(env.backends.onnx));
 }
 
 // ─── Speech Segment Processing ──────────────────────────────────────────────
 
-async function runGraniteInference(audio: Float32Array, startSample: number): Promise<void> {
-  if (!processor || !model) return;
+/**
+ * Queue one speech segment for decoding, serialized behind whatever decode is already running.
+ *
+ * Callers on the VAD path fire-and-forget this (`void scheduleGraniteInference(...)`): a decode
+ * takes 0.5–2.5 s, and awaiting it inside `feedAudio` would keep `processingVad` true for that
+ * long, so every audio message arriving meanwhile would hit the guard and be dropped — on
+ * gapless audio that loses the start of the next utterance, and at the 20 s cap it loses words
+ * at every boundary (#470). Same pattern as the voxtral-3b and qwen3-asr workers
+ * (`currentDecodePromise`). Chaining on the previous promise keeps decodes strictly ordered and
+ * never overlapping on the model. The returned promise never rejects:
+ * `runGraniteInferenceSegment` reports its own errors.
+ *
+ * Overlapping VAD frames with an in-flight decode is safe only because the VAD runs on its own
+ * ORT instance (`_shared/onnxruntime-all`) while the model runs on Transformers.js's — never
+ * put a second session on the model's instance while a decode can be in flight (#469).
+ */
+function scheduleGraniteInference(audio: Float32Array, startSample: number): Promise<void> {
+  const previousGraniteDecode = pendingGraniteDecode;
+  const promise = (async () => {
+    if (previousGraniteDecode) {
+      try { await previousGraniteDecode; } catch { /* already reported */ }
+    }
+    await runGraniteInferenceSegment(audio, startSample);
+  })();
+  pendingGraniteDecode = promise;
+  return promise;
+}
+
+async function runGraniteInferenceSegment(audio: Float32Array, startSample: number): Promise<void> {
+  // Capture both references before the first await: handleDispose nulls the module globals
+  // and only then drains the decode chain, so a decode already past this guard must not read
+  // `model` / `processor` again once it has suspended — it would throw and post a spurious
+  // error. The guard in harness-consolidation.test.ts pins the captures above the first await.
+  const p = processor;
+  const m = model;
+  if (!p || !m) return;
 
   const durationMs = Math.round((audio.length / VAD_SAMPLE_RATE) * 1000);
   const startTime = performance.now();
@@ -204,16 +239,40 @@ async function runGraniteInference(audio: Float32Array, startSample: number): Pr
     const content = buildPrompt();
     const messages = [{ role: 'user', content }];
 
-    const text = processor.tokenizer.apply_chat_template(messages, {
+    const text = p.tokenizer.apply_chat_template(messages, {
       add_generation_prompt: true,
       tokenize: false,
     });
 
-    const inputs = await processor(text, audio, { sampling_rate: VAD_SAMPLE_RATE });
+    // Avoid the Granite ONNX export's block-pad reshape crash. The conformer runs
+    // block attention with context_size = 200, and the export dropped the upstream
+    // `if remainder > 0` guard on the block right-pad, so when the encoder frame
+    // count (the input_features time dim) is an exact multiple of 200 the graph pads
+    // a whole extra block and the reshape {1, T+200, 1024} -> {1, T/200, 200, 8, -1}
+    // aborts in OrtRun. The 20 s max-speech cap hits it every time (T = 1000 = 5x200);
+    // other lengths rarely. Append ~1 encoder frame of trailing silence (320 samples =
+    // 20 ms @ 16 kHz = hop 160 x 2-frame stacking) and re-featurise until the count
+    // clears the multiple. The pad falls in the segment's trailing silence, so the
+    // transcript is unaffected; one append usually suffices (T and T+1 can't both be
+    // multiples), and the 4-iteration bound guards against frame-boundary jitter.
+    const BLOCK_SIZE = 200;
+    const BLOCK_PAD_SAMPLES = 320;
+    let paddedAudio = audio;
+    let inputs = await p(text, paddedAudio, { sampling_rate: VAD_SAMPLE_RATE });
+    for (
+      let guard = 0;
+      guard < 4 && inputs.input_features.dims[1] > 0 && inputs.input_features.dims[1] % BLOCK_SIZE === 0;
+      guard++
+    ) {
+      const grown = new Float32Array(paddedAudio.length + BLOCK_PAD_SAMPLES);
+      grown.set(paddedAudio);
+      paddedAudio = grown;
+      inputs = await p(text, paddedAudio, { sampling_rate: VAD_SAMPLE_RATE });
+    }
 
     // Collect output via streamer
     let accumulated = '';
-    const streamer = new TextStreamer(processor.tokenizer, {
+    const streamer = new TextStreamer(p.tokenizer, {
       skip_prompt: true,
       skip_special_tokens: true,
       callback_function: (chunk: string) => {
@@ -221,7 +280,7 @@ async function runGraniteInference(audio: Float32Array, startSample: number): Pr
       },
     });
 
-    await model.generate({
+    await m.generate({
       ...inputs,
       max_new_tokens: 256,
       streamer,
@@ -275,7 +334,11 @@ async function feedAudio(samples: Int16Array, sampleRate: number): Promise<void>
             break;
           case Message.SpeechEnd:
             speechFramesSinceStart = 0;
-            await runGraniteInference(ev.audio, speechStartSample);
+            // Fire-and-forget: awaiting here would hold `processingVad` for the whole decode
+            // and the guard at the top of this function would drop the audio arriving
+            // meanwhile (#470). `scheduleGraniteInference` serializes decodes via
+            // `pendingGraniteDecode`.
+            void scheduleGraniteInference(ev.audio, speechStartSample);
             break;
           case Message.VADMisfire:
             speechFramesSinceStart = 0;
@@ -287,11 +350,12 @@ async function feedAudio(samples: Int16Array, sampleRate: number): Promise<void>
       if (frameProcessor.speaking) {
         speechFramesSinceStart++;
         if (speechFramesSinceStart >= maxSpeechFrames) {
+          // See the SpeechEnd case above: fire-and-forget so no audio is dropped at the cap.
           const endEvents: FrameProcessorEvent[] = [];
           frameProcessor.endSegment((ev) => endEvents.push(ev));
           for (const ev of endEvents) {
             if (ev.msg === Message.SpeechEnd) {
-              await runGraniteInference(ev.audio, speechStartSample);
+              void scheduleGraniteInference(ev.audio, speechStartSample);
             }
           }
           speechFramesSinceStart = 0;
@@ -333,6 +397,7 @@ async function handleInit(msg: GraniteSpeechInitMessage): Promise<void> {
     post({ type: 'status', message: 'Loading Granite Speech model (WebGPU)...' });
 
     processor = await AutoProcessor.from_pretrained(msg.hfModelId);
+    await bindCheckedWebGpuAdapter(env.backends.onnx, msg.dtype, 'Granite Speech');
     model = await GraniteSpeechForConditionalGeneration.from_pretrained(msg.hfModelId, {
       dtype: msg.dtype as any,
       device: 'webgpu',
@@ -372,15 +437,39 @@ async function handleFlush(): Promise<void> {
     frameProcessor.endSegment((ev) => endEvents.push(ev));
     for (const ev of endEvents) {
       if (ev.msg === Message.SpeechEnd) {
-        await runGraniteInference(ev.audio, speechStartSample);
+        void scheduleGraniteInference(ev.audio, speechStartSample);
       }
     }
+  }
+  // Drain the chain: `scheduleGraniteInference` assigns `pendingGraniteDecode` before
+  // returning, so this picks up the decode just kicked off (behind anything already queued)
+  // and the flush resolves once the utterance's text has been posted. Runs even when nothing
+  // was speaking, so a flush issued mid-decode still waits for that decode.
+  if (pendingGraniteDecode) {
+    try { await pendingGraniteDecode; } catch { /* already reported */ }
   }
 }
 
 async function handleDispose(): Promise<void> {
-  // Flush remaining speech
+  // Only reachable when the host waits for `disposed`. In the app, WorkerSession.dispose()
+  // posts `dispose` and terminates this worker on the next line, so the drain below runs in the
+  // worker harness only; Stop is meant to be immediate, and PTT release finishes an utterance
+  // through flush, not dispose.
+
+  // Flush remaining speech; handleFlush waits for that decode to finish.
   await handleFlush();
+
+  // Stop accepting new segments before touching the model: with `model` null, feedAudio
+  // returns early and a queued runGraniteInferenceSegment exits at its guard.
+  const activeModel = model;
+  model = null;
+
+  // A decode may have been queued between the flush's await and the line above; wait for it
+  // so nothing runs against a disposed model. Not redundant with the drain in handleFlush.
+  if (pendingGraniteDecode) {
+    try { await pendingGraniteDecode; } catch { /* already reported */ }
+    pendingGraniteDecode = null;
+  }
 
   frameProcessor = null;
   speechFramesSinceStart = 0;
@@ -390,9 +479,8 @@ async function handleDispose(): Promise<void> {
     vadSession = null;
   }
 
-  if (model) {
-    await model.dispose?.();
-    model = null;
+  if (activeModel) {
+    await activeModel.dispose?.();
   }
   processor = null;
   currentTask = 'transcribe';

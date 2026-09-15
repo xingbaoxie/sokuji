@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini מייצר עבור שמע הצד השני תגובות שמע שנזרקות, מה שגורם לשימוש נוסף בטוקנים.",
     "help": "עזרה",
     "helpEmailTooltip": "דווח על באגים או קבל עזרה",
+    "diagnosticLogs": "יומני אבחון",
+    "diagnosticLogsTooltip": "מתעד את פעולת האפליקציה כדי שתוכלו לצרף אותו לדיווח על באג. כבוי כברירת מחדל. כשהוא מופעל, מופיע בשורת הכותרת כפתור „יומנים”, וההגדרה נשארת פעילה גם אחרי הפעלה מחדש.",
     "helpDiscussions": "דיונים",
     "helpDiscussionsTooltip": "בקשות לתכונות, משוב ודיוני קהילה",
     "auto": "אוטומטי",
@@ -335,23 +337,21 @@
     "participantSource": "מקור השמע של הצד השני",
     "participantSourceDesc": "בחר איזו אפליקציה לתרגם. \"שמע המערכת\" לוכד את כל מה שאתה שומע, כולל משחקים ומוזיקה.",
     "turnOffParticipant": "כבה את שמע הצד השני",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "פתיחת הגדרות המערכת",
+    "screenRecordingDeniedText2Named": "אנא עברו אל הגדרות המערכת > פרטיות ואבטחה > הקלטת מסך והפעילו את \"{{app}}\".",
+    "audioCaptureDeniedText2Named": "פתחו את הגדרות המערכת > פרטיות ואבטחה > הקלטת שמע מערכת בלבד והפעילו את \"{{app}}\".",
     "screenRecordingHasAlternative": "אפשר להימנע מההרשאה הזו לגמרי: בחר במקום זאת אפליקציה מסוימת כמקור השמע של הצד השני. אפליקציות מופיעות ברשימה הזו רק בזמן שהן מנגנות שמע.",
     "participantSourceSwitchFailed": "לא ניתן היה להחליף את מקור השמע של הצד השני. עצור והתחל את המפגש כדי לשנות אותו.",
     "participantFellBackToSystemAudio": "לכידת היישום שנבחר הופסקה, ולכן כעת מתורגם כל שמע המערכת במקומו. בחרו את היישום שוב כדי לצמצם בחזרה.",
     "loopbackMicNotice": "התראת קלט Loopback",
     "loopbackMicWarningTitle": "קלט זה קולט מחדש את מה שהמחשב משמיע.",
     "loopbackMicWarningText1": "קלטי Loopback כמו \"Stereo Mix\" או התקן \"Monitor of ...\" מקליטים את פלט השמע של המערכת עצמה. בפגישה הכוללת את הדיבור המתורגם של Sokuji, התוכנה תשמע ותתרגם את עצמה בלולאה.",
-    "loopbackMicWarningText2": "ההתקן נשאר נבחר למקרה שהניתוב מכוון, אך לשימוש רגיל בחרו מיקרופון פיזי."
+    "loopbackMicWarningText2": "ההתקן נשאר נבחר למקרה שהניתוב מכוון, אך לשימוש רגיל בחרו מיקרופון פיזי.",
+    "participantNoAudioYet": "עדיין לא הגיע שמע מהמקור שנבחר. אם הוא מנגן ושום דבר לא מתורגם, אפשרו ל‑Sokuji תחת הגדרות המערכת > פרטיות ואבטחה > הקלטת שמע מערכת בלבד (macOS), ואז התחילו את ההפעלה מחדש.",
+    "audioCaptureUnprovenNotice": "עדיין לא נקלט דבר",
+    "audioCaptureUnprovenTitle": "עדיין לא הגיע שמע מהמקור שנבחר",
+    "audioCaptureUnprovenText1": "אם המקור מנגן ושום דבר לא מתורגם, macOS כנראה מספק שקט: לכידת אפליקציה דורשת את ההרשאה \"הקלטת שמע מערכת בלבד\", ובלעדיה אין שגיאה, רק שקט.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" מופיע ברשימה זו רק לאחר ניסיון לכידה אחד, שזה עתה בוצע. התחילו את ההפעלה מחדש לאחר ההפעלה של ההרשאה. אם המקור פשוט היה שקט, אין צורך לשנות דבר."
   },
   "auth": {
     "signIn": "התחבר",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "מופעל על ידי מודלי GPT"
+      "name": "OpenAI Realtime",
+      "description": "מודל דיבור GPT Realtime לשימוש כללי, ניתן להגדרה מלאה"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "טכנולוגיית בינה מלאכותית של Google"
     },
     "openaiCompatible": {
-      "name": "API תואם OpenAI",
-      "description": "נקודת קצה מותאמת אישית תואמת OpenAI",
+      "name": "תואם OpenAI (Realtime ישן)",
+      "description": "נקודת קצה של צד שלישי המשתמשת בפרוטוקול Realtime בטא הישן של OpenAI. לא מיועד ל-OpenAI עצמה.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "מודל התרגום הייעודי בזמן אמת של OpenAI"
+      "description": "מודל תרגום ייעודי שמזהה את שפת המקור אוטומטית"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "מתורגמן GPT-Live-1, חיוב לפי דקת שיחה כולל שקט"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "שניהם",
       "source": "מקור",
       "translation": "תרגום",
-      "tooltip": "{{scope}} — לחץ כדי לשנות\nמוצג כעת: {{mode}}\n• מקור: רק הדיבור המקורי\n• תרגום: רק התרגום\n• שניהם: שתי השורות",
-      "ariaLabel": "{{scope}}: {{mode}} — לחץ כדי לשנות"
+      "ariaLabel": "{{scope}}: {{mode}} — לחץ כדי לשנות",
+      "none": "כבוי",
+      "title": "{{scope}} — לחץ כדי לשנות\nמוצג כעת: {{mode}}",
+      "legendSource": "מקור: רק הדיבור המקורי",
+      "legendTranslation": "תרגום: רק התרגום",
+      "legendBoth": "שניהם: שתי השורות",
+      "legendNone": "כבוי: הסתר צד זה"
     },
     "playItemAudio": "הפעל את השמע של פריט זה",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "אני",
       "speakerOther": "הצד השני",
       "translationSuffix": "(תרג.)",
+      "scopeLabel": "לכלול",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "לא נבחר דבר",
       "headerTitle": "ייצוא שיחת Sokuji",
       "headerGenerated": "נוצר",
       "headerProvider": "ספק",
       "headerModels": "מודלים",
       "headerSource": "השפה שלי",
       "headerTarget": "שפת הצד השני",
-      "headerNote": "הערה: ההגדרות משקפות את המצב הנוכחי בעת הייצוא, לא שינויים שבוצעו במהלך הסשן."
+      "headerNote": "הערה: ההגדרות משקפות את המצב הנוכחי בעת הייצוא, לא שינויים שבוצעו במהלך הסשן.",
+      "headerNarrowed": "הערה: ייצוא זה צומצם בעת הייצוא — חלק מהשורות הושמטו."
     },
     "waveformOutputTooltip": "השמע שנשלח למיקרופון הווירטואלי (תרגום + העברת שמע מקורי)",
     "waveformMicTooltip": "המיקרופון שלך — הקול שלך שנקלט לתרגום",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox פועל כרגע בקיבולת מלאה. אנא נסו שוב בקרוב.",
     "sonioxBudgetExhausted": "יתרת ההפעלה שלכם נוצלה במלואה. טענו את היתרה שלכם כדי להמשיך לתרגם.",
     "sonioxTtsFailed": "התרגום המדובר הופסק. התמלול ותרגום הטקסט ממשיכים לפעול.",
+    "sonioxTtsSegmentLost": "לא ניתן היה להשמיע חלק מהתרגום הקולי. התמלול ותרגום הטקסט לא הושפעו.",
     "sonioxSegmentEnded": "קטע זה הסתיים — הקישו על \"התחל הפעלה\" כדי להמשיך.",
     "sonioxConnectionLost": "החיבור נותק — הקישו על \"התחל הפעלה\" בעוד רגע כדי להמשיך.",
+    "openaiLiveConnectionLost": "החיבור נותק — הקישו על \"התחל הפעלה\" בעוד רגע כדי להמשיך.",
     "sonioxVoiceClipMissing": "למכשיר הזה אין הקלטת קול, ולכן ההפעלה הזו משתמשת בקול מוגדר מראש. הקליטו אחת בהגדרות כדי לדבר כאן בקול שלכם.",
     "sonioxVoicePoolBusy": "כל המקומות לקולות מותאמים אישית תפוסים כרגע, ולכן ההפעלה הזו משתמשת בקול מוגדר מראש. הקול שלכם ישמש שוב בפעם הבאה.",
     "sonioxVoiceBuildFailed": "לא ניתן היה לבנות את הקול המותאם אישית שלכם, ולכן ההפעלה הזו משתמשת בקול מוגדר מראש. נסו להקליט קטע ברור יותר בהגדרות.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "דורש ~{{need}} מזיכרון GPU",
     "wontFit": "לא יתאים למחשב זה",
     "variantNoGpuFits": "אף גרסה לא מתאימה ל-GPU — יופעל על המעבד.",
+    "variantRunsOnCpu": "פועל על המעבד במחשב זה.",
     "hwFramework": "מנוע",
     "hwDevice": "התקן",
     "hwApi": "האצה",
@@ -933,7 +949,77 @@
     "unstable": "לא יציב",
     "voice": "קול",
     "voiceBuilderClosed": "Supertone סגרה את שירות Voice Builder ב-31 באוגוסט 2026. קובצי קול שכבר הורדתם עדיין ניתנים לייבוא.",
-    "refreshList": "רענן את רשימת הקולות"
+    "refreshList": "רענן את רשימת הקולות",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "הרמקולים שלך מחזירים את הדיבור המתורגם של Sokuji אל המיקרופון.",

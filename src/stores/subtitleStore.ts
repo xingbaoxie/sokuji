@@ -4,7 +4,8 @@ import { useShallow } from 'zustand/shallow';
 import { ServiceFactory } from '../services/ServiceFactory';
 import { persistSetting } from '../services/persistSetting';
 
-export type DisplayMode = 'source' | 'translation' | 'both';
+// Mirror of settingsStore's DisplayMode — change both together.
+export type DisplayMode = 'source' | 'translation' | 'both' | 'none';
 
 export interface SubtitleWindowBounds {
   x: number;

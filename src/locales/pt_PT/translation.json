@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "O Gemini gera para o áudio do outro respostas de áudio que são descartadas, resultando numa utilização adicional de tokens.",
     "help": "Ajuda",
     "helpEmailTooltip": "Comunicar erros ou obter ajuda",
+    "diagnosticLogs": "Registos de diagnóstico",
+    "diagnosticLogsTooltip": "Regista o que a aplicação faz, para que possa anexá-lo a um relatório de erro. Desativado por predefinição. Enquanto estiver ativado, aparece o botão «Registos» na barra de título, e a opção mantém-se ativa após reiniciar.",
     "helpDiscussions": "Discussões",
     "helpDiscussionsTooltip": "Pedidos de funcionalidades, comentários e discussões da comunidade",
     "auto": "Auto",
@@ -335,23 +337,21 @@
     "participantSource": "Fonte de áudio do outro",
     "participantSourceDesc": "Escolha que aplicação traduzir. \"Áudio do sistema\" capta tudo o que ouve, incluindo jogos e músicas.",
     "turnOffParticipant": "Desativar o áudio do outro",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Abrir Definições do Sistema",
+    "screenRecordingDeniedText2Named": "Aceda a Definições do Sistema > Privacidade e Segurança > Gravação de Ecrã e ative \"{{app}}\".",
+    "audioCaptureDeniedText2Named": "Abra Definições do Sistema > Privacidade e Segurança > Apenas gravação de áudio do sistema e ative \"{{app}}\".",
     "screenRecordingHasAlternative": "Pode evitar totalmente esta permissão: escolha antes uma aplicação específica como fonte de áudio do outro. As aplicações só aparecem nessa lista enquanto estão a reproduzir áudio.",
     "participantSourceSwitchFailed": "Não foi possível trocar a fonte de áudio do outro. Pare e inicie a sessão para a alterar.",
     "participantFellBackToSystemAudio": "A captação da aplicação selecionada parou, pelo que todo o áudio do sistema está agora a ser traduzido. Escolha novamente a aplicação para voltar a restringir.",
     "loopbackMicNotice": "Aviso de entrada loopback",
     "loopbackMicWarningTitle": "Esta entrada volta a captar o que este computador está a reproduzir.",
     "loopbackMicWarningText1": "Entradas loopback como \"Stereo Mix\" ou um dispositivo \"Monitor of ...\" gravam a própria saída de áudio do sistema. Numa sessão com a voz traduzida do Sokuji, o Sokuji ouvir-se-ia e traduzir-se-ia a si próprio em ciclo.",
-    "loopbackMicWarningText2": "O dispositivo permanece selecionado caso este encaminhamento seja intencional, mas para uso normal escolha um microfone físico."
+    "loopbackMicWarningText2": "O dispositivo permanece selecionado caso este encaminhamento seja intencional, mas para uso normal escolha um microfone físico.",
+    "participantNoAudioYet": "Ainda não chegou áudio da fonte selecionada. Se estiver a reproduzir e nada for traduzido, permita o Sokuji em Definições do Sistema > Privacidade e Segurança > Apenas gravação de áudio do sistema (macOS) e inicie a sessão novamente.",
+    "audioCaptureUnprovenNotice": "Ainda nada capturado",
+    "audioCaptureUnprovenTitle": "Ainda não chegou áudio da fonte selecionada",
+    "audioCaptureUnprovenText1": "Se a fonte estiver a reproduzir e nada for traduzido, o macOS está provavelmente a entregar silêncio: capturar uma aplicação exige a permissão \"Apenas gravação de áudio do sistema\" e, sem ela, não há erro, apenas silêncio.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" só aparece nessa lista depois de tentar capturar uma vez, o que acabou de acontecer. Inicie a sessão novamente depois de a ativar. Se a fonte estava simplesmente em silêncio, nada precisa de mudar."
   },
   "auth": {
     "signIn": "Iniciar sessão",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Alimentado por modelos GPT"
+      "name": "OpenAI Realtime",
+      "description": "Modelo de voz GPT Realtime de uso geral, totalmente configurável"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Tecnologia AI da Google"
     },
     "openaiCompatible": {
-      "name": "API compatível com OpenAI",
-      "description": "Ponto final compatível com OpenAI personalizado",
+      "name": "Compatível com OpenAI (Realtime legado)",
+      "description": "Ponto final de terceiros que usa o antigo protocolo Realtime beta da OpenAI. Não serve para a OpenAI.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "Modelo dedicado de tradução em tempo real da OpenAI"
+      "description": "Modelo dedicado de tradução que deteta automaticamente o idioma de origem"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "Intérprete GPT-Live-1, faturado ao minuto de sessão, silêncio incluído"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Ambos",
       "source": "Original",
       "translation": "Tradução",
-      "tooltip": "{{scope}} — clique para alterar\nA mostrar: {{mode}}\n• Original: apenas a fala original\n• Tradução: apenas a tradução\n• Ambos: ambas as linhas",
-      "ariaLabel": "{{scope}}: {{mode}} — clique para alterar"
+      "ariaLabel": "{{scope}}: {{mode}} — clique para alterar",
+      "none": "Desligado",
+      "title": "{{scope}} — clique para alterar\nA mostrar: {{mode}}",
+      "legendSource": "Original: apenas a fala original",
+      "legendTranslation": "Tradução: apenas a tradução",
+      "legendBoth": "Ambos: ambas as linhas",
+      "legendNone": "Desligado: ocultar este lado"
     },
     "playItemAudio": "Reproduzir o áudio deste item",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Eu",
       "speakerOther": "Outro",
       "translationSuffix": "(trad.)",
+      "scopeLabel": "Incluir",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Nada selecionado",
       "headerTitle": "Exportação de conversa do Sokuji",
       "headerGenerated": "Gerado",
       "headerProvider": "Fornecedor",
       "headerModels": "Modelos",
       "headerSource": "Meu idioma",
       "headerTarget": "Idioma do outro",
-      "headerNote": "Nota: as definições refletem o estado atual no momento da exportação, não as alterações efetuadas durante a sessão."
+      "headerNote": "Nota: as definições refletem o estado atual no momento da exportação, não as alterações efetuadas durante a sessão.",
+      "headerNarrowed": "Nota: esta exportação foi restringida no momento da exportação — algumas linhas foram omitidas."
     },
     "waveformOutputTooltip": "Áudio enviado para o microfone virtual (tradução + passagem de áudio original)",
     "waveformMicTooltip": "O seu microfone — a sua voz a ser captada para tradução",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "O Soniox está atualmente com capacidade esgotada. Tente novamente em breve.",
     "sonioxBudgetExhausted": "O saldo da sua sessão esgotou-se. Carregue o seu saldo para continuar a traduzir.",
     "sonioxTtsFailed": "A tradução falada parou. A transcrição e a tradução de texto continuam a funcionar.",
+    "sonioxTtsSegmentLost": "Não foi possível reproduzir parte da tradução falada. A transcrição e a tradução de texto não foram afetadas.",
     "sonioxSegmentEnded": "Este segmento terminou — toque em “Iniciar sessão” para continuar.",
     "sonioxConnectionLost": "A ligação foi interrompida — toque em “Iniciar sessão” dentro de momentos para continuar.",
+    "openaiLiveConnectionLost": "A ligação foi interrompida — toque em “Iniciar sessão” dentro de momentos para continuar.",
     "sonioxVoiceClipMissing": "Este dispositivo não tem nenhuma gravação de voz, pelo que esta sessão utiliza uma voz predefinida. Grave uma nas Definições para falar aqui com a sua própria voz.",
     "sonioxVoicePoolBusy": "Todas as vagas de vozes personalizadas estão neste momento em uso, pelo que esta sessão utiliza uma voz predefinida. A sua própria voz será utilizada novamente da próxima vez.",
     "sonioxVoiceBuildFailed": "Não foi possível criar a sua voz personalizada, pelo que esta sessão utiliza uma voz predefinida. Tente gravar um excerto mais claro nas Definições.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Precisa de ~{{need}} de memória da GPU",
     "wontFit": "Não cabe nesta máquina",
     "variantNoGpuFits": "Nenhuma variante cabe na GPU — será executado na CPU.",
+    "variantRunsOnCpu": "Será executado na CPU nesta máquina.",
     "hwFramework": "Motor",
     "hwDevice": "Dispositivo",
     "hwApi": "Aceleração",
@@ -933,7 +949,77 @@
     "unstable": "instável",
     "voice": "Voz",
     "voiceBuilderClosed": "A Supertone encerrou o serviço Voice Builder a 31 de agosto de 2026. Os ficheiros de voz já transferidos continuam a poder ser importados.",
-    "refreshList": "Atualizar lista de vozes"
+    "refreshList": "Atualizar lista de vozes",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Os altifalantes estão a devolver a voz traduzida do Sokuji ao microfone.",

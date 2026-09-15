@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gemini genererar ljudsvar för den andras ljud som kastas bort, vilket ger extra tokenanvändning.",
     "help": "Hjälp",
     "helpEmailTooltip": "Rapportera fel eller få hjälp",
+    "diagnosticLogs": "Diagnostikloggar",
+    "diagnosticLogsTooltip": "Loggar vad appen gör så att du kan bifoga det till en felrapport. Av som standard. När det är på visas knappen ”Loggar” i namnlisten, och inställningen förblir på efter en omstart.",
     "helpDiscussions": "Diskussioner",
     "helpDiscussionsTooltip": "Funktionsförslag, feedback och communitydiskussioner",
     "auto": "Auto",
@@ -335,23 +337,21 @@
     "participantSource": "Den andras ljudkälla",
     "participantSourceDesc": "Välj vilket program som ska översättas. 'Systemljud' fångar allt du hör, inklusive spel och musik.",
     "turnOffParticipant": "Stäng av den andras ljud",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Öppna Systeminställningar",
+    "screenRecordingDeniedText2Named": "Gå till Systeminställningar > Integritet och säkerhet > Skärminspelning och aktivera \"{{app}}\".",
+    "audioCaptureDeniedText2Named": "Öppna Systeminställningar > Integritet och säkerhet > Endast inspelning av systemljud och aktivera \"{{app}}\".",
     "screenRecordingHasAlternative": "Du kan undvika den här behörigheten helt: välj i stället ett specifikt program som den andras ljudkälla. Program visas bara i listan medan de spelar upp ljud.",
     "participantSourceSwitchFailed": "Det gick inte att byta den andras ljudkälla. Stoppa och starta sessionen för att ändra den.",
     "participantFellBackToSystemAudio": "Insamlingen av den valda applikationen stoppades, så nu översätts allt systemljud i stället. Välj applikationen igen för att begränsa omfattningen.",
     "loopbackMicNotice": "Loopback-ingångsnotis",
     "loopbackMicWarningTitle": "Den här ingången fångar igen det som datorn spelar upp.",
     "loopbackMicWarningText1": "Loopback-ingångar som \"Stereo Mix\" eller en \"Monitor of ...\"-enhet spelar in systemets egen ljudutgång. I en session med Sokujis översatta tal skulle Sokuji höra och översätta sig själv i en slinga.",
-    "loopbackMicWarningText2": "Enheten förblir vald om denna routning är avsiktlig, men välj en fysisk mikrofon för normal användning."
+    "loopbackMicWarningText2": "Enheten förblir vald om denna routning är avsiktlig, men välj en fysisk mikrofon för normal användning.",
+    "participantNoAudioYet": "Inget ljud har kommit från den valda källan ännu. Om den spelar upp och inget översätts, tillåt Sokuji under Systeminställningar > Integritet och säkerhet > Endast inspelning av systemljud (macOS) och starta sessionen igen.",
+    "audioCaptureUnprovenNotice": "Inget har fångats ännu",
+    "audioCaptureUnprovenTitle": "Inget ljud har kommit från den valda källan ännu",
+    "audioCaptureUnprovenText1": "Om källan spelar upp och inget översätts levererar macOS troligen tystnad: att fånga en app kräver behörigheten \"Endast inspelning av systemljud\", och utan den uppstår inget fel, bara tystnad.",
+    "audioCaptureUnprovenText3Named": "\"{{app}}\" visas i den listan först efter ett försök att fånga ljud, vilket precis gjordes. Starta sessionen igen när du har aktiverat den. Om källan bara var tyst behöver inget ändras."
   },
   "auth": {
     "signIn": "Logga in",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Drivs av GPT modeller"
+      "name": "OpenAI Realtime",
+      "description": "Allmän GPT Realtime-talmodell, helt konfigurerbar"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "Googles AI teknologi"
     },
     "openaiCompatible": {
-      "name": "OpenAI Kompatibel API",
-      "description": "Anpassad OpenAI-kompatibel slutpunkt",
+      "name": "OpenAI-kompatibel (äldre Realtime)",
+      "description": "Tredjepartsslutpunkt som använder OpenAI:s äldre beta-Realtime-protokoll. Inte för OpenAI själv.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "OpenAIs särskilda realtidsöversättningsmodell"
+      "description": "Dedikerad översättningsmodell som identifierar källspråket automatiskt"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1-tolk, debiteras per sessionsminut inklusive tystnad"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Båda",
       "source": "Källa",
       "translation": "Översättning",
-      "tooltip": "{{scope}} — klicka för att ändra\nVisar nu: {{mode}}\n• Källa: endast ursprungligt tal\n• Översättning: endast översättning\n• Båda: båda raderna",
-      "ariaLabel": "{{scope}}: {{mode}} — klicka för att ändra"
+      "ariaLabel": "{{scope}}: {{mode}} — klicka för att ändra",
+      "none": "Av",
+      "title": "{{scope}} — klicka för att ändra\nVisar nu: {{mode}}",
+      "legendSource": "Källa: endast ursprungligt tal",
+      "legendTranslation": "Översättning: endast översättning",
+      "legendBoth": "Båda: båda raderna",
+      "legendNone": "Av: dölj denna sida"
     },
     "playItemAudio": "Spela upp ljudet för detta objekt",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Jag",
       "speakerOther": "Den andra",
       "translationSuffix": "(övers.)",
+      "scopeLabel": "Inkludera",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Inget valt",
       "headerTitle": "Sokuji konversationsexport",
       "headerGenerated": "Genererad",
       "headerProvider": "Leverantör",
       "headerModels": "Modeller",
       "headerSource": "Mitt språk",
       "headerTarget": "Den andras språk",
-      "headerNote": "Obs: inställningarna speglar det aktuella tillståndet vid export, inte ändringar under sessionen."
+      "headerNote": "Obs: inställningarna speglar det aktuella tillståndet vid export, inte ändringar under sessionen.",
+      "headerNarrowed": "Obs: den här exporten begränsades vid exporten – vissa rader utelämnades."
     },
     "waveformOutputTooltip": "Ljud som skickas till den virtuella mikrofonen (översättning + genomströmning av originalljud)",
     "waveformMicTooltip": "Din mikrofon — din röst som fångas för översättning",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Soniox är för närvarande fullbelastat. Försök igen snart.",
     "sonioxBudgetExhausted": "Ditt sessionssaldo är slut. Fyll på ditt saldo för att fortsätta översätta.",
     "sonioxTtsFailed": "Den talade översättningen har stoppats. Transkribering och textöversättning fungerar fortfarande.",
+    "sonioxTtsSegmentLost": "En del av den talade översättningen kunde inte spelas upp. Transkribering och textöversättning påverkas inte.",
     "sonioxSegmentEnded": "Det här avsnittet har avslutats — tryck på ”Starta session” för att fortsätta.",
     "sonioxConnectionLost": "Anslutningen avbröts — tryck på ”Starta session” om en stund för att fortsätta.",
+    "openaiLiveConnectionLost": "Anslutningen avbröts — tryck på ”Starta session” om en stund för att fortsätta.",
     "sonioxVoiceClipMissing": "Den här enheten har ingen röstinspelning, så den här sessionen använder en förinställd röst. Spela in en i Inställningar för att tala med din egen röst här.",
     "sonioxVoicePoolBusy": "Alla platser för anpassade röster används just nu, så den här sessionen använder en förinställd röst. Din egen röst används igen nästa gång.",
     "sonioxVoiceBuildFailed": "Din anpassade röst kunde inte byggas, så den här sessionen använder en förinställd röst. Försök spela in ett tydligare klipp i Inställningar.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Kräver ~{{need}} GPU-minne",
     "wontFit": "Får inte plats på den här maskinen",
     "variantNoGpuFits": "Ingen GPU-variant får plats — körs på CPU.",
+    "variantRunsOnCpu": "Körs på CPU på den här enheten.",
     "hwFramework": "Motor",
     "hwDevice": "Enhet",
     "hwApi": "Acceleration",
@@ -933,7 +949,77 @@
     "unstable": "instabil",
     "voice": "Röst",
     "voiceBuilderClosed": "Supertone stängde sin Voice Builder-tjänst den 31 augusti 2026. Röstfiler som du redan har laddat ned kan fortfarande importeras.",
-    "refreshList": "Uppdatera röstlistan"
+    "refreshList": "Uppdatera röstlistan",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Dina högtalare matar tillbaka Sokujis översatta tal in i mikrofonen.",

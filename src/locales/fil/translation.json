@@ -109,6 +109,8 @@
     "geminiParticipantTokenWarning": "Gumagawa ang Gemini ng mga audio response para sa audio ng kausap na itinatapon, kaya may karagdagang paggamit ng token.",
     "help": "Tulong",
     "helpEmailTooltip": "Mag-report ng bug o humingi ng tulong",
+    "diagnosticLogs": "Mga diagnostic log",
+    "diagnosticLogsTooltip": "Itinatala ang ginagawa ng app para mailakip mo ito sa isang ulat ng bug. Naka-off bilang default. Habang naka-on, may lalabas na button na “Mga Log” sa title bar, at mananatili itong naka-on pagkatapos mag-restart.",
     "helpDiscussions": "Mga Talakayan",
     "helpDiscussionsTooltip": "Mga feature request, feedback, at talakayan ng komunidad",
     "auto": "Awtomatiko",
@@ -335,23 +337,21 @@
     "participantSource": "Pinagmulan ng audio ng kausap",
     "participantSourceDesc": "Piliin kung aling application ang isasalin. Kinukuha ng \"System Audio\" ang lahat ng inyong naririnig, kasama ang mga laro at musika.",
     "turnOffParticipant": "Patayin ang audio ng kausap",
-    "participantSilentNoPermission": "The selected application is sending no audio. If you are on macOS, allow Sokuji under System Settings > Privacy & Security > System Audio Recording Only, then restart the session.",
-    "audioCaptureDeniedNotice": "Permission Required",
-    "audioCaptureDeniedTitle": "System Audio Recording Permission Needed",
-    "audioCaptureDeniedText1": "Capturing one application needs the \"System Audio Recording Only\" permission. Without it macOS delivers silence instead of an error, so the session runs but nothing is translated.",
-    "audioCaptureDeniedText2": "Open System Settings > Privacy & Security > System Audio Recording Only and enable Sokuji.",
-    "audioCaptureDeniedText3": "Sokuji only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
-    "openSystemSettings": "Open System Settings",
-    "screenRecordingDeniedText2Named": "Open System Settings > Privacy & Security > Screen Recording and enable \"{{app}}\".",
-    "audioCaptureDeniedText2Named": "Open System Settings > Privacy & Security > System Audio Recording Only and enable \"{{app}}\".",
-    "audioCaptureDeniedText3Named": "\"{{app}}\" only appears in that list after it has tried to capture once, which it just did. Restart the session after enabling it.",
+    "openSystemSettings": "Buksan ang System Settings",
+    "screenRecordingDeniedText2Named": "Pumunta sa System Settings > Privacy & Security > Screen Recording at paganahin ang \"{{app}}\".",
+    "audioCaptureDeniedText2Named": "Buksan ang System Settings > Privacy & Security > System Audio Recording Only at paganahin ang \"{{app}}\".",
     "screenRecordingHasAlternative": "Maiiwasan ninyo nang tuluyan ang pahintulot na ito: pumili na lang ng tiyak na application bilang pinagmulan ng audio ng kausap. Lumalabas lang ang mga application sa listahang iyon habang nagpapatugtog sila ng audio.",
     "participantSourceSwitchFailed": "Hindi napalitan ang pinagmulan ng audio ng kausap. Ihinto at simulan muli ang session para mabago ito.",
     "participantFellBackToSystemAudio": "Huminto ang capture ng napiling application, kaya isinasalin na ngayon ang buong system audio. Piliin muli ang application para paliitin ulit ang saklaw.",
     "loopbackMicNotice": "Abiso sa Loopback Input",
     "loopbackMicWarningTitle": "Muling kinukuha ng input na ito ang pinapatugtog ng computer.",
     "loopbackMicWarningText1": "Ang mga loopback input tulad ng \"Stereo Mix\" o \"Monitor of ...\" na device ay nagre-record ng sariling audio output ng system. Sa session na may isinaling boses ng Sokuji, maririnig at isasalin ng Sokuji ang sarili nito nang paulit-ulit.",
-    "loopbackMicWarningText2": "Mananatiling napili ang device kung sinadya ang routing na ito, ngunit para sa normal na paggamit ay pumili ng pisikal na mikropono."
+    "loopbackMicWarningText2": "Mananatiling napili ang device kung sinadya ang routing na ito, ngunit para sa normal na paggamit ay pumili ng pisikal na mikropono.",
+    "participantNoAudioYet": "Wala pang audio na dumarating mula sa napiling source. Kung tumutugtog ito at walang naisasalin, payagan ang Sokuji sa System Settings > Privacy & Security > System Audio Recording Only (macOS), pagkatapos ay simulan muli ang session.",
+    "audioCaptureUnprovenNotice": "Wala pang nakukuha",
+    "audioCaptureUnprovenTitle": "Wala pang audio na dumarating mula sa napiling source",
+    "audioCaptureUnprovenText1": "Kung tumutugtog ang source at walang naisasalin, malamang na katahimikan ang ibinibigay ng macOS: kailangan ng pahintulot na \"System Audio Recording Only\" para makuha ang audio ng isang app, at kung wala ito ay walang error, katahimikan lang.",
+    "audioCaptureUnprovenText3Named": "Lumalabas lang ang \"{{app}}\" sa listahang iyon pagkatapos nitong subukang kumuha nang isang beses, na katatapos lang. Simulan muli ang session pagkatapos itong paganahin. Kung tahimik lang talaga ang source, walang kailangang baguhin."
   },
   "auth": {
     "signIn": "Mag-sign In",
@@ -448,21 +448,25 @@
       "vendor": "Soniox"
     },
     "openai": {
-      "name": "OpenAI",
-      "description": "Powered ng GPT models"
+      "name": "OpenAI Realtime",
+      "description": "Pangkalahatang GPT Realtime speech model, ganap na maisasaayos"
     },
     "gemini": {
       "name": "Google Gemini",
       "description": "AI technology ng Google"
     },
     "openaiCompatible": {
-      "name": "OpenAI Compatible API",
-      "description": "Custom na OpenAI-compatible endpoint",
+      "name": "Tugma sa OpenAI (Legacy Realtime)",
+      "description": "Third-party endpoint na gumagamit ng lumang beta Realtime protocol ng OpenAI. Hindi para sa OpenAI mismo.",
       "customEndpointPlaceholder": "https://your-api-endpoint.com"
     },
     "openai_translate": {
       "name": "OpenAI Translate",
-      "description": "Dedicated real-time translation model ng OpenAI"
+      "description": "Nakalaang modelo sa pagsasalin na awtomatikong tumutukoy sa pinagmulang wika"
+    },
+    "openai_live": {
+      "name": "OpenAI Live",
+      "description": "GPT-Live-1 interpreter, sinisingil kada minuto ng session kasama ang katahimikan"
     },
     "palabraai": {
       "name": "Palabra AI",
@@ -567,8 +571,13 @@
       "both": "Pareho",
       "source": "Orihinal",
       "translation": "Salin",
-      "tooltip": "{{scope}} — i-click para baguhin\nIpinapakita: {{mode}}\n• Orihinal: orihinal na pananalita lamang\n• Salin: salin lamang\n• Parehas: parehong linya",
-      "ariaLabel": "{{scope}}: {{mode}} — i-click para baguhin"
+      "ariaLabel": "{{scope}}: {{mode}} — i-click para baguhin",
+      "none": "Patay",
+      "title": "{{scope}} — i-click para baguhin\nIpinapakita: {{mode}}",
+      "legendSource": "Orihinal: orihinal na pananalita lamang",
+      "legendTranslation": "Salin: salin lamang",
+      "legendBoth": "Parehas: parehong linya",
+      "legendNone": "Patay: itago ang panig na ito"
     },
     "playItemAudio": "I-play ang audio ng item na ito",
     "toolbar": {
@@ -583,13 +592,17 @@
       "speakerYou": "Ako",
       "speakerOther": "Kausap",
       "translationSuffix": "(salin)",
+      "scopeLabel": "Isama",
+      "scopeItemAria": "{{scope}} — {{line}}",
+      "scopeEmpty": "Walang napili",
       "headerTitle": "Sokuji na pag-export ng usapan",
       "headerGenerated": "Nabuo",
       "headerProvider": "Provider",
       "headerModels": "Mga modelo",
       "headerSource": "Aking wika",
       "headerTarget": "Wika ng kausap",
-      "headerNote": "Tandaan: ang mga setting ay sumasalamin sa kasalukuyang estado sa pag-export, hindi sa mga pagbabago sa kalagitnaan ng session."
+      "headerNote": "Tandaan: ang mga setting ay sumasalamin sa kasalukuyang estado sa pag-export, hindi sa mga pagbabago sa kalagitnaan ng session.",
+      "headerNarrowed": "Tandaan: pinaliit ang saklaw ng export na ito noong nag-export — may ilang linyang hindi kasama."
     },
     "waveformOutputTooltip": "Audio na ipinapadala sa virtual microphone (pagsasalin + original audio passthrough)",
     "waveformMicTooltip": "Ang inyong mikropono — ang boses ninyong kinukuha para isalin",
@@ -604,8 +617,10 @@
     "sonioxServiceBusy": "Ganap sa kapasidad ang Soniox sa ngayon. Pakisubukang muli sa madaling panahon.",
     "sonioxBudgetExhausted": "Naubos na ang balanse ng iyong session. Mag-top up ng iyong balanse para magpatuloy sa pagsasalin.",
     "sonioxTtsFailed": "Huminto na ang binibigkas na pagsasalin. Patuloy pa ring gumagana ang transcription at pagsasalin ng teksto.",
+    "sonioxTtsSegmentLost": "Hindi na-play ang bahagi ng binigkas na pagsasalin. Hindi apektado ang transcription at pagsasalin ng teksto.",
     "sonioxSegmentEnded": "Natapos na ang segment na ito — pindutin ang “Simulan ang session” para magpatuloy.",
     "sonioxConnectionLost": "Naputol ang koneksyon — pindutin ang “Simulan ang session” maya-maya para magpatuloy.",
+    "openaiLiveConnectionLost": "Naputol ang koneksyon — pindutin ang “Simulan ang session” maya-maya para magpatuloy.",
     "sonioxVoiceClipMissing": "Walang voice recording ang device na ito, kaya gumagamit ang session na ito ng preset na boses. Mag-record ng isa sa Mga Setting para makapagsalita gamit ang sarili mong boses dito.",
     "sonioxVoicePoolBusy": "Ginagamit ngayon ang lahat ng custom na voice slot, kaya gumagamit ang session na ito ng preset na boses. Gagamitin muli ang sarili mong boses sa susunod.",
     "sonioxVoiceBuildFailed": "Hindi mabuo ang custom mong boses, kaya gumagamit ang session na ito ng preset na boses. Subukang mag-record ng mas malinaw na clip sa Mga Setting.",
@@ -761,6 +776,7 @@
     "variantWontFitNoMem": "Kailangan ng ~{{need}} na GPU memory",
     "wontFit": "Hindi kasya sa makinang ito",
     "variantNoGpuFits": "Walang GPU variant na kasya — tatakbo sa CPU.",
+    "variantRunsOnCpu": "Tatakbo sa CPU sa makinang ito.",
     "hwFramework": "Engine",
     "hwDevice": "Device",
     "hwApi": "Acceleration",
@@ -933,7 +949,77 @@
     "unstable": "hindi matatag",
     "voice": "Boses",
     "voiceBuilderClosed": "Isinara ng Supertone ang serbisyo nitong Voice Builder noong Agosto 31, 2026. Maaari pa ring i-import ang mga voice file na na-download mo na.",
-    "refreshList": "I-refresh ang listahan ng boses"
+    "refreshList": "I-refresh ang listahan ng boses",
+    "filter": {
+      "genderLabel": "Gender",
+      "ageLabel": "Age",
+      "accentLabel": "Accent",
+      "useCaseLabel": "Use case",
+      "styleLabel": "Style",
+      "anyGender": "Any gender",
+      "anyAge": "Any age",
+      "anyAccent": "Any accent",
+      "count": "{shown} of {total} voices",
+      "empty": "No voices match these filters.",
+      "clear": "Clear filters",
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "neutral": "Neutral"
+      },
+      "age": {
+        "young": "Young",
+        "middle_aged": "Middle-aged",
+        "old": "Mature"
+      },
+      "accent": {
+        "african": "African",
+        "american": "American",
+        "arabic": "Arabic",
+        "australian": "Australian",
+        "brazilian": "Brazilian",
+        "british": "British",
+        "chinese": "Chinese",
+        "french": "French",
+        "german": "German",
+        "indian": "Indian",
+        "italian": "Italian",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "latin_american": "Latin American",
+        "portuguese": "Portuguese",
+        "slavic": "Slavic",
+        "southeast_asian": "Southeast Asian",
+        "spanish": "Spanish"
+      },
+      "useCase": {
+        "conversational": "Conversation",
+        "educational": "Teaching",
+        "entertainment": "Entertainment",
+        "narration": "Narration",
+        "social_media": "Social media"
+      },
+      "style": {
+        "breathy": "Breathy",
+        "bright": "Bright",
+        "calm": "Calm",
+        "confident": "Confident",
+        "deep": "Deep",
+        "dramatic": "Dramatic",
+        "energetic": "Energetic",
+        "expressive": "Expressive",
+        "formal": "Formal",
+        "friendly": "Friendly",
+        "neutral": "Neutral",
+        "playful": "Playful",
+        "raspy": "Raspy",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "warm": "Warm"
+      },
+      "anyUseCase": "Any use case",
+      "anyStyle": "Any style"
+    }
   },
   "echoNotice": {
     "ttsEcho": "Ibinabalik ng iyong speaker ang isinaling boses ng Sokuji sa mikropono.",
