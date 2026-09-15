@@ -179,7 +179,7 @@ describe('descriptor.extractCredentials', () => {
       [Provider.OPENAI_COMPATIBLE, { apiKey: 'k', customEndpoint: 'https://e' }, { primary: 'k', endpoint: 'https://e' }],
       [Provider.PALABRA_AI, { clientId: 'id', clientSecret: 'sec' }, { primary: 'id', secret: 'sec' }],
       [Provider.VOLCENGINE_ST, { accessKeyId: 'ak', secretAccessKey: 'sk' }, { primary: 'ak', secret: 'sk' }],
-      [Provider.VOLCENGINE_AST2, { appId: 123, accessToken: 'tok' }, { primary: '123', secret: 'tok' }],
+      [Provider.VOLCENGINE_AST2, { apiKey: 'volc-api-key' }, { primary: 'volc-api-key' }],
       [Provider.ZOOM_AI, { apiKey: 'zk', apiSecret: 'zs' }, { primary: 'zk', secret: 'zs' }],
     ];
     for (const [id, slice, want] of cases) {
@@ -502,14 +502,12 @@ describe('S2 buildParticipantSessionConfig', () => {
 
 describe('legacy façade credential guards (deprecated ClientOperations/ClientFactory paths)', () => {
   // The production path runs extractCredentials first, but the @deprecated
-  // façades accept raw positional args — they must keep the old contract of
-  // rejecting incomplete credentials instead of reaching provider clients
-  // with `secret: undefined`.
+  // façades accept raw positional args — providers that genuinely need a
+  // credential pair must reject an incomplete pair before reaching a client.
   it('two-field providers reject a filled primary with a missing secret', async () => {
     const { ClientOperations } = await import('../ClientOperations');
     const cases: Array<[Provider, RegExp]> = [
       [Provider.VOLCENGINE_ST, /Access Key ID and Secret Access Key/],
-      [Provider.VOLCENGINE_AST2, /APP ID and Access Token/],
       [Provider.ZOOM_AI, /API Key and API Secret/],
     ];
     for (const [id, msg] of cases) {
@@ -631,8 +629,14 @@ describe('S3 planBothMode', () => {
 });
 
 describe('S4 prepareToStart', () => {
-  it('is declared only where a provider has pre-start work (locals, kizuna-soniox)', () => {
-    const WITH_HOOK = [Provider.LOCAL_INFERENCE, Provider.LOCAL_NATIVE, Provider.KIZUNA_AI_SONIOX];
+  it('is declared only where a provider has pre-start work or a session-parameter guard', () => {
+    const WITH_HOOK = [
+      Provider.LOCAL_INFERENCE,
+      Provider.LOCAL_NATIVE,
+      Provider.KIZUNA_AI_SONIOX,
+      Provider.VOLCENGINE_AST2,
+      Provider.KIZUNA_AI_VOLCENGINE_AST2,
+    ];
     for (const id of ProviderConfigFactory.getAvailableProviders()) {
       const d = ProviderConfigFactory.getDescriptor(id);
       expect(typeof d.prepareToStart === 'function', `hook presence for ${id}`)

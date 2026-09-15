@@ -1,13 +1,14 @@
 import { ProviderConfig, LanguageOption, VoiceOption, ModelOption } from './ProviderConfig';
-import { BaseProviderDescriptor, Credentials, CredentialCtx, ClientOptions, ParticipantSessionResult, type CredentialField } from './ProviderDescriptor';
+import { BaseProviderDescriptor, Credentials, CredentialCtx, ClientOptions, ParticipantSessionResult, PrepareOutcome, PreparePorts, type CredentialField } from './ProviderDescriptor';
 import { IClient, FilteredModel, SessionConfig, VolcengineAST2SessionConfig } from '../interfaces/IClient';
 import { ApiKeyValidationResult } from '../interfaces/ISettingsService';
 import { VolcengineAST2Client } from '../clients/VolcengineAST2Client';
+import i18n from '../../locales';
 
 // Volcengine AST 2.0 Settings
 export interface VolcengineAST2Settings {
-  appId: string;
-  accessToken: string;
+  /** API Key created in the current Volcengine Speech console. */
+  apiKey: string;
   sourceLanguage: string;
   targetLanguage: string;
   turnDetectionMode: 'Auto' | 'Push-to-Talk' | 'Push-to-Translate';
@@ -20,8 +21,7 @@ export interface VolcengineAST2Settings {
 }
 
 export const defaultVolcengineAST2Settings: VolcengineAST2Settings = {
-  appId: '',
-  accessToken: '',
+  apiKey: '',
   sourceLanguage: 'zh',
   targetLanguage: 'en',
   turnDetectionMode: 'Auto',
@@ -34,27 +34,23 @@ export class VolcengineAST2ProviderConfig extends BaseProviderDescriptor {
   readonly settingsSliceKey: string = 'volcengineAST2';
   readonly supportsWebRTC = false;
   readonly credentialFields: readonly CredentialField[] = [
-    { key: 'appId', labelKey: 'setup.credentials.appId', secret: false },
-    { key: 'accessToken', labelKey: 'setup.credentials.accessToken', secret: true },
+    { key: 'apiKey', labelKey: 'setup.credentials.apiKey', secret: true },
   ];
 
-  // appId may be numeric in old persisted state — String() it, matching the
-  // legacy settingsStore.ts cast this replaces.
   async extractCredentials(slice: unknown, _ctx: CredentialCtx): Promise<Credentials> {
     const s = slice as VolcengineAST2Settings;
-    if (!s?.appId || !s?.accessToken) {
-      return { ok: false, missing: 'Both APP ID and Access Token are required for Doubao AST 2.0' };
+    if (!s?.apiKey?.trim()) {
+      return { ok: false, missing: 'API Key is required for Doubao AST 2.0' };
     }
-    return { ok: true, primary: String(s.appId), secret: String(s.accessToken) };
+    return { ok: true, primary: s.apiKey.trim() };
   }
 
   peekPrimaryCredential(slice: unknown): string {
-    return String((slice as VolcengineAST2Settings)?.appId ?? '');
+    return String((slice as VolcengineAST2Settings)?.apiKey ?? '');
   }
 
   createClient(creds: Credentials & { ok: true }, _options: ClientOptions): IClient {
-    if (!creds.secret) throw new Error('Access Token is required for volcengine_ast2 provider');
-    return new VolcengineAST2Client(creds.primary, creds.secret);
+    return new VolcengineAST2Client(creds.primary);
   }
 
   async validateAndFetchModels(creds: Credentials): Promise<{
@@ -63,12 +59,27 @@ export class VolcengineAST2ProviderConfig extends BaseProviderDescriptor {
     if (!creds.ok) {
       return { validation: { valid: false, message: creds.missing, validating: false }, models: [] };
     }
-    if (!creds.secret) {
-      // Legacy façade callers pass raw positional args and skip
-      // extractCredentials — keep the old required-field contract here.
-      return { validation: { valid: false, message: 'Both APP ID and Access Token are required for Doubao AST 2.0', validating: false }, models: [] };
+    return VolcengineAST2Client.validateApiKeyAndFetchModels(creds.primary);
+  }
+
+  /**
+   * AST 2.0 accepts `zhen`/`zhen` for its special Chinese↔English mode, but
+   * rejects every ordinary same-language direction (for example zh→zh). A
+   * persisted setting can predate the UI reconciliation, so block it here as
+   * well, before the socket and audio capture are started.
+   */
+  async prepareToStart(slice: unknown, _ports: PreparePorts): Promise<PrepareOutcome> {
+    const { sourceLanguage, targetLanguage } = slice as Partial<VolcengineAST2Settings>;
+    if (sourceLanguage === targetLanguage && sourceLanguage !== 'zhen') {
+      const language = String(i18n.language ?? 'en');
+      const message = language.startsWith('zh')
+        ? '豆包同声传译 2.0 不支持相同的源语言和目标语言，请选择不同的语言。'
+        : language.startsWith('ja')
+          ? '豆包同時通訳 2.0 では、入力言語と出力言語に異なる言語を選択してください。'
+          : 'Doubao Simultaneous Translation 2.0 requires different source and target languages.';
+      return { ok: false, message };
     }
-    return VolcengineAST2Client.validateApiKeyAndFetchModels(creds.primary, creds.secret);
+    return { ok: true };
   }
 
   // The kizuna doubao twin inherits this builder (reads its own slice).
@@ -139,8 +150,8 @@ export class VolcengineAST2ProviderConfig extends BaseProviderDescriptor {
       id: 'volcengine_ast2',
       displayName: 'Doubao AST 2.0',
 
-      apiKeyLabel: 'App Key',
-      apiKeyPlaceholder: 'Enter your Volcengine App Key',
+      apiKeyLabel: 'API Key',
+      apiKeyPlaceholder: 'Enter your Volcengine API Key',
 
       languages: VolcengineAST2ProviderConfig.BIDIRECTIONAL_LANGUAGES,
       voices: VolcengineAST2ProviderConfig.VOICES,

@@ -169,8 +169,7 @@ describe('settingsStore', () => {
 
   describe('Volcengine AST 2.0 custom vocabulary', () => {
     const volcBase = {
-      appId: 'app-id',
-      accessToken: 'token',
+      apiKey: 'api-key',
       sourceLanguage: 'zh' as const,
       targetLanguage: 'en' as const,
       turnDetectionMode: 'Auto' as const,

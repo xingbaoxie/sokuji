@@ -89,8 +89,8 @@ describe('VolcengineAST2Client — item IDs are unique across instances', () => 
     Array.from({ length: n }, () => client.generateItemId(prefix));
 
   it('two instances produce disjoint item IDs for the same prefix/counter', () => {
-    const a = new VolcengineAST2Client('app', 'token');
-    const b = new VolcengineAST2Client('app', 'token');
+    const a = new VolcengineAST2Client('api-key-a');
+    const b = new VolcengineAST2Client('api-key-b');
 
     const idsA = genBatch(a, 'translation', 5);
     const idsB = genBatch(b, 'translation', 5);
@@ -118,7 +118,7 @@ describe("VolcengineAST2Client relay mode", () => {
     const orig = globalThis.WebSocket;
     (globalThis as any).WebSocket = FakeWS;
     try {
-      const client = new VolcengineAST2Client("", "", undefined, { wsUrl: "wss://r.example/v1/ast/translate", sessionToken: "sess_TOKEN" });
+      const client = new VolcengineAST2Client("", undefined, { wsUrl: "wss://r.example/v1/ast/translate", sessionToken: "sess_TOKEN" });
       // The relay socket is constructed synchronously, so URL/subprotocol are
       // captured before any await. The fake socket never emits SessionStarted, so
       // drive the 30s connection timeout to completion and await the rejected

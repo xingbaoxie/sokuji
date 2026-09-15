@@ -41,14 +41,15 @@ describe('resolveAST2LanguagePair', () => {
     ).toEqual({ sourceLanguage: 'ja', targetLanguage: 'en' });
   });
 
-  // R3 degenerate same-language case — helper does not block; server will reject.
-  it('R3 same-lang: zhen/zhen → source=en ⇒ en/en', () => {
+  // R3 same-language case: leaving bidirectional mode must not save a pair
+  // the service rejects. Keep the user-selected source and repair target.
+  it('R3 same-lang: zhen/zhen → source=en ⇒ en/zh', () => {
     expect(
       resolveAST2LanguagePair(
         { sourceLanguage: 'zhen', targetLanguage: 'zhen' },
         { side: 'source', value: 'en' },
       ),
-    ).toEqual({ sourceLanguage: 'en', targetLanguage: 'en' });
+    ).toEqual({ sourceLanguage: 'en', targetLanguage: 'zh' });
   });
 
   // R4: leaving 'zhen' on the target resets source to the provider default 'zh'.
@@ -61,14 +62,14 @@ describe('resolveAST2LanguagePair', () => {
     ).toEqual({ sourceLanguage: 'zh', targetLanguage: 'fr' });
   });
 
-  // R4 degenerate same-language case.
-  it('R4 same-lang: zhen/zhen → target=zh ⇒ zh/zh', () => {
+  // R4 same-language case is symmetric: preserve target and repair source.
+  it('R4 same-lang: zhen/zhen → target=zh ⇒ en/zh', () => {
     expect(
       resolveAST2LanguagePair(
         { sourceLanguage: 'zhen', targetLanguage: 'zhen' },
         { side: 'target', value: 'zh' },
       ),
-    ).toEqual({ sourceLanguage: 'zh', targetLanguage: 'zh' });
+    ).toEqual({ sourceLanguage: 'en', targetLanguage: 'zh' });
   });
 
   // Normal (non-bidirectional → non-bidirectional) update: passes through
@@ -91,6 +92,24 @@ describe('resolveAST2LanguagePair', () => {
         { side: 'target', value: 'fr' },
       ),
     ).toEqual({ sourceLanguage: 'zh', targetLanguage: 'fr' });
+  });
+
+  it('repairs a direct source change that would otherwise make zh→en become en→en', () => {
+    expect(
+      resolveAST2LanguagePair(
+        { sourceLanguage: 'zh', targetLanguage: 'en' },
+        { side: 'source', value: 'en' },
+      ),
+    ).toEqual({ sourceLanguage: 'en', targetLanguage: 'zh' });
+  });
+
+  it('repairs a direct target change that would otherwise make zh→en become zh→zh', () => {
+    expect(
+      resolveAST2LanguagePair(
+        { sourceLanguage: 'zh', targetLanguage: 'en' },
+        { side: 'target', value: 'zh' },
+      ),
+    ).toEqual({ sourceLanguage: 'en', targetLanguage: 'zh' });
   });
 
   // Legacy persisted states: before this PR exposed 'zhen' on the target side,

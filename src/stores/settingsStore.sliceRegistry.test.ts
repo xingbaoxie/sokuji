@@ -33,7 +33,7 @@ const PLAIN: Array<[string, string, Record<string, unknown>]> = [
   ['updateOpenAITranslate', 'openaiTranslate', { apiKey: 'k2' }],
   ['updateVolcengineST', 'volcengineST', { accessKeyId: 'a1' }],
   ['updateZoomAI', 'zoomAI', { apiKey: 'z1' }],
-  ['updateVolcengineAST2', 'volcengineAST2', { appId: 'p1' }],
+  ['updateVolcengineAST2', 'volcengineAST2', { apiKey: 'p1' }],
   ['updateLocalInference', 'localInference', { ttsSpeed: 1.5 }],
   ['updateLocalNative', 'localNative', { sourceLanguage: 'ja' }],
   ['updateSoniox', 'soniox', { apiKey: 's1' }],
@@ -91,13 +91,11 @@ describe('provider settings update actions (behavior lock)', () => {
     expect(setSetting).toHaveBeenCalledWith('settings.kizunaOpenaiTranslate.sourceLanguage', 'ja');
 
     setSetting.mockClear();
-    await useSettingsStore.getState().updateKizunaVolcengineAst2({ appId: 'a', accessToken: 't', sourceLanguage: 'zh' } as any);
+    await useSettingsStore.getState().updateKizunaVolcengineAst2({ apiKey: 'k', sourceLanguage: 'zh' } as any);
     // Credentials land in state...
-    expect((useSettingsStore.getState() as any).kizunaVolcengineAst2.appId).toBe('a');
-    expect((useSettingsStore.getState() as any).kizunaVolcengineAst2.accessToken).toBe('t');
+    expect((useSettingsStore.getState() as any).kizunaVolcengineAst2.apiKey).toBe('k');
     // ...but are never persisted.
-    expect(setSetting).not.toHaveBeenCalledWith('settings.kizunaVolcengineAst2.appId', expect.anything());
-    expect(setSetting).not.toHaveBeenCalledWith('settings.kizunaVolcengineAst2.accessToken', expect.anything());
+    expect(setSetting).not.toHaveBeenCalledWith('settings.kizunaVolcengineAst2.apiKey', expect.anything());
     expect(setSetting).toHaveBeenCalledWith('settings.kizunaVolcengineAst2.sourceLanguage', 'zh');
   });
 
@@ -123,7 +121,7 @@ describe('provider settings update actions (behavior lock)', () => {
     ['updateKizunaOpenaiTranslate', 'kizunaOpenaiTranslate', { sourceLanguage: 'ja' }],
     ['updateVolcengineST', 'volcengineST', { accessKeyId: 'x' }],
     ['updateZoomAI', 'zoomAI', { apiKey: 'x' }],
-    ['updateVolcengineAST2', 'volcengineAST2', { appId: 'x' }],
+    ['updateVolcengineAST2', 'volcengineAST2', { apiKey: 'x' }],
     ['updateKizunaVolcengineAst2', 'kizunaVolcengineAst2', { sourceLanguage: 'zh' }],
     ['updateLocalInference', 'localInference', { ttsSpeed: 1.5 }],
     ['updateLocalNative', 'localNative', { sourceLanguage: 'ja' }],

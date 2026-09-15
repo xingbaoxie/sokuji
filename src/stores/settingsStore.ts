@@ -572,7 +572,7 @@ const PROVIDER_SLICE_REGISTRY = {
   // session token; the user-managed credential fields must never be persisted
   // (stale/sensitive values). See each descriptor's extractCredentials.
   kizunaOpenaiTranslate: { defaults: defaultKizunaOpenaiTranslateSettings, neverPersist: ['apiKey'] },
-  kizunaVolcengineAst2: { defaults: defaultKizunaVolcengineAst2Settings, neverPersist: ['appId', 'accessToken'] },
+  kizunaVolcengineAst2: { defaults: defaultKizunaVolcengineAst2Settings, neverPersist: ['apiKey'] },
   kizunaSoniox: { defaults: defaultKizunaSonioxSettings, neverPersist: ['apiKey', 'apiKeyEu', 'apiKeyJp'] },
   localInference: { defaults: defaultLocalInferenceSettings },
   localNative: { defaults: defaultLocalNativeSettings },

@@ -82,8 +82,7 @@ export function buildCorpusFromConfig(
 }
 
 export class VolcengineAST2Client implements IClient {
-  private appId: string;
-  private accessToken: string;
+  private apiKey: string;
   private resourceId: string;
   private isConnectedState = false;
   private websocket: WebSocket | null = null;
@@ -160,9 +159,8 @@ export class VolcengineAST2Client implements IClient {
    */
   private relay?: { wsUrl: string; sessionToken: string };
 
-  constructor(appId: string, accessToken: string, resourceId: string = 'volc.service_type.10053', relay?: { wsUrl: string; sessionToken: string }) {
-    this.appId = appId;
-    this.accessToken = accessToken;
+  constructor(apiKey: string, resourceId: string = 'volc.service_type.10053', relay?: { wsUrl: string; sessionToken: string }) {
+    this.apiKey = apiKey;
     this.resourceId = resourceId;
     this.relay = relay;
   }
@@ -217,10 +215,8 @@ export class VolcengineAST2Client implements IClient {
     const result = await window.electron.invoke('ws-headers-set', {
       host,
       headers: {
-        'X-Api-App-Key': this.appId,
-        'X-Api-Access-Key': this.accessToken,
+        'X-Api-Key': this.apiKey,
         'X-Api-Resource-Id': this.resourceId,
-        'X-Api-Connect-Id': this.connectionId,
       },
     });
 
@@ -256,10 +252,8 @@ export class VolcengineAST2Client implements IClient {
         {
           type: 'VOLCENGINE_AST2_SET_HEADERS',
           credentials: {
-            appKey: this.appId,
-            accessKey: this.accessToken,
+            apiKey: this.apiKey,
             resourceId: this.resourceId,
-            connectId: this.connectionId,
           },
         },
         (response: { success: boolean; error?: string }) => {
@@ -424,7 +418,7 @@ export class VolcengineAST2Client implements IClient {
     const requestPayload: any = {
       requestMeta: {
         Endpoint: 'volc.service_type.10053',
-        AppKey: this.appId,
+        AppKey: this.apiKey,
         ResourceID: this.resourceId,
         ConnectionID: this.connectionId,
         SessionID: this.sessionId,
@@ -1022,24 +1016,15 @@ export class VolcengineAST2Client implements IClient {
    * In browser: format-only check (browser WebSocket API can't send custom headers).
    */
   static async validateApiKeyAndFetchModels(
-    appId: string,
-    accessToken: string
+    apiKey: string
   ): Promise<{
     validation: ApiKeyValidationResult;
     models: FilteredModel[];
   }> {
-    // Simple format validation — coerce to string since numeric IDs from storage may arrive as numbers
-    const appIdStr = String(appId ?? '');
-    const accessTokenStr = String(accessToken ?? '');
-    if (!appIdStr || appIdStr.trim().length === 0) {
+    const apiKeyStr = String(apiKey ?? '').trim();
+    if (!apiKeyStr) {
       return {
-        validation: { valid: false, message: 'APP ID is required', validating: false },
-        models: []
-      };
-    }
-    if (!accessTokenStr || accessTokenStr.trim().length === 0) {
-      return {
-        validation: { valid: false, message: 'Access Token is required', validating: false },
+        validation: { valid: false, message: 'API Key is required', validating: false },
         models: []
       };
     }
@@ -1062,10 +1047,8 @@ export class VolcengineAST2Client implements IClient {
           const result = await window.electron.invoke('ws-headers-set', {
             host,
             headers: {
-              'X-Api-App-Key': appIdStr.trim(),
-              'X-Api-Access-Key': accessTokenStr.trim(),
+              'X-Api-Key': apiKeyStr,
               'X-Api-Resource-Id': 'volc.service_type.10053',
-              'X-Api-Connect-Id': connectionId,
             },
           });
           if (!result?.success) {
@@ -1081,10 +1064,8 @@ export class VolcengineAST2Client implements IClient {
               {
                 type: 'VOLCENGINE_AST2_SET_HEADERS',
                 credentials: {
-                  appKey: appIdStr.trim(),
-                  accessKey: accessTokenStr.trim(),
+                  apiKey: apiKeyStr,
                   resourceId: 'volc.service_type.10053',
-                  connectId: connectionId,
                 },
               },
               (response: { success: boolean; error?: string }) => {
@@ -1124,7 +1105,7 @@ export class VolcengineAST2Client implements IClient {
             const startReq = TranslateRequest.encode({
               requestMeta: {
                 Endpoint: 'volc.service_type.10053',
-                AppKey: appIdStr.trim(),
+                AppKey: apiKeyStr,
                 ResourceID: 'volc.service_type.10053',
                 ConnectionID: connectionId,
                 SessionID: sessionId,

@@ -157,7 +157,7 @@ export function SettingsInitializer() {
       palabraAISettings.authMode, palabraAISettings.apiKey,
       palabraAISettings.clientId, palabraAISettings.clientSecret,
       volcengineSTSettings.accessKeyId, volcengineSTSettings.secretAccessKey,
-      volcengineAST2Settings.appId, volcengineAST2Settings.accessToken,
+      volcengineAST2Settings.apiKey,
       // Switching region swaps WHICH key is active, so the standing verdict is
       // about a different credential and must be re-derived. Without this,
       // Start stays enabled on a region whose key is empty (and fails at

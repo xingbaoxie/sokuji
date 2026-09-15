@@ -18,11 +18,11 @@ export class KizunaAIVolcengineAST2ProviderConfig extends VolcengineAST2Provider
   readonly settingsSliceKey: string = 'kizunaVolcengineAst2';
 
   // Backend-managed twin: no user-facing credentials to collect — overrides
-  // the parent's appId/accessToken fields, which do not apply here.
+  // the parent's API Key field, which does not apply here.
   readonly credentialFields: readonly CredentialField[] = [];
 
   // Backend-managed twin: credentials are a Better Auth session token fetched
-  // from ctx, not the parent's appId/accessToken settings-slice fields.
+  // from ctx, not the parent's API Key settings-slice field.
   async extractCredentials(_slice: unknown, ctx: CredentialCtx): Promise<Credentials> {
     const token = ctx.getAuthToken ? await ctx.getAuthToken() : null;
     if (!token) return { ok: false, missing: 'Sign in is required for Kizuna relay providers' };
@@ -35,7 +35,7 @@ export class KizunaAIVolcengineAST2ProviderConfig extends VolcengineAST2Provider
 
   // Override — routes through the relay using the backend-managed session token.
   createClient(creds: Credentials & { ok: true }, _options: ClientOptions): IClient {
-    return new VolcengineAST2Client('', '', undefined, {
+    return new VolcengineAST2Client('', undefined, {
       wsUrl: `${getRelayWsUrl()}/ast/translate`,
       sessionToken: creds.primary,
     });

@@ -12,6 +12,9 @@
  *       both the spec's R3/R4 (zhen/zhen → non-zhen) AND legacy persisted
  *       'zhen/<other>' pairs that were possible before this PR exposed 'zhen'
  *       on the target side.
+ *   non-bidirectional same-language pair: adjust the untouched side to the
+ *       other default language. AST 2.0 is a translation service, not a
+ *       transcription service, and rejects e.g. zh→zh at session start.
  *   passthrough: any other change updates only the side the user touched.
  */
 export interface AST2LanguagePair {
@@ -35,6 +38,14 @@ const ZHEN = 'zhen';
 const DEFAULT_SOURCE = 'zh';
 const DEFAULT_TARGET = 'en';
 
+function fallbackTargetFor(sourceLanguage: string): string {
+  return sourceLanguage === DEFAULT_TARGET ? DEFAULT_SOURCE : DEFAULT_TARGET;
+}
+
+function fallbackSourceFor(targetLanguage: string): string {
+  return targetLanguage === DEFAULT_SOURCE ? DEFAULT_TARGET : DEFAULT_SOURCE;
+}
+
 export function resolveAST2LanguagePair(
   current: AST2LanguagePair,
   change: AST2LanguageChange,
@@ -51,13 +62,25 @@ export function resolveAST2LanguagePair(
   // persisted 'zhen/<other>' pairs from older builds where 'zhen' was only
   // exposed on the source side.
   if (change.side === 'source') {
-    return {
+    const next = {
       sourceLanguage: change.value,
       targetLanguage: current.targetLanguage === ZHEN ? DEFAULT_TARGET : current.targetLanguage,
     };
+    // A direct source selection can otherwise turn zh→en into en→en. Keep
+    // the side the user selected and move only the untouched target.
+    if (next.sourceLanguage === next.targetLanguage) {
+      next.targetLanguage = fallbackTargetFor(next.sourceLanguage);
+    }
+    return next;
   }
-  return {
+  const next = {
     sourceLanguage: current.sourceLanguage === ZHEN ? DEFAULT_SOURCE : current.sourceLanguage,
     targetLanguage: change.value,
   };
+  // Symmetric target-side rule: selecting zh as the target of zh→en becomes
+  // en→zh, rather than saving a server-rejected zh→zh pair.
+  if (next.sourceLanguage === next.targetLanguage) {
+    next.sourceLanguage = fallbackSourceFor(next.targetLanguage);
+  }
+  return next;
 }
