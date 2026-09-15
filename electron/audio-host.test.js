@@ -146,7 +146,9 @@ describe('startCapture', () => {
     const onPcm = vi.fn();
 
     expect(startCapture('app:pid:42', onPcm, vi.fn(), { spawn, resolvePath })).toBe(true);
-    expect(spawn.mock.calls[0][1]).toEqual(['--target', 'pid:42']);
+    // macOS also appends the current Sokuji process tree via --exclude-pids.
+    // The capture target itself must remain the selected application.
+    expect(spawn.mock.calls[0][1]).toEqual(expect.arrayContaining(['--target', 'pid:42']));
 
     const pcm = Buffer.from([1, 2, 3, 4]);
     child.stdout.emit('data', pcm);
@@ -283,7 +285,8 @@ describe('startCapture', () => {
 
     startCapture('desktop-audio-loopback', vi.fn(), vi.fn(), { spawn, resolvePath });
 
-    expect(spawn.mock.calls[0][1]).toEqual(['--target', 'system']);
+    // macOS may append --exclude-pids for Sokuji's own process tree.
+    expect(spawn.mock.calls[0][1]).toEqual(expect.arrayContaining(['--target', 'system']));
   });
 
   it('returns false when the helper binary is missing', () => {
