@@ -4,9 +4,11 @@ import { recordingService, type TestConfigLoadResult } from '../../features/reco
 
 interface TestConfigSectionProps {
   onLoaded(result: TestConfigLoadResult): Promise<void>;
+  /** Prevent a hydration race from replacing freshly loaded credentials. */
+  settingsReady: boolean;
 }
 
-const TestConfigSection: React.FC<TestConfigSectionProps> = ({ onLoaded }) => {
+const TestConfigSection: React.FC<TestConfigSectionProps> = ({ onLoaded, settingsReady }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,10 +45,11 @@ const TestConfigSection: React.FC<TestConfigSectionProps> = ({ onLoaded }) => {
       <Download size={19} aria-hidden="true" />
     </div>
     <form className="test-config-section__form" onSubmit={submit}>
-      <label>用户名<input autoComplete="username" value={username} disabled={loading} onChange={(event) => setUsername(event.target.value)} /></label>
-      <label>密码<span className="test-config-section__password"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} disabled={loading} onChange={(event) => setPassword(event.target.value)} /><button type="button" aria-label={showPassword ? '隐藏密码' : '显示密码'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></span></label>
-      <button className="test-config-section__submit" type="submit" disabled={loading} aria-label={loading ? '正在加载测试配置' : '加载测试配置'}>{loading ? <LoaderCircle className="recording-spinner" size={16} /> : <Download size={16} />}{loading ? '加载中…' : '加载'}</button>
+      <label>用户名<input autoComplete="username" value={username} disabled={loading || !settingsReady} onChange={(event) => setUsername(event.target.value)} /></label>
+      <label>密码<span className="test-config-section__password"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} disabled={loading || !settingsReady} onChange={(event) => setPassword(event.target.value)} /><button type="button" disabled={loading || !settingsReady} aria-label={showPassword ? '隐藏密码' : '显示密码'} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></span></label>
+      <button className="test-config-section__submit" type="submit" disabled={loading || !settingsReady} aria-label={loading ? '正在加载测试配置' : '加载测试配置'}>{loading ? <LoaderCircle className="recording-spinner" size={16} /> : <Download size={16} />}{loading ? '加载中…' : '加载'}</button>
     </form>
+    {!settingsReady && <p className="test-config-section__notice" role="status">正在初始化设置…</p>}
     {notice && <p className="test-config-section__notice is-error" role="alert">{notice}</p>}
     {loaded && <p className="test-config-section__notice is-success" role="status">已加载配置 v{loaded.version} · {loaded.revision} · {new Date(loaded.loadedAt).toLocaleString()}</p>}
   </section>;

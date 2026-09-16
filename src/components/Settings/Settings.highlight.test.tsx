@@ -27,10 +27,12 @@ let mockTarget: string | null = null;
 const navigateToSettings = vi.fn((target: string | null) => { mockTarget = target; });
 
 vi.mock('../../stores/settingsStore', () => ({
+  default: { getState: () => ({ validateApiKey: vi.fn() }) },
   useUIMode: () => 'advanced',
   useSetUIMode: () => vi.fn(),
   useSetProvider: () => vi.fn(),
   useUpdateVolcengineAST2: () => vi.fn(),
+  useSettingsLoaded: () => true,
   useNavigateToSettings: () => navigateToSettings,
   useSettingsNavigationTarget: () => mockTarget,
 }));

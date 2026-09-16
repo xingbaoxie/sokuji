@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Sliders, Settings as SettingsIcon, Headphones, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useUIMode, useSetUIMode, useNavigateToSettings, useSettingsNavigationTarget, useSetProvider, useUpdateVolcengineAST2 } from '../../stores/settingsStore';
+import useSettingsStore, { useUIMode, useSetUIMode, useNavigateToSettings, useSettingsNavigationTarget, useSetProvider, useUpdateVolcengineAST2, useSettingsLoaded } from '../../stores/settingsStore';
 import { useIsSessionActive } from '../../stores/sessionStore';
 import { useAnalytics } from '../../lib/analytics';
 import SimpleSettings from './SimpleSettings/SimpleSettings';
@@ -76,6 +76,7 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
   const navigateToSettings = useNavigateToSettings();
   const setProvider = useSetProvider();
   const updateVolcengineAST2 = useUpdateVolcengineAST2();
+  const settingsLoaded = useSettingsLoaded();
 
   // 'basic' maps to Simple/Quick, 'advanced' maps to Advanced.
   const isSimpleMode = uiMode === 'basic';
@@ -149,8 +150,20 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
   };
 
   const applyTestConfig = async (result: TestConfigLoadResult) => {
+    // Home hydrates persisted settings asynchronously. Do not let its final
+    // write race a just-loaded test credential and restore the old empty
+    // Volcengine slice underneath it.
+    if (!settingsLoaded) throw new Error('设置仍在初始化，请稍后重试。');
+
     await updateVolcengineAST2(result.volcengineAST2);
     await setProvider(Provider.VOLCENGINE_AST2);
+
+    // SettingsInitializer normally notices the provider/slice update on the
+    // next React effect. Subtitle mode can be entered before that effect has
+    // run, leaving it with the previous "API key missing" start gate. Run the
+    // same validation here and wait for it before reporting configuration
+    // loading as complete.
+    await useSettingsStore.getState().validateApiKey();
     setRecordingConfigRevision((revision) => revision + 1);
   };
 
@@ -188,7 +201,7 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
       />
 
       <div className="settings-body">
-        <TestConfigSection onLoaded={applyTestConfig} />
+        <TestConfigSection onLoaded={applyTestConfig} settingsReady={settingsLoaded} />
         <div className="settings-category-tabs" role="tablist" aria-label={t('settings.title', 'Settings')}>
           <button type="button" role="tab" aria-selected={category === 'subtitle'} className={category === 'subtitle' ? 'is-active' : ''} onClick={() => setCategory('subtitle')}>{t('subtitle.enterButton.label', 'Subtitles')}</button>
           <button type="button" role="tab" aria-selected={category === 'recording'} className={category === 'recording' ? 'is-active' : ''} onClick={() => setCategory('recording')}>{t('recording.title', 'Recording transcription')}</button>
