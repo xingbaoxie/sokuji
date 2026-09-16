@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "revision": "test-YYYYMMDD-01",
+  "recording": {
+    "processingSettings": {
+      "sourceLanguageMode": "auto",
+      "targetLanguage": "ja",
+      "hotwords": [],
+      "speech": { "providerId": "private-runtime", "connectionProfileId": "speech.private-moss", "engineId": "moss", "modelId": "" },
+      "translation": { "enabled": true, "providerId": "aliyun-cloud", "connectionProfileId": "translation.aliyun", "modelId": "qwen-mt-plus" },
+      "summary": { "enabled": true, "providerId": "aliyun-cloud", "connectionProfileId": "summary.aliyun", "modelId": "qwen3.8-max", "inputMode": "bilingual", "reportLanguage": "auto", "templateId": "general-meeting" }
+    },
+    "privateProfiles": {
+      "speech.private-moss": { "runtimeBaseUrl": "http://runtime.example.test:32780", "token": "replace-me" },
+      "speech.private-funasr": { "runtimeBaseUrl": "http://runtime.example.test:32780", "token": "replace-me" }
+    },
+    "aliyunProfiles": {
+      "speech.aliyun": { "workspaceId": "ws-placeholder", "apiBaseUrl": "https://ws-placeholder.cn-beijing.maas.aliyuncs.com", "modelId": "qwen-audio-3.0-asr-flash-filetrans", "dashscopeApiKey": "replace-me", "ossBucket": "replace-me", "ossEndpoint": "https://replace-me.oss-cn-beijing.aliyuncs.com", "ossAccessKeyId": "replace-me", "ossAccessKeySecret": "replace-me" },
+      "translation.aliyun": { "workspaceId": "ws-placeholder", "apiBaseUrl": "https://ws-placeholder.cn-beijing.maas.aliyuncs.com", "modelId": "qwen-mt-plus", "dashscopeApiKey": "replace-me" },
+      "summary.aliyun": { "workspaceId": "ws-placeholder", "apiBaseUrl": "https://ws-placeholder.cn-beijing.maas.aliyuncs.com", "modelId": "qwen3.8-max", "dashscopeApiKey": "replace-me" }
+    }
+  },
+  "volcengineAST2": { "apiKey": "replace-me", "sourceLanguage": "zh", "targetLanguage": "ja", "turnDetectionMode": "Auto", "hotWordTableId": "", "replacementTableId": "", "glossaryTableId": "" }
+}

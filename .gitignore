@@ -108,6 +108,8 @@ public/wasm/*
 
 # Local test-run output (`npm run test > test-results.txt`)
 /test-results.txt
+/services/recording-ai-runtime/runtime.env
+/services/recording-ai-runtime/test-config.json
 /pocket-mirrors/
 
 # OmniVoice TTS spike scratch (models, samples) — not committed

@@ -152,10 +152,12 @@ export default defineConfig(({ command, mode }) => {
             // Recording jobs are CommonJS sibling modules loaded by main.js.
             'recording-job-bridge': 'electron/recording-job-bridge.js',
             'recording-credential-store': 'electron/recording-credential-store.js',
+            'secure-settings-store': 'electron/secure-settings-store.js',
             'recording-processing-settings': 'electron/recording-processing-settings.js',
             'recording-sidecar-client': 'electron/recording-sidecar-client.js',
             'aliyun-cloud-profile-store': 'electron/aliyun-cloud-profile-store.js',
             'recording-job-runner': 'electron/recording-job-runner.js',
+            'test-config-loader': 'electron/test-config-loader.js',
             'recording-result-normalizer': 'electron/recording-result-normalizer.js',
             'recording-result-exporter': 'electron/recording-result-exporter.js',
             'recording-summary-schema': 'electron/recording-summary-schema.js',

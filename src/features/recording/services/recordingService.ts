@@ -43,6 +43,21 @@ export interface RecordingSidecarStatus {
   available: boolean;
   message: string;
 }
+export interface TestConfigLoadResult {
+  version: number;
+  revision: string;
+  loadedAt: string;
+  processingSettings: RecordingJobConfig;
+  volcengineAST2: {
+    apiKey: string;
+    sourceLanguage: string;
+    targetLanguage: string;
+    turnDetectionMode: 'Auto' | 'Push-to-Talk' | 'Push-to-Translate';
+    hotWordTableId?: string;
+    replacementTableId?: string;
+    glossaryTableId?: string;
+  };
+}
 export interface PrivateRuntimeStatus {
   state: 'unconfigured' | 'ready' | 'disabled' | 'unavailable';
   engineId?: RecordingSpeechEngineId;
@@ -81,6 +96,9 @@ export const recordingService = {
   },
   async saveProcessingSettings(config: RecordingJobConfig): Promise<RecordingJobConfig> {
     return desktopApi().invoke('recording:settings-save', { config }) as Promise<RecordingJobConfig>;
+  },
+  async loadTestConfig(username: string, password: string): Promise<TestConfigLoadResult> {
+    return desktopApi().invoke('recording:test-config-load', { username, password }) as Promise<TestConfigLoadResult>;
   },
   async processingSettingsStatus(): Promise<{ settings: RecordingJobConfig; speech: RecordingProviderStatus }> {
     return desktopApi().invoke('recording:settings-status') as Promise<{ settings: RecordingJobConfig; speech: RecordingProviderStatus }>;

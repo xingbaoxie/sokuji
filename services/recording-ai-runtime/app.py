@@ -1,10 +1,11 @@
 import asyncio
+import hmac
 import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 
 from runtime_coordinator import RuntimeCoordinator
@@ -14,6 +15,7 @@ from moss_worker_client import MossWorkerClient
 from task_store import TaskStore
 from audio_probe import AudioValidationError, validate_audio
 from upload_store import remove_uploaded_audio, save_uploaded_audio
+from test_config import FailedLoginLimiter, load_test_config, verify_scrypt_password
 
 config = RuntimeConfig.from_environment()
 store = TaskStore(config.data_root / "tasks" / "tasks.sqlite3")
@@ -34,6 +36,8 @@ coordinator = RuntimeCoordinator(
     store, fake_runtime=config.fake_runtime, speech_executors=speech_executors,
     input_retention_days=config.input_retention_days, result_retention_days=config.result_retention_days,
 )
+test_config_limiter = FailedLoginLimiter()
+NO_STORE_HEADERS = {"Cache-Control": "no-store"}
 
 
 async def _retention_loop() -> None:
@@ -68,6 +72,38 @@ class StageTask(BaseModel):
     profileRevision: str = Field(min_length=1)
     modelId: str | None = Field(default=None, min_length=1)
     payload: dict
+
+
+class TestConfigLogin(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=512)
+
+
+def _test_config_client(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+@app.post("/v1/test-config/load")
+def load_test_configuration(request: Request, credentials: TestConfigLogin, response: Response) -> dict:
+    """Return the temporary operator-managed configuration without logging it."""
+    if not config.test_config_enabled:
+        raise HTTPException(status_code=404, detail="Not found", headers=NO_STORE_HEADERS)
+    client = _test_config_client(request)
+    if test_config_limiter.blocked(client):
+        raise HTTPException(status_code=429, detail="Try again later", headers=NO_STORE_HEADERS)
+    valid_user = bool(config.test_config_username) and hmac.compare_digest(credentials.username, config.test_config_username)
+    valid_password = bool(config.test_config_password_hash) and verify_scrypt_password(credentials.password, config.test_config_password_hash)
+    if not (valid_user and valid_password):
+        test_config_limiter.failure(client)
+        raise HTTPException(status_code=401, detail="Invalid credentials", headers=NO_STORE_HEADERS)
+    try:
+        payload = load_test_config(config.test_config_file)
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError):
+        # Do not reveal whether the operator file exists or which field is bad.
+        raise HTTPException(status_code=503, detail="Test configuration is unavailable", headers=NO_STORE_HEADERS)
+    test_config_limiter.success(client)
+    response.headers["Cache-Control"] = "no-store"
+    return payload
 
 
 @app.post("/v1/speech/tasks", dependencies=[Depends(require_token)])

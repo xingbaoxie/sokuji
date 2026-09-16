@@ -68,6 +68,7 @@ export const INVOKE_CHANNELS = [
   'recording:start-job',
   'recording:settings-get',
   'recording:settings-save',
+  'recording:test-config-load',
   'recording:settings-status',
   'recording:provider-catalog',
   'recording:provider-status',
@@ -90,6 +91,9 @@ export const INVOKE_CHANNELS = [
   'recording:aliyun-profile-save',
   'recording:aliyun-profile-clear',
   'recording:sidecar-status',
+  // Main-process secure provider credentials used by temporary test config.
+  'settings:secure-secret-get',
+  'settings:secure-secret-set',
   // Self-contained sidecar bundle install/status
   'sidecar-bundle:status',
   'sidecar-bundle:install',

@@ -8,8 +8,10 @@ const { AliyunOssClient, BailianClient, normalizeTranscript, objectKey, summariz
 const { SPEECH_PROFILE_IDS, TEXT_PROFILE_IDS } = require('./recording-processing-settings');
 const { normalizeSummaryConfig, normalizeSummaryResult, normalizeTranscriptResult, normalizeTranslationResult } = require('./recording-result-normalizer');
 const { summaryText, transcriptText, translationText, writeSummaryDocx } = require('./recording-result-exporter');
+const { loadAndApplyTestConfig } = require('./test-config-loader');
 
 const AUDIO_EXTENSIONS = new Set(['.m4a', '.mp3', '.wav', '.aac', '.flac']);
+const SECURE_SETTING_KEYS = new Set(['volcengineAST2.apiKey']);
 const activeRuntimeClients = new Map();
 const jobWriteQueues = new Map();
 
@@ -618,7 +620,7 @@ async function getPrivateRuntimeStatus(credentialStore, profileId, legacySchemeO
   return { ...status, ...(status.engineId ? { engine: status.engineId, model: status.modelId } : {}) };
 }
 
-function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, aliyunProfileStore, processingSettingsStore, recordingSidecarClient, cloudFactory = null }) {
+function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, aliyunProfileStore, processingSettingsStore, secureSettingsStore, recordingSidecarClient, cloudFactory = null }) {
   const providerRegistry = new RecordingProviderRegistry({ credentialStore, aliyunProfileStore });
   ipcMain.handle('recording:pick-audio', async () => {
     const result = await dialog.showOpenDialog({
@@ -754,6 +756,18 @@ function registerRecordingJobBridge({ ipcMain, dialog, app, credentialStore, ali
   ipcMain.handle('recording:settings-save', async (_event, payload) => {
     if (!processingSettingsStore) throw new Error('Recording processing settings are unavailable.');
     return processingSettingsStore.save(payload?.config);
+  });
+  ipcMain.handle('recording:test-config-load', async (_event, payload) => {
+    if (!secureSettingsStore) throw new Error('Secure settings storage is unavailable.');
+    return loadAndApplyTestConfig(payload, { credentialStore, aliyunProfileStore, processingSettingsStore, secureSettingsStore });
+  });
+  ipcMain.handle('settings:secure-secret-get', async (_event, payload) => {
+    if (!secureSettingsStore || !SECURE_SETTING_KEYS.has(payload?.key)) return '';
+    return secureSettingsStore.get(payload.key);
+  });
+  ipcMain.handle('settings:secure-secret-set', async (_event, payload) => {
+    if (!secureSettingsStore || !SECURE_SETTING_KEYS.has(payload?.key) || typeof payload?.value !== 'string') throw new Error('A supported secure setting key and value are required.');
+    return secureSettingsStore.save(payload.key, payload.value);
   });
   ipcMain.handle('recording:settings-status', async () => {
     if (!processingSettingsStore) throw new Error('Recording processing settings are unavailable.');

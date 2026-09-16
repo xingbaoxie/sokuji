@@ -75,18 +75,31 @@ async function atomicWrite(file, value) {
 class AliyunCloudProfileStore {
   constructor({ app, safeStorage }) { this.app = app; this.safeStorage = safeStorage; }
   async readAll() { try { return JSON.parse(await readFile(profileFile(this.app), 'utf8')); } catch (error) { if (error?.code === 'ENOENT') return { version: 1, profiles: {} }; throw error; } }
-  requireEncryption() {
-    if (!this.safeStorage?.isEncryptionAvailable()) throw new Error('OS secure storage is unavailable; Aliyun credentials cannot be saved.');
-  }
   sealSecrets(profile) {
     const stored = { ...profile };
     for (const key of SECRET_FIELDS) {
       const value = String(profile[key] || '').trim();
       if (value) {
-        this.requireEncryption();
-        stored[`${key}Encrypted`] = this.safeStorage.encryptString(value).toString('base64');
-      } else delete stored[`${key}Encrypted`];
-      delete stored[key];
+        let encrypted = false;
+        try {
+          if (this.safeStorage?.isEncryptionAvailable?.()) {
+            stored[`${key}Encrypted`] = this.safeStorage.encryptString(value).toString('base64');
+            delete stored[`${key}`];
+            encrypted = true;
+          }
+        } catch (_) {
+          delete stored[`${key}Encrypted`];
+        }
+        if (!encrypted) {
+          // Test packages must remain usable on desktops without a keyring.
+          // atomicWrite() keeps this app-owned file at mode 0600.
+          stored[key] = value;
+          delete stored[`${key}Encrypted`];
+        }
+      } else {
+        delete stored[`${key}Encrypted`];
+        delete stored[key];
+      }
     }
     return stored;
   }
@@ -95,7 +108,7 @@ class AliyunCloudProfileStore {
     for (const key of SECRET_FIELDS) {
       const encrypted = profile?.[`${key}Encrypted`];
       if (encrypted) {
-        this.requireEncryption();
+        if (!this.safeStorage?.isEncryptionAvailable?.()) throw new Error('OS secure storage is unavailable for this Aliyun profile.');
         revealed[key] = this.safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
       } else revealed[key] = String(profile?.[key] || '');
     }
@@ -105,6 +118,7 @@ class AliyunCloudProfileStore {
     await mkdir(path.dirname(profileFile(this.app)), { recursive: true, mode: 0o700 });
     await atomicWrite(profileFile(this.app), document);
   }
+  async replaceAll(document) { await this.writeAll(document); }
   async migrateLegacyProfile(document, profileId) {
     const profile = document.profiles[profileId];
     if (!profile || !SECRET_FIELDS.some((key) => String(profile[key] || '').trim())) return profile;

@@ -8,6 +8,20 @@ FunASR Meeting uses the pinned FunASR upstream commit `2b6294d69e6588a63c0ce0630
 
 On the server, copy `runtime.env.example` to `/opt/sokuji-recording-runtime/runtime.env`, create a high-entropy token in that file, then run `docker compose up -d --build control-api`.
 
+## Temporary package-test configuration
+
+For controlled package tests only, the desktop app can authenticate to
+`POST /v1/test-config/load` and retrieve its recording and AST2 provider
+configuration. Keep `SOKUJI_TEST_CONFIG_ENABLED=false` outside that test
+window. Create a shared-account hash with `./generate_test_config_password_hash.py`, then put only the hash and username in `runtime.env`.
+
+Copy `test-config.example.json` to the configured
+`SOKUJI_TEST_CONFIG_FILE`, fill it on the server directly, and set its mode to
+`600`. Neither the real JSON nor `runtime.env` belongs in Git. The endpoint
+does not use the Runtime bearer token; it accepts only the short-lived shared
+test account, so expose it only for the temporary controlled test described in
+this repository.
+
 The only intended POC listener is `192.168.50.186:8080`. Use the server firewall to restrict it to the desktop subnet. HTTP is temporary for the isolated private LAN; production must use internal HTTPS.
 
 Uploads are removed after 7 days and task records/results after 30 days by the in-process retention loop. The values are configurable only through `runtime.env`; use a pinned MOSS commit hash in `SOKUJI_MOSS_MODEL_REVISION` after its benchmark gate passes.

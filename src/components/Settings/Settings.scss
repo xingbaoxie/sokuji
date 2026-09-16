@@ -39,6 +39,35 @@
   }
 }
 
+.test-config-section {
+  display: grid;
+  gap: 10px;
+  margin: 12px 15px 0;
+  padding: 12px;
+  border: 1px solid vars.$border-default;
+  border-radius: vars.$radius-md;
+  background: vars.$bg-control;
+
+  &__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; color: vars.$color-primary; }
+  &__heading h2 { margin: 0; color: vars.$text-primary; font-size: vars.$font-body; }
+  &__heading p { margin: 4px 0 0; color: vars.$text-secondary; font-size: vars.$font-caption; line-height: 1.4; }
+  &__form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+  &__form label { display: grid; gap: 5px; color: vars.$text-secondary; font-size: vars.$font-caption; }
+  &__form input { @include vars.control-base; width: 100%; min-width: 0; box-sizing: border-box; }
+  &__password { display: flex; border: 1px solid vars.$border-default; border-radius: vars.$radius-sm; background: vars.$bg-control; overflow: hidden; }
+  &__password:focus-within { border-color: vars.$color-primary; @include vars.focus-ring; }
+  &__password input { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  &__password button { display: inline-flex; align-items: center; justify-content: center; width: 36px; border: 0; border-left: 1px solid vars.$border-default; color: vars.$text-muted; background: transparent; cursor: pointer; }
+  &__submit { display: inline-flex; min-width: 76px; min-height: 36px; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: vars.$radius-sm; padding: 0 10px; color: vars.$color-on-primary; background: vars.$color-primary-fill; cursor: pointer; white-space: nowrap; }
+  &__submit:hover:not(:disabled) { background: vars.$color-primary-fill-hover; }
+  &__submit:disabled { @include vars.disabled-state; }
+  &__notice { margin: 0; font-size: vars.$font-caption; }
+  &__notice.is-error { color: vars.$color-error; }
+  &__notice.is-success { color: vars.$color-primary; }
+
+  @media (max-width: 700px) { &__form { grid-template-columns: 1fr; } }
+}
+
 // Shared section styles that apply to both modes
 .config-section,
 .settings-section {

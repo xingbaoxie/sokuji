@@ -10,6 +10,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('../../stores/settingsStore', () => ({
   useUIMode: () => 'advanced',
   useSetUIMode: () => vi.fn(),
+  useSetProvider: () => vi.fn(),
+  useUpdateVolcengineAST2: () => vi.fn(),
   useNavigateToSettings: () => vi.fn(),
   useSettingsNavigationTarget: () => null,
 }));

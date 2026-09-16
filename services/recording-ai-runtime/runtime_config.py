@@ -49,6 +49,10 @@ class RuntimeConfig:
     funasr_vad_max_single_segment_time_ms: int
     funasr_gpu_memory_utilization: float
     funasr_validated_max_duration_sec: int
+    test_config_enabled: bool
+    test_config_username: str
+    test_config_password_hash: str
+    test_config_file: Path
 
     @classmethod
     def from_environment(cls) -> "RuntimeConfig":
@@ -77,6 +81,10 @@ class RuntimeConfig:
             funasr_vad_max_single_segment_time_ms=_positive_int("SOKUJI_FUNASR_VAD_MAX_SINGLE_SEGMENT_TIME_MS", 30000),
             funasr_gpu_memory_utilization=float(os.getenv("SOKUJI_FUNASR_GPU_MEMORY_UTILIZATION", "0.5")),
             funasr_validated_max_duration_sec=_non_negative_int("SOKUJI_FUNASR_VALIDATED_MAX_DURATION_SEC", 0),
+            test_config_enabled=os.getenv("SOKUJI_TEST_CONFIG_ENABLED", "false").lower() == "true",
+            test_config_username=os.getenv("SOKUJI_TEST_CONFIG_USERNAME", ""),
+            test_config_password_hash=os.getenv("SOKUJI_TEST_CONFIG_PASSWORD_HASH", ""),
+            test_config_file=Path(os.getenv("SOKUJI_TEST_CONFIG_FILE", "/var/lib/sokuji-recording-runtime/test-config.json")),
         )
 
     def speech_profile(self, engine: str) -> dict:

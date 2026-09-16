@@ -36,10 +36,9 @@ class RecordingCredentialStore {
     }
   }
 
-  requireEncryption() {
-    if (!this.safeStorage.isEncryptionAvailable()) {
-      throw new Error('OS secure storage is unavailable; recording credentials cannot be saved.');
-    }
+  async replaceAll(document) {
+    await mkdir(path.dirname(credentialFile(this.app)), { recursive: true, mode: 0o700 });
+    await writeAtomic(credentialFile(this.app), document);
   }
 
   async save(profileId, secret, runtimeBaseUrl = '') {
@@ -51,19 +50,36 @@ class RecordingCredentialStore {
     // resolved for a job until it has both a URL and a token.
     const next = { ...existing, runtimeBaseUrl: normalizeRuntimeBaseUrl(runtimeBaseUrl), updatedAt: new Date().toISOString() };
     if (secret.length > 0) {
-      this.requireEncryption();
-      next.encrypted = this.safeStorage.encryptString(secret).toString('base64');
+      let encrypted = false;
+      try {
+        if (this.safeStorage?.isEncryptionAvailable?.()) {
+          next.encrypted = this.safeStorage.encryptString(secret).toString('base64');
+          delete next.secret;
+          encrypted = true;
+        }
+      } catch (_) {
+        delete next.encrypted;
+      }
+      if (!encrypted) {
+        // A package test must still work on a desktop without a native
+        // keyring. The enclosing file is owner-only (0600); safeStorage is
+        // always used whenever Electron exposes it.
+        next.secret = secret;
+        delete next.encrypted;
+      }
     }
     document.profiles[profileId] = next;
-    await mkdir(path.dirname(credentialFile(this.app)), { recursive: true, mode: 0o700 });
-    await writeAtomic(credentialFile(this.app), document);
+    await this.replaceAll(document);
   }
 
   async resolve(profileId) {
-    this.requireEncryption();
     const entry = (await this.readAll()).profiles[profileId];
-    if (!entry?.encrypted) throw new Error('Credential is not configured for this Runtime profile.');
-    return this.safeStorage.decryptString(Buffer.from(entry.encrypted, 'base64'));
+    if (!entry?.encrypted && !entry?.secret) throw new Error('Credential is not configured for this Runtime profile.');
+    if (entry.encrypted) {
+      if (!this.safeStorage?.isEncryptionAvailable?.()) throw new Error('OS secure storage is unavailable for this Runtime profile.');
+      return this.safeStorage.decryptString(Buffer.from(entry.encrypted, 'base64'));
+    }
+    return entry.secret;
   }
 
   async connection(profileId) {
@@ -75,30 +91,29 @@ class RecordingCredentialStore {
   async remove(profileId) {
     const document = await this.readAll();
     delete document.profiles[profileId];
-    await mkdir(path.dirname(credentialFile(this.app)), { recursive: true, mode: 0o700 });
-    await writeAtomic(credentialFile(this.app), document);
+    await this.replaceAll(document);
   }
 
   async configured(profileId) {
-    return Boolean((await this.readAll()).profiles[profileId]?.encrypted);
+    const profile = (await this.readAll()).profiles[profileId];
+    return Boolean(profile?.encrypted || profile?.secret);
   }
 
   async copy(fromProfileId, toProfileId) {
     const document = await this.readAll();
     if (document.profiles[toProfileId] || !document.profiles[fromProfileId]) return false;
     document.profiles[toProfileId] = { ...document.profiles[fromProfileId], updatedAt: new Date().toISOString() };
-    await mkdir(path.dirname(credentialFile(this.app)), { recursive: true, mode: 0o700 });
-    await writeAtomic(credentialFile(this.app), document);
+    await this.replaceAll(document);
     return true;
   }
 
   async status(profileId, { includeSecret = false } = {}) {
     const entry = (await this.readAll()).profiles[profileId];
-    const status = { profileId, credentialConfigured: Boolean(entry?.encrypted), runtimeBaseUrl: entry?.runtimeBaseUrl || '' };
+    const status = { profileId, credentialConfigured: Boolean(entry?.encrypted || entry?.secret), runtimeBaseUrl: entry?.runtimeBaseUrl || '' };
     // The settings screen is the explicit user-facing credential editor. It
     // may request its own saved value so the user can inspect and change it.
     // All execution/status paths keep the value out of their responses.
-    return includeSecret && entry?.encrypted ? { ...status, secret: await this.resolve(profileId) } : status;
+    return includeSecret && (entry?.encrypted || entry?.secret) ? { ...status, secret: await this.resolve(profileId) } : status;
   }
 }
 

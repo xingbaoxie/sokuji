@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutGrid, Sliders, Settings as SettingsIcon, Headphones, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useUIMode, useSetUIMode, useNavigateToSettings, useSettingsNavigationTarget } from '../../stores/settingsStore';
+import { useUIMode, useSetUIMode, useNavigateToSettings, useSettingsNavigationTarget, useSetProvider, useUpdateVolcengineAST2 } from '../../stores/settingsStore';
 import { useIsSessionActive } from '../../stores/sessionStore';
 import { useAnalytics } from '../../lib/analytics';
 import SimpleSettings from './SimpleSettings/SimpleSettings';
@@ -9,6 +9,9 @@ import AdvancedSettings from './AdvancedSettings/AdvancedSettings';
 import PanelBar from './shared/PanelBar';
 import type { Tab } from './shared/TabBar';
 import RecordingSettingsSection from '../../features/recording/components/RecordingSettingsSection';
+import TestConfigSection from './TestConfigSection';
+import type { TestConfigLoadResult } from '../../features/recording/services/recordingService';
+import { Provider } from '../../types/Provider';
 import './Settings.scss';
 
 interface SettingsProps {
@@ -71,12 +74,15 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
   const setUIMode = useSetUIMode();
   const settingsNavigationTarget = useSettingsNavigationTarget();
   const navigateToSettings = useNavigateToSettings();
+  const setProvider = useSetProvider();
+  const updateVolcengineAST2 = useUpdateVolcengineAST2();
 
   // 'basic' maps to Simple/Quick, 'advanced' maps to Advanced.
   const isSimpleMode = uiMode === 'basic';
 
   const [activeTab, setActiveTab] = useState(readStoredTab);
   const [category, setCategory] = useState<SettingsCategory>(readStoredCategory);
+  const [recordingConfigRevision, setRecordingConfigRevision] = useState(0);
 
   useEffect(() => {
     sessionStorage.setItem(TAB_STORAGE_KEY, activeTab);
@@ -142,6 +148,12 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
     });
   };
 
+  const applyTestConfig = async (result: TestConfigLoadResult) => {
+    await updateVolcengineAST2(result.volcengineAST2);
+    await setProvider(Provider.VOLCENGINE_AST2);
+    setRecordingConfigRevision((revision) => revision + 1);
+  };
+
   const modeToggle = (
     <div className="mode-toggle">
       <button
@@ -176,11 +188,12 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
       />
 
       <div className="settings-body">
+        <TestConfigSection onLoaded={applyTestConfig} />
         <div className="settings-category-tabs" role="tablist" aria-label={t('settings.title', 'Settings')}>
           <button type="button" role="tab" aria-selected={category === 'subtitle'} className={category === 'subtitle' ? 'is-active' : ''} onClick={() => setCategory('subtitle')}>{t('subtitle.enterButton.label', 'Subtitles')}</button>
           <button type="button" role="tab" aria-selected={category === 'recording'} className={category === 'recording' ? 'is-active' : ''} onClick={() => setCategory('recording')}>{t('recording.title', 'Recording transcription')}</button>
         </div>
-        {category === 'recording' ? <RecordingSettingsSection /> : isSimpleMode ? (
+        {category === 'recording' ? <RecordingSettingsSection key={recordingConfigRevision} /> : isSimpleMode ? (
           <SimpleSettings highlightSection={highlightSection || settingsNavigationTarget} />
         ) : (
           <AdvancedSettings toggleSettings={toggleSettings} activeTab={activeTab} />

@@ -24,6 +24,7 @@ const { RecordingCredentialStore } = require('./recording-credential-store');
 const { AliyunCloudProfileStore } = require('./aliyun-cloud-profile-store');
 const { RecordingProcessingSettingsStore } = require('./recording-processing-settings');
 const { RecordingSidecarClient } = require('./recording-sidecar-client');
+const { SecureSettingsStore } = require('./secure-settings-store');
 const { registerRecordingAudioProtocol } = require('./recording-audio-protocol');
 const nativeHost = new NativeHostManager();
 
@@ -620,13 +621,18 @@ app.on('will-quit', cleanupAndExit);
 
 // IPC handler for app version
 nativeHost.registerIpc(ipcMain);
+const recordingCredentialStore = new RecordingCredentialStore({ app, safeStorage });
+const recordingAliyunProfileStore = new AliyunCloudProfileStore({ app, safeStorage });
+const recordingProcessingSettingsStore = new RecordingProcessingSettingsStore({ app });
+const secureSettingsStore = new SecureSettingsStore({ app, safeStorage });
 registerRecordingJobBridge({
   ipcMain,
   dialog,
   app,
-  credentialStore: new RecordingCredentialStore({ app, safeStorage }),
-  aliyunProfileStore: new AliyunCloudProfileStore({ app, safeStorage }),
-  processingSettingsStore: new RecordingProcessingSettingsStore({ app }),
+  credentialStore: recordingCredentialStore,
+  aliyunProfileStore: recordingAliyunProfileStore,
+  processingSettingsStore: recordingProcessingSettingsStore,
+  secureSettingsStore,
   recordingSidecarClient: new RecordingSidecarClient(nativeHost),
 });
 

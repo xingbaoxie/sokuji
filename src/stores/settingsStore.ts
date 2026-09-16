@@ -550,6 +550,20 @@ type SliceUpdateSpec = {
   neverPersist?: readonly string[];
 };
 
+function desktopSecureSettingAvailable(): boolean {
+  return typeof window !== 'undefined' && typeof window.electron?.invoke === 'function';
+}
+
+async function persistProviderField(sliceKey: ProviderSliceKey, key: string, value: unknown): Promise<void> {
+  // Keep the user-managed Doubao key out of renderer localStorage in desktop
+  // builds. Browser-extension builds keep their existing Chrome-storage path.
+  if (sliceKey === 'volcengineAST2' && key === 'apiKey' && desktopSecureSettingAvailable()) {
+    await window.electron.invoke('settings:secure-secret-set', { key: 'volcengineAST2.apiKey', value: String(value || '') });
+    return;
+  }
+  await persistSetting(`settings.${sliceKey}.${key}`, value);
+}
+
 // WebRTC transport: the server truncates audio on user speech (API design),
 // so server VAD must be off to prevent translation interruption. Forcing the
 // field unconditionally is equivalent to the old merged-state check: after
@@ -601,7 +615,7 @@ async function updateProviderSlice(
   // the failure once per key instead.
   for (const [key, value] of Object.entries(effective)) {
     if (spec.neverPersist?.includes(key)) continue;
-    await persistSetting(`settings.${sliceKey}.${key}`, value);
+    await persistProviderField(sliceKey, key, value);
   }
 }
 
@@ -1192,6 +1206,20 @@ const useSettingsStore = create<SettingsStore>()(
             await loadProviderSettings(`settings.${sliceKey}`, PROVIDER_SLICE_REGISTRY[sliceKey].defaults),
           ] as const),
         )) as Partial<SettingsStore>;
+
+        // The desktop app now keeps the Doubao credential in main-process
+        // secure storage. Import the old renderer-localStorage value once so
+        // existing installations do not lose their manual configuration.
+        if (desktopSecureSettingAvailable()) {
+          const secureApiKey = await window.electron.invoke('settings:secure-secret-get', { key: 'volcengineAST2.apiKey' }) as string;
+          const ast2 = loadedSlices.volcengineAST2 as VolcengineAST2Settings | undefined;
+          if (ast2 && secureApiKey) {
+            ast2.apiKey = secureApiKey;
+          } else if (ast2?.apiKey) {
+            await window.electron.invoke('settings:secure-secret-set', { key: 'volcengineAST2.apiKey', value: ast2.apiKey });
+            localStorage.removeItem('settings.volcengineAST2.apiKey');
+          }
+        }
 
         // Migrate a persisted deprecated OpenAI realtime model (pre-2.1 family,
         // removed from the API 2027-01-20) to its current replacement so
