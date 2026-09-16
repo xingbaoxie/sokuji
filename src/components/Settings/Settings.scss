@@ -12,9 +12,32 @@
 
   .settings-body {
     flex: 1;
+    min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+}
+
+// The test-configuration card and category tabs occupy vertical space above
+// the actual settings view.  Each view owns its own scroll container, so it
+// must be constrained to the remaining height instead of the full body.
+.settings-panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+
+  > .simple-settings,
+  > .advanced-settings,
+  > .recording-settings {
+    flex: 1;
+    min-height: 0;
+  }
+
+  > .recording-settings {
+    height: 100%;
+    box-sizing: border-box;
   }
 }
 

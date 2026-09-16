@@ -206,11 +206,13 @@ const Settings: React.FC<SettingsProps> = ({ toggleSettings, highlightSection })
           <button type="button" role="tab" aria-selected={category === 'subtitle'} className={category === 'subtitle' ? 'is-active' : ''} onClick={() => setCategory('subtitle')}>{t('subtitle.enterButton.label', 'Subtitles')}</button>
           <button type="button" role="tab" aria-selected={category === 'recording'} className={category === 'recording' ? 'is-active' : ''} onClick={() => setCategory('recording')}>{t('recording.title', 'Recording transcription')}</button>
         </div>
-        {category === 'recording' ? <RecordingSettingsSection key={recordingConfigRevision} /> : isSimpleMode ? (
-          <SimpleSettings highlightSection={highlightSection || settingsNavigationTarget} />
-        ) : (
-          <AdvancedSettings toggleSettings={toggleSettings} activeTab={activeTab} />
-        )}
+        <div className="settings-panel-content">
+          {category === 'recording' ? <RecordingSettingsSection key={recordingConfigRevision} /> : isSimpleMode ? (
+            <SimpleSettings highlightSection={highlightSection || settingsNavigationTarget} />
+          ) : (
+            <AdvancedSettings toggleSettings={toggleSettings} activeTab={activeTab} />
+          )}
+        </div>
       </div>
     </div>
   );
