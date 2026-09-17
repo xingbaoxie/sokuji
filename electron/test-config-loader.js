@@ -20,7 +20,7 @@ function validatePayload(payload) {
   const translation = settings.translation;
   const summary = settings.summary;
   if (
-    settings.sourceLanguageMode !== 'auto' || settings.targetLanguage !== 'ja'
+    settings.sourceLanguageMode !== 'auto'
     || speech?.providerId !== 'private-runtime' || speech?.connectionProfileId !== 'speech.private-moss' || speech?.engineId !== 'moss'
     || translation?.enabled !== true || translation?.providerId !== 'aliyun-cloud' || translation?.connectionProfileId !== 'translation.aliyun' || !requiredString(translation?.modelId, 'Translation model is missing.')
     || summary?.enabled !== true || summary?.providerId !== 'aliyun-cloud' || summary?.connectionProfileId !== 'summary.aliyun' || !requiredString(summary?.modelId, 'Summary model is missing.')

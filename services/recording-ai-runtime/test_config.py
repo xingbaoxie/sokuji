@@ -53,7 +53,6 @@ def validate_test_config(value: Any) -> dict[str, Any]:
     summary = settings.get("summary")
     if (
         settings.get("sourceLanguageMode") != "auto"
-        or settings.get("targetLanguage") != "ja"
         or not isinstance(speech, dict)
         or speech.get("providerId") != "private-runtime"
         or speech.get("connectionProfileId") != "speech.private-moss"

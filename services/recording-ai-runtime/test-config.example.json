@@ -4,11 +4,11 @@
   "recording": {
     "processingSettings": {
       "sourceLanguageMode": "auto",
-      "targetLanguage": "ja",
+      "targetLanguage": "zh",
       "hotwords": [],
       "speech": { "providerId": "private-runtime", "connectionProfileId": "speech.private-moss", "engineId": "moss", "modelId": "" },
       "translation": { "enabled": true, "providerId": "aliyun-cloud", "connectionProfileId": "translation.aliyun", "modelId": "qwen-mt-plus" },
-      "summary": { "enabled": true, "providerId": "aliyun-cloud", "connectionProfileId": "summary.aliyun", "modelId": "qwen3.8-max", "inputMode": "bilingual", "reportLanguage": "auto", "templateId": "general-meeting" }
+      "summary": { "enabled": true, "providerId": "aliyun-cloud", "connectionProfileId": "summary.aliyun", "modelId": "qwen3.8-max", "inputMode": "bilingual", "reportLanguage": "zh", "templateId": "general-meeting" }
     },
     "privateProfiles": {
       "speech.private-moss": { "runtimeBaseUrl": "http://runtime.example.test:32780", "token": "replace-me" },

@@ -5,10 +5,10 @@ const payload = {
   revision: 'test-20260916-01',
   recording: {
     processingSettings: {
-      sourceLanguageMode: 'auto', targetLanguage: 'ja', hotwords: [],
+      sourceLanguageMode: 'auto', targetLanguage: 'zh', hotwords: [],
       speech: { providerId: 'private-runtime', connectionProfileId: 'speech.private-moss', engineId: 'moss' },
       translation: { enabled: true, providerId: 'aliyun-cloud', connectionProfileId: 'translation.aliyun', modelId: 'qwen-mt-plus' },
-      summary: { enabled: true, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'bilingual', reportLanguage: 'auto', templateId: 'general-meeting' },
+      summary: { enabled: true, providerId: 'aliyun-cloud', connectionProfileId: 'summary.aliyun', modelId: 'qwen3.8-max', inputMode: 'bilingual', reportLanguage: 'zh', templateId: 'general-meeting' },
     },
     privateProfiles: {
       'speech.private-moss': { runtimeBaseUrl: 'http://runtime.test', token: 'moss-token' },
